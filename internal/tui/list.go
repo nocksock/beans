@@ -394,7 +394,12 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					}
 				}
 			case "c":
-				// Open create modal with parent/blocking context
+				// Open create modal (regular - no parent/blocking)
+				return m, func() tea.Msg {
+					return openCreateModalMsg{}
+				}
+			case "C":
+				// Open create modal with parent/blocking context (uppercase C)
 				var parentID *string
 				var blockingIDs []string
 				var contextInfo string
