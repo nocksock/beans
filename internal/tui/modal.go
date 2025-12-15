@@ -8,6 +8,11 @@ import (
 	"github.com/hmans/beans/internal/ui"
 )
 
+// calculateModalWidth calculates the modal width based on screen width and constraints
+func calculateModalWidth(screenWidth, percentWidth, minWidth, maxWidth int) int {
+	return max(minWidth, min(maxWidth, screenWidth*percentWidth/100))
+}
+
 // pickerModalConfig holds configuration for rendering a picker modal
 type pickerModalConfig struct {
 	Title       string // e.g., "Select Status"
@@ -32,7 +37,7 @@ func renderPickerModal(cfg pickerModalConfig) string {
 		maxWidth = 60
 	}
 
-	modalWidth := max(40, min(maxWidth, cfg.Width*widthPct/100))
+	modalWidth := calculateModalWidth(cfg.Width, widthPct, 40, maxWidth)
 
 	// Header with bean title (truncated if needed)
 	titleWidth := modalWidth - 4
