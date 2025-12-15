@@ -46,7 +46,6 @@ func (m launchConfirm) Update(msg tea.Msg) (launchConfirm, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "y", "Y", "enter":
-			// Confirm
 			return m, func() tea.Msg {
 				return launchConfirmedMsg{
 					launcher: m.launcher,
@@ -55,7 +54,6 @@ func (m launchConfirm) Update(msg tea.Msg) (launchConfirm, tea.Cmd) {
 			}
 
 		case "n", "N", "q", "esc":
-			// Cancel
 			return m, func() tea.Msg {
 				return launchCancelledMsg{}
 			}
@@ -70,7 +68,6 @@ func (m launchConfirm) View() string {
 		return "Loading..."
 	}
 
-	// Build the dialog
 	count := len(m.beanIDs)
 	title := fmt.Sprintf("Launch %s for %d beans?", m.launcher.Name, count)
 
@@ -78,12 +75,10 @@ func (m launchConfirm) View() string {
 
 	prompt := "Press y to confirm, n to cancel"
 
-	// Style the dialog
 	titleStyled := confirmTitleStyle.Render(title)
 	warningStyled := confirmWarningStyle.Render(warning)
 	promptStyled := confirmPromptStyle.Render(prompt)
 
-	// Create a centered box
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		titleStyled,
@@ -93,10 +88,8 @@ func (m launchConfirm) View() string {
 		promptStyled,
 	)
 
-	// Add padding and border
 	dialog := confirmDialogStyle.Render(content)
 
-	// Center in the screen
 	return lipgloss.Place(
 		m.width,
 		m.height,

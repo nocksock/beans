@@ -32,13 +32,18 @@ launchers:
         # Check if branch already exists
         if git show-ref --verify --quiet "refs/heads/task/$BEANS_ID"; then
           # Branch exists, check it out in the worktree
-          git worktree add "$WORKTREE_DIR" "task/$BEANS_ID"
+          git worktree add --no-checkout "$WORKTREE_DIR" "task/$BEANS_ID"
         else
           # Create new branch
-          git worktree add "$WORKTREE_DIR" -b "task/$BEANS_ID"
+          git worktree add --no-checkout "$WORKTREE_DIR" -b "task/$BEANS_ID"
         fi
+        
+        # Configure sparse checkout in the worktree
+        cd "$WORKTREE_DIR"
+        git sparse-checkout set --no-cone '/*' '!/.beans' '!/.beans.yml'
+        git checkout
       fi
       
       # Open in new kitty window
-      kitty @ launch --type=window --cwd="$BEANS_ROOT/$WORKTREE_DIR" \
-        opencode -p "Work on task $BEANS_ID"
+      kitty -1 --detach -d "$BEANS_ROOT/$WORKTREE_DIR" \
+        opencode -p "run 'beans show $BEANS_ID' and start work on it"

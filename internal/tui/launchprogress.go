@@ -88,16 +88,13 @@ func (m launchProgress) View() string {
 
 	var b strings.Builder
 
-	// Title
 	title := fmt.Sprintf("Launching %s", m.launcherName)
 	b.WriteString(launchTitleStyle.Render(title))
 	b.WriteString("\n\n")
 
-	// Get status counts
 	pending, running, success, failed := m.manager.GetCounts()
 	total := pending + running + success + failed
 
-	// Progress bar (simple text-based)
 	percent := 0.0
 	if total > 0 {
 		percent = float64(success+failed) / float64(total)
@@ -107,13 +104,11 @@ func (m launchProgress) View() string {
 	b.WriteString(bar)
 	b.WriteString("\n\n")
 
-	// Status summary
 	summary := fmt.Sprintf("Total: %d | Running: %d | Success: %d | Failed: %d",
 		total, running, success, failed)
 	b.WriteString(summaryStyle.Render(summary))
 	b.WriteString("\n\n")
 
-	// List all beans with status indicators
 	launches := m.manager.GetStatus()
 	maxLines := m.height - 12 // Reserve space for header, progress, summary, help
 
@@ -124,7 +119,6 @@ func (m launchProgress) View() string {
 			break
 		}
 
-		// Status indicator
 		var indicator string
 		var style lipgloss.Style
 
@@ -143,16 +137,13 @@ func (m launchProgress) View() string {
 			style = errorStyle
 		}
 
-		// Bean info
 		line := fmt.Sprintf("  %s %s", indicator, launch.Bean.ID)
 
-		// Show duration for running/complete
 		duration := launch.Duration()
 		if duration > 0 {
 			line += fmt.Sprintf(" (%s)", duration.Round(time.Millisecond))
 		}
 
-		// Show error if failed
 		if launch.Status == launcherexec.LaunchFailed && launch.Error != nil {
 			line += fmt.Sprintf(": %s", launch.Error)
 		}
@@ -161,7 +152,6 @@ func (m launchProgress) View() string {
 		b.WriteString("\n")
 	}
 
-	// Help
 	b.WriteString("\n")
 	b.WriteString(helpStyle.Render("Press q or esc to cancel and stop all processes"))
 

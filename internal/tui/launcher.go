@@ -22,7 +22,6 @@ func discoverLaunchers(cfg *config.Config, beansRoot string) []launcher {
 	var launchers []launcher
 
 	for _, lc := range cfg.Launchers {
-		// Skip launchers with missing required fields
 		if lc.Name == "" || lc.Exec == "" {
 			continue
 		}
@@ -46,7 +45,6 @@ func discoverLaunchersForMultiple(cfg *config.Config, beansRoot string) []launch
 
 	var multiLaunchers []launcher
 	for _, l := range allLaunchers {
-		// Find the config launcher to check Multiple flag
 		for _, cfgLauncher := range cfg.Launchers {
 			if cfgLauncher.Name == l.name && cfgLauncher.Multiple {
 				multiLaunchers = append(multiLaunchers, l)
@@ -84,13 +82,11 @@ func hasLaunchersConfigured(cfg *config.Config) bool {
 func appendLaunchersToConfig(projectRoot string, launchers []config.Launcher) error {
 	configPath := filepath.Join(projectRoot, config.ConfigFileName)
 
-	// Read current file
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config: %w", err)
 	}
 
-	// Build launchers YAML section
 	var launchersYAML strings.Builder
 	launchersYAML.WriteString("\nlaunchers:\n")
 	for _, l := range launchers {
@@ -101,7 +97,6 @@ func appendLaunchersToConfig(projectRoot string, launchers []config.Launcher) er
 		}
 	}
 
-	// Append to file
 	newData := append(data, []byte(launchersYAML.String())...)
 	if err := os.WriteFile(configPath, newData, 0644); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
