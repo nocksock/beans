@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# Enable error tracing in verbose mode
+VERBOSE=${VERBOSE:-false}
+if [[ "$VERBOSE" == "true" ]]; then
+    set -x
+fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -115,7 +121,7 @@ if [[ "$DRY_RUN" == "true" ]]; then
     fi
     echo ""
     echo -e "${CYAN}Changes that would be committed to $TARGET_BRANCH:${NC}"
-    git diff "$TARGET_BRANCH"...HEAD -- .beans/ ':!.beans/.worktrees' --stat
+    git --no-pager diff "$TARGET_BRANCH"...HEAD --stat -- .beans/ ':!.beans/.worktrees'
     if [[ "$HAS_UNCOMMITTED" == "true" ]]; then
         echo ""
         echo -e "${CYAN}Uncommitted changes (will be committed first):${NC}"
@@ -141,7 +147,7 @@ else
 fi
 echo ""
 echo -e "${YELLOW}Preview of changes to move to $TARGET_BRANCH:${NC}"
-git diff "$TARGET_BRANCH"...HEAD -- .beans/ ':!.beans/.worktrees' --stat
+git --no-pager diff "$TARGET_BRANCH"...HEAD --stat -- .beans/ ':!.beans/.worktrees'
 if [[ "$HAS_UNCOMMITTED" == "true" ]]; then
     echo ""
     echo -e "${YELLOW}Uncommitted changes (will be committed first):${NC}"
@@ -312,14 +318,27 @@ else
     # --index-filter is faster than --tree-filter as it doesn't check out files
     # We remove all .beans files except .worktrees
     
+    echo -e "${YELLOW}Running git filter-branch...${NC}"
+    
+    # Simpler approach: just remove .beans/* but restore .beans/.worktrees
     FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --index-filter '
-        # Remove .beans files from the index (except .worktrees)
-        git ls-files -s | 
-        grep "^[0-9]* [0-9a-f]* [0-9]\t\.beans/" | 
-        grep -v "\.beans/\.worktrees/" | 
-        cut -f2 | 
-        xargs -r git rm --cached --ignore-unmatch -q 2>/dev/null || true
-    ' "$TARGET_BRANCH".."$CURRENT_BRANCH" 2>&1 | grep -v "^Rewrite" | grep -v "^WARNING" || true
+        git rm --cached -r --ignore-unmatch .beans/ >/dev/null 2>&1 || true
+        git reset HEAD -- .beans/.worktrees/ >/dev/null 2>&1 || true
+    ' "$TARGET_BRANCH".."$CURRENT_BRANCH" 2>&1 | {
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^Rewrite ]]; then
+                # Show progress
+                echo -ne "\r${YELLOW}Rewriting commits...${NC}"
+            elif [[ ! "$line" =~ ^WARNING && -n "$line" ]]; then
+                echo "$line"
+            fi
+        done
+        echo ""
+    } || {
+        echo -e "${RED}✗ filter-branch failed${NC}"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    }
     
     # Clean up filter-branch refs
     git for-each-ref --format="%(refname)" refs/original/ | xargs -r git update-ref -d 2>/dev/null || true
