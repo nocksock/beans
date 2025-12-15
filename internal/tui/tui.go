@@ -2,11 +2,9 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,6 +12,7 @@ import (
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph"
 	"github.com/hmans/beans/internal/graph/model"
+	launcherexec "github.com/hmans/beans/internal/launcher"
 )
 
 // viewState represents which view is currently active
@@ -508,13 +507,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Create command (handles both single-line and multi-line exec)
 		beanPath := filepath.Join(a.core.Root(), ".beans", "beans-"+msg.beanID+".md")
-		result := createExecCommand(msg.launcher.exec, msg.beanID, a.core.Root(), beanPath)
+		result := launcherexec.CreateExecCommand(msg.launcher.exec, msg.beanID, a.core.Root(), beanPath)
 
 		// Store launcher name and cleanup function for callback
 		launcherName := msg.launcher.name
-		cleanup := result.cleanup
+		cleanup := result.Cleanup
 
-		return a, tea.ExecProcess(result.cmd, func(err error) tea.Msg {
+		return a, tea.ExecProcess(result.Cmd, func(err error) tea.Msg {
 			// Clean up temp file if created
 			if cleanup != nil {
 				cleanup()
@@ -712,72 +711,6 @@ func (a *App) getBackgroundView() string {
 	default:
 		return a.list.View()
 	}
-}
-
-// execResult holds a command and its cleanup function
-type execResult struct {
-	cmd     *exec.Cmd
-	cleanup func()
-}
-
-// createExecCommand creates a command for executing an exec script.
-// For multi-line scripts, it creates a temp file and returns cleanup function.
-// For single-line scripts, it executes via sh -c.
-func createExecCommand(execScript, beanID, beansRoot, beanPath string) execResult {
-	// Check if this is multi-line (contains newline)
-	if !strings.Contains(execScript, "\n") {
-		// Single-line: execute via sh -c
-		cmd := exec.Command("sh", "-c", execScript)
-		cmd.Env = append(os.Environ(),
-			fmt.Sprintf("BEANS_ROOT=%s", beansRoot),
-			fmt.Sprintf("BEANS_ID=%s", beanID),
-			fmt.Sprintf("BEANS_TASK=%s", beanPath),
-		)
-		cmd.Dir = beansRoot
-		return execResult{cmd: cmd, cleanup: func() {}}
-	}
-
-	// Multi-line: create temp file
-	tmpFile, err := os.CreateTemp("", "beans-launcher-*.sh")
-	if err != nil {
-		// Return command that will fail with good error message
-		cmd := exec.Command("sh", "-c", fmt.Sprintf("echo 'Error: failed to create temp script: %v' >&2 && exit 1", err))
-		return execResult{cmd: cmd, cleanup: func() {}}
-	}
-
-	tmpPath := tmpFile.Name()
-
-	// Write script content
-	if _, err := tmpFile.WriteString(execScript); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpPath)
-		cmd := exec.Command("sh", "-c", fmt.Sprintf("echo 'Error: failed to write script: %v' >&2 && exit 1", err))
-		return execResult{cmd: cmd, cleanup: func() {}}
-	}
-	tmpFile.Close()
-
-	// Make executable
-	if err := os.Chmod(tmpPath, 0755); err != nil {
-		os.Remove(tmpPath)
-		cmd := exec.Command("sh", "-c", fmt.Sprintf("echo 'Error: failed to make script executable: %v' >&2 && exit 1", err))
-		return execResult{cmd: cmd, cleanup: func() {}}
-	}
-
-	// Create command to execute temp file
-	cmd := exec.Command(tmpPath)
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("BEANS_ROOT=%s", beansRoot),
-		fmt.Sprintf("BEANS_ID=%s", beanID),
-		fmt.Sprintf("BEANS_TASK=%s", beanPath),
-	)
-	cmd.Dir = beansRoot
-
-	// Return with cleanup function
-	cleanup := func() {
-		os.Remove(tmpPath)
-	}
-
-	return execResult{cmd: cmd, cleanup: cleanup}
 }
 
 // getEditor returns the user's preferred editor using the fallback chain:
