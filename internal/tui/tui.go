@@ -390,7 +390,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openCreateModalMsg:
 		a.previousState = a.state
-		a.createModal = newCreateModalModel(a.width, a.height)
+		a.createModal = newCreateModalModel(a.width, a.height, msg.parentID, msg.blockingIDs, msg.contextInfo)
 		a.state = viewCreateModal
 		return a, a.createModal.Init()
 
@@ -401,10 +401,22 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case beanCreatedMsg:
 		// Create the bean via GraphQL mutation with draft status
 		draftStatus := "draft"
-		createdBean, err := a.resolver.Mutation().CreateBean(context.Background(), model.CreateBeanInput{
+		input := model.CreateBeanInput{
 			Title:  msg.title,
 			Status: &draftStatus,
-		})
+		}
+
+		// Set parent if provided (single bean case)
+		if msg.parentID != nil {
+			input.Parent = msg.parentID
+		}
+
+		// Set blocking if provided (multi-select case)
+		if len(msg.blockingIDs) > 0 {
+			input.Blocking = msg.blockingIDs
+		}
+
+		createdBean, err := a.resolver.Mutation().CreateBean(context.Background(), input)
 		if err != nil {
 			// TODO: Show error to user
 			a.state = a.previousState

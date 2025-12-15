@@ -394,9 +394,43 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					}
 				}
 			case "c":
-				// Open create modal
+				// Open create modal with parent/blocking context
+				var parentID *string
+				var blockingIDs []string
+				var contextInfo string
+
+				if len(m.selectedBeans) > 1 {
+					// Multiple selected - new bean will block all selected
+					blockingIDs = make([]string, 0, len(m.selectedBeans))
+					for id := range m.selectedBeans {
+						blockingIDs = append(blockingIDs, id)
+					}
+					contextInfo = fmt.Sprintf("blocking %d beans", len(blockingIDs))
+				} else if len(m.selectedBeans) == 1 {
+					// Single bean selected - use it as parent
+					for id := range m.selectedBeans {
+						parentID = &id
+						// Find the bean to get its title for context
+						for _, item := range m.list.Items() {
+							if bi, ok := item.(beanItem); ok && bi.bean.ID == id {
+								contextInfo = fmt.Sprintf("child of %s", bi.bean.Title)
+								break
+							}
+						}
+						break
+					}
+				} else if item, ok := m.list.SelectedItem().(beanItem); ok {
+					// No selection - use cursor position bean as parent
+					parentID = &item.bean.ID
+					contextInfo = fmt.Sprintf("child of %s", item.bean.Title)
+				}
+
 				return m, func() tea.Msg {
-					return openCreateModalMsg{}
+					return openCreateModalMsg{
+						parentID:    parentID,
+						blockingIDs: blockingIDs,
+						contextInfo: contextInfo,
+					}
 				}
 			case "e":
 				// Open editor for selected bean
