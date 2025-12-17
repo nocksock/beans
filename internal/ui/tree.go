@@ -17,17 +17,17 @@ type TreeNode struct {
 
 // TreeNodeJSON is the JSON-serializable version of TreeNode.
 type TreeNodeJSON struct {
-	ID        string          `json:"id"`
-	Slug      string          `json:"slug,omitempty"`
-	Path      string          `json:"path"`
-	Title     string          `json:"title"`
-	Status    string          `json:"status"`
-	Type      string          `json:"type,omitempty"`
-	Priority  string          `json:"priority,omitempty"`
-	Tags      []string        `json:"tags,omitempty"`
-	Body      string          `json:"body,omitempty"`
-	Matched   bool            `json:"matched"`
-	Children  []*TreeNodeJSON `json:"children,omitempty"`
+	ID       string          `json:"id"`
+	Slug     string          `json:"slug,omitempty"`
+	Path     string          `json:"path"`
+	Title    string          `json:"title"`
+	Status   string          `json:"status"`
+	Type     string          `json:"type,omitempty"`
+	Priority string          `json:"priority,omitempty"`
+	Tags     []string        `json:"tags,omitempty"`
+	Body     string          `json:"body,omitempty"`
+	Matched  bool            `json:"matched"`
+	Children []*TreeNodeJSON `json:"children,omitempty"`
 }
 
 // ToJSON converts a TreeNode to its JSON-serializable form.
@@ -305,24 +305,34 @@ func renderNode(sb *strings.Builder, node *TreeNode, depth int, isLast bool, anc
 // FlatItem represents a flattened tree node with rendering context.
 // Used by TUI to render tree structure in a flat list.
 type FlatItem struct {
-	Bean       *bean.Bean
-	Depth      int    // 0 = root, 1+ = nested
-	IsLast     bool   // last child at this level
-	Matched    bool   // true if bean matched filter (vs. shown for context)
-	TreePrefix string // pre-computed tree prefix (e.g., "  └─")
+	Bean        *bean.Bean
+	Depth       int    // 0 = root, 1+ = nested
+	IsLast      bool   // last child at this level
+	Matched     bool   // true if bean matched filter (vs. shown for context)
+	TreePrefix  string // pre-computed tree prefix (e.g., "  └─")
+	HasChildren bool   // true if this bean has children
 }
 
 // FlattenTree converts a tree into a flat slice with tree context preserved.
 // Each item includes the pre-computed tree prefix for rendering.
 func FlattenTree(nodes []*TreeNode) []FlatItem {
 	var items []FlatItem
-	flattenNodes(nodes, 0, nil, &items)
+	flattenNodes(nodes, 0, nil, nil, &items)
+	return items
+}
+
+// FlattenTreeWithCollapsed converts a tree into a flat slice, hiding children of collapsed beans.
+// collapsedBeans is a set of bean IDs whose children should be hidden.
+func FlattenTreeWithCollapsed(nodes []*TreeNode, collapsedBeans map[string]bool) []FlatItem {
+	var items []FlatItem
+	flattenNodes(nodes, 0, nil, collapsedBeans, &items)
 	return items
 }
 
 // flattenNodes recursively flattens tree nodes.
 // ancestry tracks whether each parent level was a last child (true = last, no continuation line needed)
-func flattenNodes(nodes []*TreeNode, depth int, ancestry []bool, items *[]FlatItem) {
+// collapsedBeans (if not nil) is a set of bean IDs whose children should be hidden
+func flattenNodes(nodes []*TreeNode, depth int, ancestry []bool, collapsedBeans map[string]bool, items *[]FlatItem) {
 	for i, node := range nodes {
 		isLast := i == len(nodes)-1
 
@@ -345,22 +355,27 @@ func flattenNodes(nodes []*TreeNode, depth int, ancestry []bool, items *[]FlatIt
 			}
 		}
 
+		hasChildren := len(node.Children) > 0
+
 		*items = append(*items, FlatItem{
-			Bean:       node.Bean,
-			Depth:      depth,
-			IsLast:     isLast,
-			Matched:    node.Matched,
-			TreePrefix: prefix,
+			Bean:        node.Bean,
+			Depth:       depth,
+			IsLast:      isLast,
+			Matched:     node.Matched,
+			TreePrefix:  prefix,
+			HasChildren: hasChildren,
 		})
 
 		// Recurse into children, passing updated ancestry
 		// Only add to ancestry when depth > 0 (roots have no connectors to continue)
-		if len(node.Children) > 0 {
+		// Skip children if this bean is collapsed
+		isCollapsed := collapsedBeans != nil && collapsedBeans[node.Bean.ID]
+		if hasChildren && !isCollapsed {
 			var newAncestry []bool
 			if depth > 0 {
 				newAncestry = append(ancestry, isLast)
 			}
-			flattenNodes(node.Children, depth+1, newAncestry, items)
+			flattenNodes(node.Children, depth+1, newAncestry, collapsedBeans, items)
 		}
 	}
 }

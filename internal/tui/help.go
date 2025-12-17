@@ -89,6 +89,10 @@ func (m helpOverlayModel) View() string {
 	content.WriteString(shortcut("b", "Manage blocking") + "\n")
 	content.WriteString(shortcut("/", "Filter") + "\n")
 	content.WriteString(shortcut("g t", "Filter by tag") + "\n")
+	content.WriteString(shortcut("h", "Collapse item") + "\n")
+	content.WriteString(shortcut("l", "Expand item") + "\n")
+	content.WriteString(shortcut("z", "Toggle collapse") + "\n")
+	content.WriteString(shortcut("Z", "Collapse all") + "\n")
 	content.WriteString(shortcut("q", "Quit") + "\n")
 	content.WriteString("\n")
 

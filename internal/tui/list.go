@@ -17,10 +17,11 @@ import (
 
 // beanItem wraps a Bean to implement list.Item, with tree context
 type beanItem struct {
-	bean       *bean.Bean
-	cfg        *config.Config
-	treePrefix string // tree prefix for rendering (e.g., "├─" or "  └─")
-	matched    bool   // true if bean matched filter (vs. ancestor shown for context)
+	bean        *bean.Bean
+	cfg         *config.Config
+	treePrefix  string // tree prefix for rendering (e.g., "├─" or "  └─")
+	matched     bool   // true if bean matched filter (vs. ancestor shown for context)
+	hasChildren bool   // true if this bean has children in the tree
 }
 
 func (i beanItem) Title() string       { return i.bean.Title }
@@ -29,12 +30,13 @@ func (i beanItem) FilterValue() string { return i.bean.Title + " " + i.bean.ID }
 
 // itemDelegate handles rendering of list items
 type itemDelegate struct {
-	cfg           *config.Config
-	hasTags       bool
-	width         int
-	cols          ui.ResponsiveColumns // cached responsive columns
-	idColWidth    int                  // ID column width (accounts for tree prefix)
-	selectedBeans *map[string]bool     // pointer to marked beans for multi-select
+	cfg            *config.Config
+	hasTags        bool
+	width          int
+	cols           ui.ResponsiveColumns // cached responsive columns
+	idColWidth     int                  // ID column width (accounts for tree prefix)
+	selectedBeans  *map[string]bool     // pointer to marked beans for multi-select
+	collapsedBeans *map[string]bool     // pointer to collapsed beans
 }
 
 func newItemDelegate(cfg *config.Config) itemDelegate {
@@ -71,6 +73,12 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		isMarked = (*d.selectedBeans)[item.bean.ID]
 	}
 
+	// Check if bean is collapsed
+	var isCollapsed bool
+	if d.collapsedBeans != nil {
+		isCollapsed = (*d.collapsedBeans)[item.bean.ID]
+	}
+
 	str := ui.RenderBeanRow(
 		item.bean.ID,
 		item.bean.Status,
@@ -93,6 +101,8 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 			TreePrefix:    item.treePrefix,
 			Dimmed:        !item.matched,
 			IDColWidth:    d.idColWidth,
+			HasChildren:   item.hasChildren,
+			IsCollapsed:   isCollapsed,
 		},
 	)
 
@@ -118,11 +128,19 @@ type listModel struct {
 
 	// Multi-select state
 	selectedBeans map[string]bool // IDs of beans marked for multi-edit
+
+	// Collapse/fold state
+	collapsedBeans map[string]bool // IDs of beans whose children are hidden
 }
 
 func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	selectedBeans := make(map[string]bool)
-	delegate := itemDelegate{cfg: cfg, selectedBeans: &selectedBeans}
+	collapsedBeans := make(map[string]bool)
+	delegate := itemDelegate{
+		cfg:            cfg,
+		selectedBeans:  &selectedBeans,
+		collapsedBeans: &collapsedBeans,
+	}
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = "Beans"
@@ -135,10 +153,11 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.ColorPrimary)
 
 	return listModel{
-		list:          l,
-		resolver:      resolver,
-		config:        cfg,
-		selectedBeans: selectedBeans,
+		list:           l,
+		resolver:       resolver,
+		config:         cfg,
+		selectedBeans:  selectedBeans,
+		collapsedBeans: collapsedBeans,
 	}
 }
 
@@ -186,9 +205,9 @@ func (m listModel) loadBeans() tea.Msg {
 		bean.SortByStatusPriorityAndType(beans, m.config.StatusNames(), m.config.PriorityNames(), m.config.TypeNames())
 	}
 
-	// Build tree and flatten it
+	// Build tree and flatten it with collapse state
 	tree := ui.BuildTree(filteredBeans, allBeans, sortFn)
-	items := ui.FlattenTree(tree)
+	items := ui.FlattenTreeWithCollapsed(tree, m.collapsedBeans)
 
 	// Calculate ID column width based on max ID length and tree depth
 	maxIDLen := 0
@@ -198,8 +217,8 @@ func (m listModel) loadBeans() tea.Msg {
 		}
 	}
 	maxDepth := ui.MaxTreeDepth(items)
-	// ID column = base ID width + tree indent (3 chars per depth level)
-	idColWidth := maxIDLen + 2 // base padding
+	// ID column = base ID width + caret (2 chars) + tree indent (3 chars per depth level)
+	idColWidth := maxIDLen + 4 // base padding + caret
 	if maxDepth > 0 {
 		idColWidth += maxDepth * 3 // 3 chars per depth level (├─ + space)
 	}
@@ -241,10 +260,11 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		m.hasTags = false
 		for i, flatItem := range msg.items {
 			items[i] = beanItem{
-				bean:       flatItem.Bean,
-				cfg:        m.config,
-				treePrefix: flatItem.TreePrefix,
-				matched:    flatItem.Matched,
+				bean:        flatItem.Bean,
+				cfg:         m.config,
+				treePrefix:  flatItem.TreePrefix,
+				matched:     flatItem.Matched,
+				hasChildren: flatItem.HasChildren,
 			}
 			if len(flatItem.Bean.Tags) > 0 {
 				m.hasTags = true
@@ -264,6 +284,39 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.list.FilterState() != list.Filtering {
 			switch msg.String() {
+			case "h":
+				// Collapse current item if it has children
+				if item, ok := m.list.SelectedItem().(beanItem); ok && item.hasChildren {
+					m.collapsedBeans[item.bean.ID] = true
+					return m, m.loadBeans
+				}
+				return m, nil
+			case "l":
+				// Expand current item if it has children
+				if item, ok := m.list.SelectedItem().(beanItem); ok && item.hasChildren {
+					delete(m.collapsedBeans, item.bean.ID)
+					return m, m.loadBeans
+				}
+				return m, nil
+			case "z":
+				// Toggle collapse/expand for current item
+				if item, ok := m.list.SelectedItem().(beanItem); ok && item.hasChildren {
+					if m.collapsedBeans[item.bean.ID] {
+						delete(m.collapsedBeans, item.bean.ID)
+					} else {
+						m.collapsedBeans[item.bean.ID] = true
+					}
+					return m, m.loadBeans
+				}
+				return m, nil
+			case "Z":
+				// Collapse all items with children
+				for _, item := range m.list.Items() {
+					if bi, ok := item.(beanItem); ok && bi.hasChildren {
+						m.collapsedBeans[bi.bean.ID] = true
+					}
+				}
+				return m, m.loadBeans
 			case " ":
 				// Toggle selection for multi-select
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
@@ -455,12 +508,13 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 // updateDelegate updates the list delegate with current responsive columns
 func (m *listModel) updateDelegate() {
 	delegate := itemDelegate{
-		cfg:           m.config,
-		hasTags:       m.hasTags,
-		width:         m.width,
-		cols:          m.cols,
-		idColWidth:    m.idColWidth,
-		selectedBeans: &m.selectedBeans,
+		cfg:            m.config,
+		hasTags:        m.hasTags,
+		width:          m.width,
+		cols:           m.cols,
+		idColWidth:     m.idColWidth,
+		selectedBeans:  &m.selectedBeans,
+		collapsedBeans: &m.collapsedBeans,
 	}
 	m.list.SetDelegate(delegate)
 }
@@ -535,6 +589,7 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
+			helpKeyStyle.Render("h/l/z") + " " + helpStyle.Render("fold") + "  " +
 			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
 			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")

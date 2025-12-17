@@ -161,6 +161,123 @@ func TestBuildTree(t *testing.T) {
 	})
 }
 
+func TestFlattenTreeWithCollapsed(t *testing.T) {
+	// Create test tree:
+	// root1
+	//   └── child1
+	//       └── grandchild1
+	// root2
+	//   └── child2
+
+	root1 := &TreeNode{
+		Bean: &bean.Bean{ID: "r1", Title: "Root 1"},
+		Children: []*TreeNode{
+			{
+				Bean: &bean.Bean{ID: "c1", Title: "Child 1"},
+				Children: []*TreeNode{
+					{
+						Bean: &bean.Bean{ID: "gc1", Title: "Grandchild 1"},
+					},
+				},
+			},
+		},
+		Matched: true,
+	}
+	root1.Children[0].Matched = true
+	root1.Children[0].Children[0].Matched = true
+
+	root2 := &TreeNode{
+		Bean: &bean.Bean{ID: "r2", Title: "Root 2"},
+		Children: []*TreeNode{
+			{
+				Bean: &bean.Bean{ID: "c2", Title: "Child 2"},
+			},
+		},
+		Matched: true,
+	}
+	root2.Children[0].Matched = true
+
+	tree := []*TreeNode{root1, root2}
+
+	t.Run("no collapsed beans - all items shown", func(t *testing.T) {
+		items := FlattenTreeWithCollapsed(tree, nil)
+		// Should have 5 items: r1, c1, gc1, r2, c2
+		if len(items) != 5 {
+			t.Errorf("expected 5 items, got %d", len(items))
+		}
+		// Verify all have hasChildren set correctly
+		if !items[0].HasChildren {
+			t.Error("r1 should have hasChildren=true")
+		}
+		if !items[1].HasChildren {
+			t.Error("c1 should have hasChildren=true")
+		}
+		if items[2].HasChildren {
+			t.Error("gc1 should have hasChildren=false")
+		}
+		if !items[3].HasChildren {
+			t.Error("r2 should have hasChildren=true")
+		}
+		if items[4].HasChildren {
+			t.Error("c2 should have hasChildren=false")
+		}
+	})
+
+	t.Run("collapse root1 - hide its children", func(t *testing.T) {
+		collapsed := map[string]bool{"r1": true}
+		items := FlattenTreeWithCollapsed(tree, collapsed)
+		// Should have 3 items: r1, r2, c2 (c1 and gc1 hidden)
+		if len(items) != 3 {
+			t.Errorf("expected 3 items, got %d", len(items))
+		}
+		if items[0].Bean.ID != "r1" {
+			t.Errorf("expected r1, got %s", items[0].Bean.ID)
+		}
+		if items[1].Bean.ID != "r2" {
+			t.Errorf("expected r2, got %s", items[1].Bean.ID)
+		}
+		if items[2].Bean.ID != "c2" {
+			t.Errorf("expected c2, got %s", items[2].Bean.ID)
+		}
+	})
+
+	t.Run("collapse child1 - hide only grandchild", func(t *testing.T) {
+		collapsed := map[string]bool{"c1": true}
+		items := FlattenTreeWithCollapsed(tree, collapsed)
+		// Should have 4 items: r1, c1, r2, c2 (gc1 hidden)
+		if len(items) != 4 {
+			t.Errorf("expected 4 items, got %d", len(items))
+		}
+		if items[0].Bean.ID != "r1" {
+			t.Errorf("expected r1, got %s", items[0].Bean.ID)
+		}
+		if items[1].Bean.ID != "c1" {
+			t.Errorf("expected c1, got %s", items[1].Bean.ID)
+		}
+		if items[2].Bean.ID != "r2" {
+			t.Errorf("expected r2, got %s", items[2].Bean.ID)
+		}
+		if items[3].Bean.ID != "c2" {
+			t.Errorf("expected c2, got %s", items[3].Bean.ID)
+		}
+	})
+
+	t.Run("collapse multiple roots", func(t *testing.T) {
+		collapsed := map[string]bool{"r1": true, "r2": true}
+		items := FlattenTreeWithCollapsed(tree, collapsed)
+		// Should have 2 items: r1, r2 (all children hidden)
+		if len(items) != 2 {
+			t.Errorf("expected 2 items, got %d", len(items))
+		}
+		if items[0].Bean.ID != "r1" {
+			t.Errorf("expected r1, got %s", items[0].Bean.ID)
+		}
+		if items[1].Bean.ID != "r2" {
+			t.Errorf("expected r2, got %s", items[1].Bean.ID)
+		}
+	})
+}
+
 func TestTreeNodeToJSON(t *testing.T) {
 	b := &bean.Bean{
 		ID:       "test-id",

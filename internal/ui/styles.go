@@ -327,6 +327,8 @@ type BeanRowConfig struct {
 	TreePrefix    string   // Tree prefix (e.g., "├─" or "  └─") to prepend to ID
 	Dimmed        bool     // Render row dimmed (for unmatched ancestor beans in tree)
 	IDColWidth    int      // Width of ID column (0 = default of ColWidthID)
+	HasChildren   bool     // Whether this bean has children (for caret indicator)
+	IsCollapsed   bool     // Whether this bean's children are collapsed
 }
 
 // Base column widths for bean lists (minimum sizes)
@@ -433,19 +435,29 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 	// Build ID column with manual padding
 	// (lipgloss Width() doesn't correctly handle Unicode box-drawing characters)
 	var idCol string
-	// Calculate visual width: tree prefix (in runes) + ID length
-	visualWidth := len([]rune(cfg.TreePrefix)) + len(id)
+	// Add caret indicator for items with children
+	var caret string
+	if cfg.HasChildren {
+		if cfg.IsCollapsed {
+			caret = "▸ " // Right-pointing triangle (collapsed)
+		} else {
+			caret = "▾ " // Down-pointing triangle (expanded)
+		}
+	}
+	// Calculate visual width: caret (2 if present) + tree prefix (in runes) + ID length
+	visualWidth := len([]rune(caret)) + len([]rune(cfg.TreePrefix)) + len(id)
 	padding := ""
 	if idColWidth > visualWidth {
 		padding = strings.Repeat(" ", idColWidth-visualWidth)
 	}
 	if cfg.Dimmed {
-		idCol = Muted.Render(cfg.TreePrefix) + Muted.Render(id) + padding
+		idCol = Muted.Render(caret) + Muted.Render(cfg.TreePrefix) + Muted.Render(id) + padding
 	} else if cfg.IsMarked {
 		// Only highlight the ID when marked
-		idCol = highlightStyle.Render(cfg.TreePrefix) + highlightStyle.Render(id) + padding
+		idCol = highlightStyle.Render(caret) + highlightStyle.Render(cfg.TreePrefix) + highlightStyle.Render(id) + padding
 	} else {
-		idCol = TreeLine.Render(cfg.TreePrefix) + ID.Render(id) + padding
+		caretStyled := Muted.Render(caret)
+		idCol = caretStyled + TreeLine.Render(cfg.TreePrefix) + ID.Render(id) + padding
 	}
 
 	var typeCol string
