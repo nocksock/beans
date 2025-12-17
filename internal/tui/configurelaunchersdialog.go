@@ -121,7 +121,7 @@ func (m configureLaunchersModel) Update(msg tea.Msg) (configureLaunchersModel, t
 				m.cursor++
 			}
 
-		case "space", "enter":
+		case " ", "enter":
 			// Toggle selection of current item
 			if m.cursor < len(m.items) {
 				m.items[m.cursor].selected = !m.items[m.cursor].selected
