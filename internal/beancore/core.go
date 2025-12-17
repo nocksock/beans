@@ -24,6 +24,31 @@ var (
 	ErrAmbiguousID = errors.New("ambiguous ID prefix matches multiple beans")
 )
 
+// AmbiguousIDError indicates that an ID prefix matches multiple beans.
+// It includes the list of matching beans for display to the user.
+type AmbiguousIDError struct {
+	Prefix  string
+	Matches []*bean.Bean
+}
+
+func (e *AmbiguousIDError) Error() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("ID '%s' is ambiguous. Did you mean:\n", e.Prefix))
+	for _, b := range e.Matches {
+		sb.WriteString(fmt.Sprintf("  • %s (%s)\n", b.ID, b.Title))
+	}
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+// IsAmbiguousIDError checks if an error is an AmbiguousIDError and returns it.
+func IsAmbiguousIDError(err error) (*AmbiguousIDError, bool) {
+	var ambigErr *AmbiguousIDError
+	if errors.As(err, &ambigErr) {
+		return ambigErr, true
+	}
+	return nil, false
+}
+
 // Core provides thread-safe in-memory storage for beans with filesystem persistence.
 type Core struct {
 	root   string         // absolute path to .beans directory
@@ -275,7 +300,10 @@ func (c *Core) Get(idPrefix string) (*bean.Bean, error) {
 	case 1:
 		return matches[0], nil
 	default:
-		return nil, ErrAmbiguousID
+		return nil, &AmbiguousIDError{
+			Prefix:  idPrefix,
+			Matches: matches,
+		}
 	}
 }
 

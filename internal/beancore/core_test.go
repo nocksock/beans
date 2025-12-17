@@ -3,6 +3,7 @@ package beancore
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -230,8 +231,39 @@ func TestGetAmbiguous(t *testing.T) {
 	createTestBean(t, core, "abc2", "Second", "todo")
 
 	_, err := core.Get("abc")
-	if err != ErrAmbiguousID {
-		t.Errorf("Get() error = %v, want ErrAmbiguousID", err)
+
+	// Check that it's an AmbiguousIDError
+	ambigErr, ok := IsAmbiguousIDError(err)
+	if !ok {
+		t.Fatalf("Get() error = %v, want AmbiguousIDError", err)
+	}
+
+	// Verify the error contains the prefix
+	if ambigErr.Prefix != "abc" {
+		t.Errorf("AmbiguousIDError.Prefix = %q, want %q", ambigErr.Prefix, "abc")
+	}
+
+	// Verify it has 2 matches
+	if len(ambigErr.Matches) != 2 {
+		t.Errorf("AmbiguousIDError has %d matches, want 2", len(ambigErr.Matches))
+	}
+
+	// Verify error message includes IDs and titles
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "abc1") {
+		t.Errorf("Error message missing ID 'abc1': %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "abc2") {
+		t.Errorf("Error message missing ID 'abc2': %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "First") {
+		t.Errorf("Error message missing title 'First': %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "Second") {
+		t.Errorf("Error message missing title 'Second': %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "Did you mean:") {
+		t.Errorf("Error message missing helpful text: %s", errMsg)
 	}
 }
 
@@ -416,10 +448,10 @@ func TestBlocksPreserved(t *testing.T) {
 
 	// Create bean A that blocks bean B
 	beanA := &bean.Bean{
-		ID:     "aaa1",
-		Slug:   "blocker",
-		Title:  "Blocker Bean",
-		Status: "todo",
+		ID:       "aaa1",
+		Slug:     "blocker",
+		Title:    "Blocker Bean",
+		Status:   "todo",
 		Blocking: []string{"bbb2"},
 	}
 	if err := core.Create(beanA); err != nil {
