@@ -29,12 +29,12 @@ var showCmd = &cobra.Command{
 		// Query bean via GraphQL resolver
 		resolver := &graph.Resolver{Core: core}
 		b, err := resolver.Query().Bean(context.Background(), args[0])
+
+		// Handle query errors (including ambiguous IDs)
 		if err != nil {
-			if showJSON {
-				return output.Error(output.ErrNotFound, err.Error())
-			}
-			return fmt.Errorf("failed to find bean: %w", err)
+			return handleBeanQueryError(err, showJSON, args[0])
 		}
+
 		if b == nil {
 			if showJSON {
 				return output.Error(output.ErrNotFound, "bean not found")

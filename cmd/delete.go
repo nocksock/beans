@@ -34,9 +34,12 @@ and those references will be removed after confirmation. Use -f to skip all warn
 
 		// Find the bean
 		b, err := resolver.Query().Bean(ctx, args[0])
+
+		// Handle query errors (including ambiguous IDs)
 		if err != nil {
-			return cmdError(deleteJSON, output.ErrNotFound, "failed to find bean: %v", err)
+			return handleBeanQueryError(err, deleteJSON, args[0])
 		}
+
 		if b == nil {
 			return cmdError(deleteJSON, output.ErrNotFound, "bean not found: %s", args[0])
 		}

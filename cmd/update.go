@@ -34,16 +34,19 @@ var updateCmd = &cobra.Command{
 	Aliases: []string{"u"},
 	Short:   "Update a bean's properties",
 	Long:    `Updates one or more properties of an existing bean.`,
-	Args:  cobra.ExactArgs(1),
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		resolver := &graph.Resolver{Core: core}
 
 		// Find the bean
 		b, err := resolver.Query().Bean(ctx, args[0])
+
+		// Handle query errors (including ambiguous IDs)
 		if err != nil {
-			return cmdError(updateJSON, output.ErrNotFound, "failed to find bean: %v", err)
+			return handleBeanQueryError(err, updateJSON, args[0])
 		}
+
 		if b == nil {
 			return cmdError(updateJSON, output.ErrNotFound, "bean not found: %s", args[0])
 		}
