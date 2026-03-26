@@ -1,14 +1,14 @@
 ---
 # beans-iggk
 title: Add beans graph command for relationship visualization
-status: draft
+status: in-progress
 type: feature
 priority: normal
 tags:
     - cli
     - visualization
 created_at: 2025-12-07T11:29:37Z
-updated_at: 2025-12-13T14:44:14Z
+updated_at: 2026-03-26T08:38:07Z
 parent: beans-f11p
 ---
 
