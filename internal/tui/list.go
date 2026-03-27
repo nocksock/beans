@@ -12,8 +12,14 @@ import (
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph"
 	"github.com/hmans/beans/internal/graph/model"
+	"github.com/hmans/beans/internal/sessionpoller"
 	"github.com/hmans/beans/internal/ui"
 )
+
+// sessionStatusProvider defines the methods we need from the session poller
+type sessionStatusProvider interface {
+	GetStatus(beanID string) sessionpoller.SessionStatus
+}
 
 // beanItem wraps a Bean to implement list.Item, with tree context
 type beanItem struct {
@@ -37,6 +43,7 @@ type itemDelegate struct {
 	idColWidth     int                  // ID column width (accounts for tree prefix)
 	selectedBeans  *map[string]bool     // pointer to marked beans for multi-select
 	collapsedBeans *map[string]bool     // pointer to collapsed beans
+	sessionPoller  sessionStatusProvider
 }
 
 func newItemDelegate(cfg *config.Config) itemDelegate {
@@ -79,30 +86,38 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		isCollapsed = (*d.collapsedBeans)[item.bean.ID]
 	}
 
+	// Check if bean has a running session via sessionPoller
+	var hasRunningSession bool
+	if d.sessionPoller != nil {
+		status := d.sessionPoller.GetStatus(item.bean.ID)
+		hasRunningSession = status.HasSession
+	}
+
 	str := ui.RenderBeanRow(
 		item.bean.ID,
 		item.bean.Status,
 		item.bean.Type,
 		item.bean.Title,
 		ui.BeanRowConfig{
-			StatusColor:   colors.StatusColor,
-			TypeColor:     colors.TypeColor,
-			PriorityColor: colors.PriorityColor,
-			Priority:      item.bean.Priority,
-			IsArchive:     colors.IsArchive,
-			MaxTitleWidth: maxTitleWidth,
-			ShowCursor:    true,
-			IsSelected:    index == m.Index(),
-			IsMarked:      isMarked,
-			Tags:          item.bean.Tags,
-			ShowTags:      d.cols.ShowTags,
-			TagsColWidth:  d.cols.Tags,
-			MaxTags:       d.cols.MaxTags,
-			TreePrefix:    item.treePrefix,
-			Dimmed:        !item.matched,
-			IDColWidth:    d.idColWidth,
-			HasChildren:   item.hasChildren,
-			IsCollapsed:   isCollapsed,
+			StatusColor:       colors.StatusColor,
+			TypeColor:         colors.TypeColor,
+			PriorityColor:     colors.PriorityColor,
+			Priority:          item.bean.Priority,
+			IsArchive:         colors.IsArchive,
+			MaxTitleWidth:     maxTitleWidth,
+			ShowCursor:        true,
+			IsSelected:        index == m.Index(),
+			IsMarked:          isMarked,
+			Tags:              item.bean.Tags,
+			ShowTags:          d.cols.ShowTags,
+			TagsColWidth:      d.cols.Tags,
+			MaxTags:           d.cols.MaxTags,
+			TreePrefix:        item.treePrefix,
+			Dimmed:            !item.matched,
+			IDColWidth:        d.idColWidth,
+			HasChildren:       item.hasChildren,
+			IsCollapsed:       isCollapsed,
+			HasRunningSession: hasRunningSession,
 		},
 	)
 
@@ -131,15 +146,19 @@ type listModel struct {
 
 	// Collapse/fold state
 	collapsedBeans map[string]bool // IDs of beans whose children are hidden
+
+	// Session poller for checking running sessions
+	sessionPoller sessionStatusProvider
 }
 
-func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
+func newListModel(resolver *graph.Resolver, cfg *config.Config, poller sessionStatusProvider) listModel {
 	selectedBeans := make(map[string]bool)
 	collapsedBeans := make(map[string]bool)
 	delegate := itemDelegate{
 		cfg:            cfg,
 		selectedBeans:  &selectedBeans,
 		collapsedBeans: &collapsedBeans,
+		sessionPoller:  poller,
 	}
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
@@ -158,6 +177,7 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 		config:         cfg,
 		selectedBeans:  selectedBeans,
 		collapsedBeans: collapsedBeans,
+		sessionPoller:  poller,
 	}
 }
 
@@ -451,6 +471,40 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				return m, func() tea.Msg {
 					return openCreateModalMsg{}
 				}
+			case "C":
+				// Open create modal with selected bean(s) as parent (create child)
+				var parentID, parentTitle string
+				if len(m.selectedBeans) > 0 {
+					// Multi-select: use first selected bean as parent
+					// (Note: a bean can only have one parent)
+					for id := range m.selectedBeans {
+						parentID = id
+						// Find the bean to get its title
+						for _, item := range m.list.Items() {
+							if bi, ok := item.(beanItem); ok && bi.bean.ID == id {
+								parentTitle = bi.bean.Title
+								break
+							}
+						}
+						break
+					}
+					if len(m.selectedBeans) > 1 {
+						parentTitle = fmt.Sprintf("%s (+%d more)", parentTitle, len(m.selectedBeans)-1)
+					}
+				} else if item, ok := m.list.SelectedItem().(beanItem); ok {
+					// No multi-select: use cursor position
+					parentID = item.bean.ID
+					parentTitle = item.bean.Title
+				}
+
+				if parentID != "" {
+					return m, func() tea.Msg {
+						return openCreateModalMsg{
+							parentID:    parentID,
+							parentTitle: parentTitle,
+						}
+					}
+				}
 			case "e":
 				// Open editor for selected bean
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
@@ -481,6 +535,45 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						return openLauncherPickerMsg{
 							beanIDs:   []string{item.bean.ID},
 							beanTitle: item.bean.Title,
+						}
+					}
+				} else {
+					// No bean selected - use first bean in list if available
+					items := m.list.Items()
+					if len(items) > 0 {
+						if item, ok := items[0].(beanItem); ok {
+							return m, func() tea.Msg {
+								return openLauncherPickerMsg{
+									beanIDs:   []string{item.bean.ID},
+									beanTitle: item.bean.Title,
+								}
+							}
+						}
+					}
+				}
+			case "S":
+				// Launch session for selected bean(s)
+				if len(m.selectedBeans) > 0 {
+					// Get first selected bean for the session
+					for id := range m.selectedBeans {
+						if item, ok := m.findBeanItem(id); ok {
+							return m, func() tea.Msg {
+								return launchSessionMsg{beanID: item.bean.ID, beanTitle: item.bean.Title}
+							}
+						}
+					}
+				} else if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg {
+						return launchSessionMsg{beanID: item.bean.ID, beanTitle: item.bean.Title}
+					}
+				} else {
+					// No bean selected - use first bean in list if available
+					items := m.list.Items()
+					if len(items) > 0 {
+						if item, ok := items[0].(beanItem); ok {
+							return m, func() tea.Msg {
+								return launchSessionMsg{beanID: item.bean.ID, beanTitle: item.bean.Title}
+							}
 						}
 					}
 				}
@@ -515,6 +608,7 @@ func (m *listModel) updateDelegate() {
 		idColWidth:     m.idColWidth,
 		selectedBeans:  &m.selectedBeans,
 		collapsedBeans: &m.collapsedBeans,
+		sessionPoller:  m.sessionPoller,
 	}
 	m.list.SetDelegate(delegate)
 }
@@ -589,6 +683,7 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
+			helpKeyStyle.Render("S") + " " + helpStyle.Render("session") + "  " +
 			helpKeyStyle.Render("h/l/z") + " " + helpStyle.Render("fold") + "  " +
 			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
@@ -596,4 +691,13 @@ func (m listModel) View() string {
 	}
 
 	return content + "\n" + selectionPrefix + help
+}
+
+func (m listModel) findBeanItem(id string) (beanItem, bool) {
+	for _, item := range m.list.Items() {
+		if bi, ok := item.(beanItem); ok && bi.bean.ID == id {
+			return bi, true
+		}
+	}
+	return beanItem{}, false
 }

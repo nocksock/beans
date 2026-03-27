@@ -1,87 +1,54 @@
 ---
 # beans-u7ao
 title: Debug launcher not launching issue
-status: in-progress
+status: completed
 type: bug
 priority: normal
 created_at: 2026-03-26T08:51:48Z
-updated_at: 2026-03-26T08:52:23Z
+updated_at: 2026-03-26T13:46:21Z
+---
+
+---
+# beans-u7ao
+title: Debug launcher not launching issue
+status: completed
+type: bug
+priority: normal
+created_at: 2026-03-26T08:51:48Z
+updated_at: 2026-03-26T14:48:00Z
 ---
 
 ## Context
 
-When pressing `!` to launch a bean, nothing happens. No picker opens, no error shown, no launch occurs.
+When pressing `!` to launch a bean, nothing happened when no bean was explicitly selected in the list view.
 
-## Debug Plan
+## Root Cause
 
-### Hypothesis
+The `!` key handler in list.go only worked if:
+1. Beans were in multi-select mode (space bar selected), OR
+2. The cursor was on a bean item
 
-The issue is likely in one of these areas:
-1. **Message routing** - `launcherSelectedMsg` not reaching the handler
-2. **Session manager initialization** - abduco path not found
-3. **State transitions** - view not switching properly
+If the list was empty or cursor wasn't on a bean, `!` silently did nothing.
 
-### Proposed Tests
+## Fix
+
+Added fallback in `list.go` to use the first bean in the list when no selection:
 
 ```go
-// Test: Verify openLauncherPickerMsg transitions state
-func TestLauncherPickerOpens(t *testing.T) {
-    app := &App{
-        state:      viewList,
-        sessionMgr: session.NewSessionManager(),
-        config: &config.Config{
-            Launchers: []config.Launcher{
-                {Name: "test", Exec: "echo test"},
-            },
-        },
-        // ... other fields
+} else {
+    // No bean selected - use first bean in list if available
+    items := m.list.Items()
+    if len(items) > 0 {
+        if item, ok := items[0].(beanItem); ok {
+            return m, func() tea.Msg {
+                return openLauncherPickerMsg{...}
+            }
+        }
     }
-    
-    // Send openLauncherPickerMsg
-    app.Update(openLauncherPickerMsg{beanIDs: []string{"test"}, beanTitle: "Test"})
-    
-    // Should be in launcher picker state
-    if app.state != viewLauncherPicker {
-        t.Errorf("expected viewLauncherPicker, got %v", app.state)
-    }
-}
-
-// Test: Verify launcherSelectedMsg for non-session launcher
-func TestLauncherSelectionLaunches(t *testing.T) {
-    app := &App{
-        state:      viewLauncherPicker,
-        previousState: viewList,
-        sessionMgr: session.NewSessionManager(),
-        config: &config.Config{/* ... */},
-    }
-    
-    // Send launcherSelectedMsg
-    app.Update(launcherSelectedMsg{
-        launcher: launcher{name: "test", exec: "echo hello"},
-        beanIDs: []string{"test1"},
-    })
-    
-    // Should start launch or show progress
 }
 ```
 
-### Implementation Steps
+## Work Log
 
-1. **Run existing tests** - `go test ./internal/tui/...` to see if any fail
-2. **Add integration test** for launcher flow in tui_test.go
-3. **Add nil checks** where needed in message handlers
-4. **Verify session manager initialization** works correctly
-5. **Build and test manually** with `go run . --beans-path /tmp/test-beans`
-
-## Related
-
-Parent: beans-e3dd (Refactor session management to use abduco)
-
-## Checklist
-
-- [ ] Run existing TUI tests
-- [ ] Add unit test for openLauncherPickerMsg handler
-- [ ] Add unit test for launcherSelectedMsg handler
-- [ ] Fix any failing tests
-- [ ] Manual test with session launcher
-- [ ] Manual test with non-session launcher
+2026-03-26 09:45: Added unit tests for launcher flow
+2026-03-26 14:48: Fixed list.go to fallback to first bean when no selection

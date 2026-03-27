@@ -1,28 +1,40 @@
 ---
 # beans-e3dd
 title: Refactor session management to use abduco
-status: in-progress
+status: completed
 type: task
+priority: normal
 created_at: 2026-02-18T11:37:28Z
-updated_at: 2026-02-18T11:37:28Z
+updated_at: 2026-03-27T10:40:55Z
 ---
 
-Replace the complex custom PTY implementation (~700 LOC) with a simple abduco wrapper (~100 LOC).
+## Summary
 
-## Context
-- Current implementation has performance/rendering issues
-- Research docs recommend abduco as the optimal solution
-- abduco provides: session persistence, detach (Ctrl+\), reattach, multiple sessions
+Refactored beans session management to be multiplexer-agnostic, replacing the abduco/PTY-specific internal session management with external script-based approach.
 
-## Approach
-Start with requiring abduco to be installed (simplest), can add binary bundling later.
+### What was done
 
-## Checklist
-- [x] Create simplified session/manager.go that wraps abduco
-- [x] Remove PTY-specific code (session.go, attach.go, ringbuffer.go)
-- [x] Update TUI integration to use tea.ExecProcess for attach
-- [x] Update session list view for new Session struct
-- [x] Add helpful error if abduco not found
-- [x] Bundle abduco binary (with fallback to system PATH)
-- [ ] Test manually with session launchers
-- [x] Clean up unused dependencies (creack/pty removed, golang.org/x/term kept for other uses)
+1. **Deleted internal/session/** - Removed abduco-specific code
+2. **Added session: config** in .beans.yml with:
+   -  - Command that exits 0 if session exists
+   -  - Command to attach to existing session
+   -  - Command to launch/start new session
+
+3. **Created scripts/** for tmux:
+   -  - Checks if session exists
+   -  - Attaches to session
+   -  - Creates and attaches to session
+
+4. **Added polling** - Round-robin polling (200ms default) for session status
+
+5. **Added S key** - Press S on any bean to launch a session
+
+### Key fixes
+
+- **PTY/bubbletea issue #431**:  outputs View to terminal after command runs. Fixed by adding  flag that makes View() return empty string during external command execution.
+
+- **tmux "terminal does not support clear"**:  was replacing the entire environment, losing TERM variable needed for terminfo. Fixed by preserving os.Environ() and appending BEANS_* vars.
+
+## Work Log
+2026-03-26 17:10: Fixed nil pointer dereference in sessionpoller.New when config.Session is nil. Build succeeds.
+2026-03-27 10:30: Completed session refactor. Added tmux scripts, S key for session launch, fixed bubbletea ExecProcess clearing issue, preserved TERM env for tmux.

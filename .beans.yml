@@ -1,17 +1,26 @@
 beans:
+
     path: .beans
     prefix: beans-
     id_length: 4
     default_status: todo
     default_type: task
 
+session:
+  check: ./scripts/tmux-session-check
+  attach: ./scripts/tmux-session-attach
+  launch: ./scripts/tmux-session-run
+
 launchers:
   - name: opencode
-    exec: opencode -p "Work on task $BEANS_ID"
+    exec: opencode --prompt "Work on task $BEANS_ID"
     description: "Open task in OpenCode"
   - name: claude
     exec: claude "Work on task $BEANS_ID"
     description: "Open task in Claude Code"
+  - name: tmux
+    exec: ./scripts/tmux-session-run
+    description: "Open task in tmux"
   - name: crush
     exec: crush run "Work on task $BEANS_ID"
     description: "Open task in Crush"
@@ -21,14 +30,14 @@ launchers:
     exec: |
       #!/usr/bin/env bash
       set -euo pipefail
-      
+
       WORKTREE_DIR=".worktrees/$BEANS_ID"
-      
+
       # Create worktree if it doesn't exist
       if [ ! -d "$WORKTREE_DIR" ]; then
         # Clean up any stale worktree registrations
         git worktree prune
-        
+
         # Check if branch already exists
         if git show-ref --verify --quiet "refs/heads/task/$BEANS_ID"; then
           # Branch exists, check it out in the worktree
@@ -38,7 +47,8 @@ launchers:
           git worktree add "$WORKTREE_DIR" -b "task/$BEANS_ID"
         fi
       fi
-      
+
       # Open in new kitty window
       kitty @ launch --type=window --cwd="$BEANS_ROOT/$WORKTREE_DIR" \
         opencode -p "Work on task $BEANS_ID"
+

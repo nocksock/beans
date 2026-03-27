@@ -8,12 +8,11 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph"
 	"github.com/hmans/beans/internal/graph/model"
-	launcherexec "github.com/hmans/beans/internal/launcher"
+	"github.com/hmans/beans/internal/sessionpoller"
 )
 
 // viewState represents which view is currently active
@@ -36,8 +35,7 @@ const (
 	viewNoLaunchersMulti
 	viewConfigureLaunchers
 	viewConfigWriteError
-	viewLaunchConfirm
-	viewLaunchProgress
+	viewSessionDialog
 )
 
 // beansChangedMsg is sent when beans change on disk (via file watcher)
@@ -58,6 +56,12 @@ type clearFilterMsg struct{}
 type openEditorMsg struct {
 	beanID   string
 	beanPath string
+}
+
+// reattachSessionMsg requests re-attaching to an existing running session
+type reattachSessionMsg struct {
+	beanID    string
+	sessionID string
 }
 
 // editorFinishedMsg is sent when the editor closes
@@ -92,8 +96,8 @@ type App struct {
 	noLaunchersMulti   noLaunchersMultiModel
 	configureLaunchers configureLaunchersModel
 	configWriteError   configWriteErrorModel
-	launchConfirm      launchConfirm
-	launchProgress     launchProgress
+	sessionDialog      *sessionDialogModel
+	sessionPoller      *sessionpoller.Poller
 	history            []detailModel // stack of previous detail views for back navigation
 	core               *beancore.Core
 	resolver           *graph.Resolver
@@ -111,17 +115,22 @@ type App struct {
 	// Editor state - tracks bean being edited to update updated_at on save
 	editingBeanID      string
 	editingBeanModTime time.Time
+
+	// Quitting flag - set before running external commands to prevent View output
+	quitting bool
 }
 
 // New creates a new TUI application
 func New(core *beancore.Core, cfg *config.Config) *App {
 	resolver := &graph.Resolver{Core: core}
+	poller := sessionpoller.New(cfg.Session, core.Root())
 	return &App{
-		state:    viewList,
-		core:     core,
-		resolver: resolver,
-		config:   cfg,
-		list:     newListModel(resolver, cfg),
+		state:         viewList,
+		core:          core,
+		resolver:      resolver,
+		config:        cfg,
+		list:          newListModel(resolver, cfg, poller),
+		sessionPoller: poller,
 	}
 }
 
@@ -177,7 +186,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.helpOverlay.Init()
 			}
 		case "q":
-			if a.state == viewDetail || a.state == viewTagPicker || a.state == viewParentPicker || a.state == viewStatusPicker || a.state == viewTypePicker || a.state == viewBlockingPicker || a.state == viewPriorityPicker || a.state == viewHelpOverlay {
+			if a.state == viewDetail || a.state == viewTagPicker || a.state == viewParentPicker || a.state == viewStatusPicker || a.state == viewTypePicker || a.state == viewBlockingPicker || a.state == viewPriorityPicker || a.state == viewHelpOverlay || a.state == viewSessionDialog {
 				return a, tea.Quit
 			}
 			// For list, only quit if not filtering
@@ -197,7 +206,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.history = nil
 			} else {
 				// Recreate detail view with fresh bean data
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
 			}
 		}
 		// Trigger list refresh
@@ -266,7 +275,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail && len(msg.beanIDs) == 1 {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
 			}
 		}
 		return a, a.list.loadBeans
@@ -300,7 +309,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail && len(msg.beanIDs) == 1 {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
 			}
 		}
 		return a, a.list.loadBeans
@@ -334,7 +343,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail && len(msg.beanIDs) == 1 {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
 			}
 		}
 		return a, a.list.loadBeans
@@ -381,14 +390,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanID)
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
 			}
 		}
 		return a, a.list.loadBeans
 
 	case openCreateModalMsg:
 		a.previousState = a.state
-		a.createModal = newCreateModalModel(a.width, a.height)
+		a.createModal = newCreateModalModel(a.width, a.height, msg.parentID, msg.parentTitle)
 		a.state = viewCreateModal
 		return a, a.createModal.Init()
 
@@ -399,13 +408,19 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case beanCreatedMsg:
 		// Create the bean via GraphQL mutation with draft status
 		draftStatus := "draft"
+		var parentPtr *string
+		if msg.parentID != "" {
+			parentPtr = &msg.parentID
+		}
 		createdBean, err := a.resolver.Mutation().CreateBean(context.Background(), model.CreateBeanInput{
 			Title:  msg.title,
 			Status: &draftStatus,
+			Parent: parentPtr,
 		})
 		if err != nil {
-			// TODO: Show error to user
-			a.state = a.previousState
+			// Show error to user
+			a.launcherError = newLauncherErrorModel("Create Bean", err, a.width, a.height)
+			a.state = viewLauncherError
 			return a, nil
 		}
 		// Return to list and open the new bean in editor
@@ -429,7 +444,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		c := exec.Command(editor, fullPath)
+		a.quitting = true
 		return a, tea.ExecProcess(c, func(err error) tea.Msg {
+			a.quitting = false
 			return editorFinishedMsg{err: err}
 		})
 
@@ -476,7 +493,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Refresh the bean to show updated parent
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
 			}
 		}
 		return a, a.list.loadBeans
@@ -531,109 +548,76 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.launcherPicker.Init()
 
 	case launcherSelectedMsg:
-		// Check if we need confirmation (5+ beans)
-		needsConfirm := len(msg.beanIDs) >= 5 && !a.config.TUI.DisableLauncherWarning
-
-		if needsConfirm {
-			// Show confirmation dialog
-			a.previousState = a.state
-
-			// Convert launcher to config.Launcher
-			configLauncher := &config.Launcher{
-				Name:        msg.launcher.name,
-				Exec:        msg.launcher.exec,
-				Description: msg.launcher.description,
-			}
-
-			a.launchConfirm = newLaunchConfirm(configLauncher, msg.beanIDs)
-			a.state = viewLaunchConfirm
-			return a, a.launchConfirm.Init()
+		// Launch the selected launcher in foreground
+		if len(msg.beanIDs) == 0 {
+			a.state = a.previousState
+			return a, nil
 		}
 
-		// No confirmation needed - launch directly
-		return a, func() tea.Msg {
-			// Convert launcher to config.Launcher
-			configLauncher := &config.Launcher{
-				Name:        msg.launcher.name,
-				Exec:        msg.launcher.exec,
-				Description: msg.launcher.description,
-			}
+		// Get the bean for env vars
+		b, _ := a.core.Get(msg.beanIDs[0])
 
-			return launchConfirmedMsg{
-				launcher: configLauncher,
-				beanIDs:  msg.beanIDs,
-			}
+		beanTitle := msg.beanTitle
+		if b != nil {
+			beanTitle = b.Title
 		}
+
+		// Run the launcher directly with tea.ExecProcess
+		cmd, err := sessionpoller.CreateExecCommand(msg.launcher.exec, a.core.Root(), msg.beanIDs[0], beanTitle)
+		if err != nil {
+			return a, nil
+		}
+		a.quitting = true
+		return a, tea.ExecProcess(cmd, func(err error) tea.Msg {
+			a.quitting = false
+			return nil
+		})
 
 	case closeLauncherPickerMsg:
 		a.state = a.previousState
 		return a, nil
 
-	case launchConfirmedMsg:
-		// User confirmed launch or skipped confirmation - fetch all beans
-		var beans []*bean.Bean
-		for _, beanID := range msg.beanIDs {
-			b, err := a.core.Get(beanID)
+	case closeSessionDialogMsg:
+		a.state = a.previousState
+		return a, nil
+
+	case attachSessionMsg:
+		// Run the attach command for the session
+		if a.config.Session != nil && a.config.Session.Attach != "" {
+			cmd, err := sessionpoller.CreateExecCommand(a.config.Session.Attach, a.core.Root(), msg.beanID, msg.beanTitle)
 			if err != nil {
-				// Skip beans that can't be loaded
-				continue
+				return a, nil
 			}
-			beans = append(beans, b)
+			a.quitting = true
+			return a, tea.ExecProcess(cmd, func(err error) tea.Msg {
+				a.quitting = false
+				return nil
+			})
 		}
+		return a, nil
 
-		if len(beans) == 0 {
-			// All beans failed to load - return to previous state
-			a.state = a.previousState
-			return a, nil
+	case launchSessionMsg:
+		// Run the launch command for the session
+		if a.config.Session != nil && a.config.Session.Launch != "" {
+			cmd, err := sessionpoller.CreateExecCommand(a.config.Session.Launch, a.core.Root(), msg.beanID, msg.beanTitle)
+			if err != nil {
+				return a, nil
+			}
+			a.quitting = true
+			return a, tea.ExecProcess(cmd, func(err error) tea.Msg {
+				a.quitting = false
+				return nil
+			})
 		}
+		return a, nil
 
-		// Create launch manager
-		manager := launcherexec.NewLaunchManager(msg.launcher, beans)
-
-		// Start all launches
-		if err := manager.Start(a.core.Root()); err != nil {
-			// Failed to start - show error and return
-			a.previousState = viewDetail
-			a.launcherError = newLauncherErrorModel(msg.launcher.Name, err, a.width, a.height)
-			a.state = viewLauncherError
-			return a, nil
-		}
-
-		// Show progress view
+	case openSessionDialogMsg:
+		// Get all beans for the session dialog
+		beans, _ := a.resolver.Query().Beans(context.Background(), nil)
 		a.previousState = a.state
-		a.launchProgress = newLaunchProgress(manager, msg.launcher.Name)
-		a.state = viewLaunchProgress
-		return a, a.launchProgress.Init()
-
-	case launchCancelledMsg:
-		// User cancelled confirmation
-		a.state = a.previousState
-		return a, nil
-
-	case launchCompleteMsg:
-		// All launches completed successfully
-		a.state = a.previousState
-
-		// Clear selection if we're in list view
-		if a.state == viewList {
-			clear(a.list.selectedBeans)
-		}
-
-		// Cleanup the progress view
-		a.launchProgress.Cleanup()
-
-		return a, nil
-
-	case launchFailedMsg:
-		// A launch failed - cleanup and show error
-		a.launchProgress.Cleanup()
-
-		// Show error modal
-		a.previousState = viewDetail
-		a.launcherError = newLauncherErrorModel("launcher", msg.err, a.width, a.height)
-		a.state = viewLauncherError
-
-		// Note: We don't clear selection so user can retry
+		dialog := newSessionDialogModel(a.sessionPoller, beans, a.width, a.height)
+		a.sessionDialog = &dialog
+		a.state = viewSessionDialog
 		return a, nil
 
 	case launchersConfiguredMsg:
@@ -669,6 +653,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearFilterMsg:
 		a.list.clearFilter()
 		return a, a.list.loadBeans
+		// Session was killed - nothing special to do
+		return a, nil
 
 	case selectBeanMsg:
 		// Push current detail view to history if we're already viewing a bean
@@ -676,7 +662,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.history = append(a.history, a.detail)
 		}
 		a.state = viewDetail
-		a.detail = newDetailModel(msg.bean, a.resolver, a.config, a.width, a.height)
+		a.detail = newDetailModel(msg.bean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(msg.bean.ID))
 		return a, a.detail.Init()
 
 	case backToListMsg:
@@ -744,23 +730,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.state = a.previousState
 			return a, nil
 		}
-	case viewLaunchConfirm:
-		a.launchConfirm, cmd = a.launchConfirm.Update(msg)
-	case viewLaunchProgress:
-		// Handle q/esc to cancel and stop all processes
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch keyMsg.String() {
-			case "q", "esc":
-				// Stop all processes
-				if a.launchProgress.manager != nil {
-					a.launchProgress.manager.Stop()
-				}
-				a.launchProgress.Cleanup()
-				a.state = a.previousState
-				return a, nil
-			}
-		}
-		a.launchProgress, cmd = a.launchProgress.Update(msg)
+	case viewSessionDialog:
+		var m tea.Model
+		m, cmd = a.sessionDialog.Update(msg)
+		a.sessionDialog = m.(*sessionDialogModel)
 	}
 
 	return a, cmd
@@ -786,6 +759,12 @@ func (a *App) collectTagsWithCounts() []tagWithCount {
 
 // View renders the current view
 func (a *App) View() string {
+	// Return empty when quitting to prevent View output from being printed
+	// to the terminal after tea.ExecProcess runs (see bubbletea issue #431)
+	if a.quitting {
+		return ""
+	}
+
 	switch a.state {
 	case viewList:
 		return a.list.View()
@@ -819,12 +798,21 @@ func (a *App) View() string {
 		return a.configureLaunchers.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewConfigWriteError:
 		return a.configWriteError.ModalView(a.getBackgroundView(), a.width, a.height)
-	case viewLaunchConfirm:
-		return a.launchConfirm.View()
-	case viewLaunchProgress:
-		return a.launchProgress.View()
+	case viewSessionDialog:
+		return a.sessionDialog.View()
 	}
 	return ""
+}
+
+// makeRunningSessionChecker returns a function that checks if a bean has a running session
+func (a *App) makeRunningSessionChecker(beanID string) func() bool {
+	return func() bool {
+		if a.sessionPoller == nil {
+			return false
+		}
+		status := a.sessionPoller.GetStatus(beanID)
+		return status.HasSession
+	}
 }
 
 // getBackgroundView returns the view to show behind modal pickers

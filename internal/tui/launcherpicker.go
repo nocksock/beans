@@ -136,7 +136,7 @@ func (m launcherPickerModel) Update(msg tea.Msg) (launcherPickerModel, tea.Cmd) 
 						return launcherSelectedMsg{launcher: item.launcher, beanIDs: m.beanIDs, beanTitle: m.beanTitle}
 					}
 				}
-			case "esc", "backspace":
+			case "esc", "backspace", "q":
 				return m, func() tea.Msg {
 					return closeLauncherPickerMsg{}
 				}

@@ -9,23 +9,29 @@ import (
 
 // beanCreatedMsg is sent when a new bean is created
 type beanCreatedMsg struct {
-	title string
+	title    string
+	parentID string // optional parent ID for the new bean
 }
 
 // closeCreateModalMsg is sent when the create modal is cancelled
 type closeCreateModalMsg struct{}
 
 // openCreateModalMsg requests opening the create modal
-type openCreateModalMsg struct{}
+type openCreateModalMsg struct {
+	parentID    string // optional parent ID for the new bean
+	parentTitle string // display title of the parent (for UI)
+}
 
 // createModalModel is the model for the create bean modal
 type createModalModel struct {
-	textInput textinput.Model
-	width     int
-	height    int
+	textInput   textinput.Model
+	width       int
+	height      int
+	parentID    string // optional parent ID for the new bean
+	parentTitle string // display title of the parent (for UI)
 }
 
-func newCreateModalModel(width, height int) createModalModel {
+func newCreateModalModel(width, height int, parentID, parentTitle string) createModalModel {
 	ti := textinput.New()
 	ti.Placeholder = "Enter bean title..."
 	ti.CharLimit = 200
@@ -37,9 +43,11 @@ func newCreateModalModel(width, height int) createModalModel {
 	ti.Prompt = ""
 
 	return createModalModel{
-		textInput: ti,
-		width:     width,
-		height:    height,
+		textInput:   ti,
+		width:       width,
+		height:      height,
+		parentID:    parentID,
+		parentTitle: parentTitle,
 	}
 }
 
@@ -60,8 +68,9 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 		case tea.KeyEnter:
 			title := m.textInput.Value()
 			if title != "" {
+				parentID := m.parentID
 				return m, func() tea.Msg {
-					return beanCreatedMsg{title: title}
+					return beanCreatedMsg{title: title, parentID: parentID}
 				}
 			}
 			// Empty title - just close
@@ -87,8 +96,21 @@ func (m createModalModel) View() string {
 
 	modalWidth := max(40, min(60, m.width*50/100))
 
-	// Header
-	header := lipgloss.NewStyle().Bold(true).Render("Create New Bean")
+	// Header - show parent context if creating a child
+	var header string
+	if m.parentTitle != "" {
+		header = lipgloss.NewStyle().Bold(true).Render("Create Child Bean")
+		// Truncate parent title if too long
+		parentDisplay := m.parentTitle
+		maxParentLen := modalWidth - 16 // account for "Parent: " prefix and padding
+		if len(parentDisplay) > maxParentLen {
+			parentDisplay = parentDisplay[:maxParentLen-3] + "..."
+		}
+		parentLine := lipgloss.NewStyle().Foreground(ui.ColorMuted).Render("Parent: " + parentDisplay)
+		header = header + "\n" + parentLine
+	} else {
+		header = lipgloss.NewStyle().Bold(true).Render("Create New Bean")
+	}
 
 	// Input field
 	inputBox := lipgloss.NewStyle().

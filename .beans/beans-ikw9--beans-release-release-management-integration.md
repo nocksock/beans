@@ -1,13 +1,13 @@
 ---
 # beans-ikw9
 title: beans release - Release management integration
-status: draft
+status: in-progress
 type: feature
 priority: normal
 tags:
     - idea
 created_at: 2025-12-08T17:11:36Z
-updated_at: 2025-12-13T14:44:14Z
+updated_at: 2026-03-26T13:44:39Z
 parent: beans-f11p
 ---
 

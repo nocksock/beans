@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Check if a tmux session exists for the current bean.
+# Exit 0 if session exists, exit 1 if not.
+#
+# Environment variables:
+#   BEANS_ID    - The bean ID (e.g., "beans-abc123")
+#   BEANS_TASK  - The bean title (e.g., "Fix bug in parser")
+#   BEANS_DIR   - The .beans directory path
+#   BEANS_ROOT  - The project root directory
+
+set -e
+
+BEAN_ID="${BEANS_ID:-}"
+
+if [[ -z "$BEAN_ID" ]]; then
+    echo "Error: BEANS_ID not set" >&2
+    exit 1
+fi
+
+# Sanitize bean ID for use as tmux session name (replace special chars)
+SESSION_NAME="beans-${BEAN_ID//[^a-zA-Z0-9_-]/}"
+
+# Check if tmux session exists
+if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    exit 0
+else
+    exit 1
+fi

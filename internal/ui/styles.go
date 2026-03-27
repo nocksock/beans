@@ -311,24 +311,25 @@ func RenderPrioritySymbol(priority, color string) string {
 
 // BeanRowConfig holds configuration for rendering a bean row
 type BeanRowConfig struct {
-	StatusColor   string
-	TypeColor     string
-	PriorityColor string
-	Priority      string // Priority value (critical, high, normal, low, deferred)
-	IsArchive     bool
-	MaxTitleWidth int  // 0 means no truncation
-	ShowCursor    bool // Show selection cursor
-	IsSelected    bool
-	IsMarked      bool     // Marked for multi-select batch operations
-	Tags          []string // Tags to display (optional)
-	ShowTags      bool     // Whether to show tags column
-	TagsColWidth  int      // Width of tags column (0 = default)
-	MaxTags       int      // Max tags to show (0 = default of 1)
-	TreePrefix    string   // Tree prefix (e.g., "├─" or "  └─") to prepend to ID
-	Dimmed        bool     // Render row dimmed (for unmatched ancestor beans in tree)
-	IDColWidth    int      // Width of ID column (0 = default of ColWidthID)
-	HasChildren   bool     // Whether this bean has children (for caret indicator)
-	IsCollapsed   bool     // Whether this bean's children are collapsed
+	StatusColor       string
+	TypeColor         string
+	PriorityColor     string
+	Priority          string // Priority value (critical, high, normal, low, deferred)
+	IsArchive         bool
+	MaxTitleWidth     int  // 0 means no truncation
+	ShowCursor        bool // Show selection cursor
+	IsSelected        bool
+	IsMarked          bool     // Marked for multi-select batch operations
+	Tags              []string // Tags to display (optional)
+	ShowTags          bool     // Whether to show tags column
+	TagsColWidth      int      // Width of tags column (0 = default)
+	MaxTags           int      // Max tags to show (0 = default of 1)
+	TreePrefix        string   // Tree prefix (e.g., "├─" or "  └─") to prepend to ID
+	Dimmed            bool     // Render row dimmed (for unmatched ancestor beans in tree)
+	IDColWidth        int      // Width of ID column (0 = default of ColWidthID)
+	HasChildren       bool     // Whether this bean has children (for caret indicator)
+	IsCollapsed       bool     // Whether this bean's children are collapsed
+	HasRunningSession bool     // Whether this bean has a running session
 }
 
 // Base column widths for bean lists (minimum sizes)
@@ -514,6 +515,12 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 		displayTitle = title[:maxWidth]
 	}
 
+	// Running session indicator
+	var sessionIndicator string
+	if cfg.HasRunningSession {
+		sessionIndicator = lipgloss.NewStyle().Foreground(ColorSuccess).Render("●") + " "
+	}
+
 	// Cursor and title styling
 	var cursor string
 	var titleStyled string
@@ -549,7 +556,7 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 		if titleColWidth > titleLen {
 			padding = strings.Repeat(" ", titleColWidth-titleLen)
 		}
-		return cursor + idCol + typeCol + statusCol + prioritySymbol + titleStyled + padding + " " + tagsCol
+		return cursor + sessionIndicator + idCol + typeCol + statusCol + prioritySymbol + titleStyled + padding + " " + tagsCol
 	}
-	return cursor + idCol + typeCol + statusCol + prioritySymbol + titleStyled
+	return cursor + sessionIndicator + idCol + typeCol + statusCol + prioritySymbol + titleStyled
 }

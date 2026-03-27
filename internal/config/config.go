@@ -70,6 +70,16 @@ type PriorityConfig struct {
 	Description string `yaml:"description,omitempty"`
 }
 
+// SessionConfig defines multiplexer-agnostic session management.
+// Delegated to external tools (tmux, zellij, etc.) via scripts.
+type SessionConfig struct {
+	Check          string `yaml:"check"`            // Command that exits 0 if session exists
+	Attach         string `yaml:"attach"`           // Command to attach to existing session
+	Launch         string `yaml:"launch"`           // Command to launch/start a new session
+	PollIntervalMs int    `yaml:"poll_interval_ms"` // Polling interval in ms (default: 200)
+	CheckTimeoutMs int    `yaml:"check_timeout_ms"` // Timeout for check command in ms (default: 500)
+}
+
 // Launcher defines a configured launcher command.
 type Launcher struct {
 	Name        string `yaml:"name"`
@@ -87,9 +97,10 @@ type TUIConfig struct {
 // Config holds the beans configuration.
 // Note: Statuses are no longer stored in config - they are hardcoded like types.
 type Config struct {
-	Beans     BeansConfig `yaml:"beans"`
-	TUI       TUIConfig   `yaml:"tui,omitempty"`
-	Launchers []Launcher  `yaml:"launchers,omitempty"`
+	Beans     BeansConfig    `yaml:"beans"`
+	TUI       TUIConfig      `yaml:"tui,omitempty"`
+	Launchers []Launcher     `yaml:"launchers,omitempty"`
+	Session   *SessionConfig `yaml:"session,omitempty"` // Multiplexer-agnostic session config
 
 	// configDir is the directory containing the config file (not serialized)
 	// Used to resolve relative paths
