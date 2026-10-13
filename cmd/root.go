@@ -61,7 +61,7 @@ a full view of your project.`,
 			root = cfg.ResolveBeansPath()
 			// Verify it exists
 			if info, statErr := os.Stat(root); statErr != nil || !info.IsDir() {
-				return fmt.Errorf("no .beans directory found at %s (run 'beans init' to create one)", root)
+				return fmt.Errorf("beans directory not found at %s (run 'beans init' to create one)", root)
 			}
 		}
 

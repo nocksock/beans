@@ -1140,3 +1140,32 @@ launchers:
 		t.Errorf("error message = %q, want to contain 'shebang'", err.Error())
 	}
 }
+
+func TestConfigPath(t *testing.T) {
+	t.Run("loaded from file", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "custom.yml")
+		if err := os.WriteFile(path, []byte("beans:\n  path: issues\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(path)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if got := cfg.ConfigPath(); got != path {
+			t.Errorf("ConfigPath() = %q, want %q", got, path)
+		}
+	})
+
+	t.Run("default config falls back to config dir", func(t *testing.T) {
+		dir := t.TempDir()
+		cfg, err := LoadFromDirectory(dir)
+		if err != nil {
+			t.Fatalf("LoadFromDirectory() error = %v", err)
+		}
+		want := filepath.Join(dir, ConfigFileName)
+		if got := cfg.ConfigPath(); got != want {
+			t.Errorf("ConfigPath() = %q, want %q", got, want)
+		}
+	})
+}

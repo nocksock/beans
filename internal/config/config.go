@@ -105,6 +105,9 @@ type Config struct {
 	// configDir is the directory containing the config file (not serialized)
 	// Used to resolve relative paths
 	configDir string `yaml:"-"`
+
+	// configPath is the path to the config file it was loaded from (not serialized)
+	configPath string `yaml:"-"`
 }
 
 // BeansConfig defines settings for bean creation.
@@ -176,8 +179,9 @@ func Load(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	// Store the config directory for resolving relative paths
+	// Store the config location for resolving relative paths
 	cfg.configDir = filepath.Dir(configPath)
+	cfg.configPath = configPath
 
 	// Apply defaults for missing values
 	if cfg.Beans.Path == "" {
@@ -238,6 +242,16 @@ func (c *Config) ResolveBeansPath() string {
 // ConfigDir returns the directory containing the config file.
 func (c *Config) ConfigDir() string {
 	return c.configDir
+}
+
+// ConfigPath returns the path to the config file.
+// Falls back to ConfigFileName inside the config directory if the config
+// was not loaded from a file.
+func (c *Config) ConfigPath() string {
+	if c.configPath != "" {
+		return c.configPath
+	}
+	return filepath.Join(c.configDir, ConfigFileName)
 }
 
 // SetConfigDir sets the config directory (for testing or when creating new configs).
