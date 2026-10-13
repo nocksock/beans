@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph"
@@ -37,6 +38,7 @@ const (
 	viewConfigWriteError
 	viewSessionDialog
 	viewLauncherResult
+	viewTagEditor
 )
 
 // beansChangedMsg is sent when beans change on disk (via file watcher)
@@ -88,6 +90,7 @@ type App struct {
 	statusPicker       statusPickerModel
 	typePicker         typePickerModel
 	blockingPicker     blockingPickerModel
+	tagEditor          tagEditorModel
 	priorityPicker     priorityPickerModel
 	createModal        createModalModel
 	helpOverlay        helpOverlayModel
@@ -359,6 +362,55 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case closeHelpMsg:
 		a.state = a.previousState
 		return a, nil
+
+	case openTagEditorMsg:
+		var beans []*bean.Bean
+		for _, id := range msg.beanIDs {
+			if b, err := a.resolver.Query().Bean(context.Background(), id); err == nil && b != nil {
+				beans = append(beans, b)
+			}
+		}
+		if len(beans) == 0 {
+			return a, nil
+		}
+		a.previousState = a.state
+		a.tagEditor = newTagEditorModel(beans, msg.beanTitle, a.collectTagsWithCounts(), a.width, a.height)
+		a.state = viewTagEditor
+		return a, a.tagEditor.Init()
+
+	case closeTagEditorMsg:
+		a.state = a.previousState
+		return a, a.list.loadBeans
+
+	case tagsConfirmedMsg:
+		// Apply tag changes to each bean via GraphQL mutations
+		if len(msg.toAdd) > 0 || len(msg.toRemove) > 0 {
+			for _, beanID := range msg.beanIDs {
+				b, err := a.resolver.Query().Bean(context.Background(), beanID)
+				if err != nil || b == nil {
+					continue
+				}
+				tags := applyTagChanges(b.Tags, msg.toAdd, msg.toRemove)
+				_, err = a.resolver.Mutation().UpdateBean(context.Background(), beanID, model.UpdateBeanInput{
+					Tags: tags,
+				})
+				if err != nil {
+					// Continue with other beans even if one fails
+					continue
+				}
+			}
+		}
+		// Return to the previous view and refresh
+		a.state = a.previousState
+		// Clear selection after batch edit
+		clear(a.list.selectedBeans)
+		if a.state == viewDetail && len(msg.beanIDs) == 1 {
+			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
+			if updatedBean != nil {
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
+			}
+		}
+		return a, a.list.loadBeans
 
 	case openBlockingPickerMsg:
 		a.previousState = a.state
@@ -697,6 +749,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.priorityPicker, cmd = a.priorityPicker.Update(msg)
 	case viewBlockingPicker:
 		a.blockingPicker, cmd = a.blockingPicker.Update(msg)
+	case viewTagEditor:
+		a.tagEditor, cmd = a.tagEditor.Update(msg)
 	case viewCreateModal:
 		a.createModal, cmd = a.createModal.Update(msg)
 	case viewHelpOverlay:
@@ -785,6 +839,8 @@ func (a *App) View() string {
 		return a.priorityPicker.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewBlockingPicker:
 		return a.blockingPicker.ModalView(a.getBackgroundView(), a.width, a.height)
+	case viewTagEditor:
+		return a.tagEditor.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewCreateModal:
 		return a.createModal.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewHelpOverlay:

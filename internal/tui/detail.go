@@ -352,6 +352,15 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
+		case "T":
+			// Open tag editor
+			return m, func() tea.Msg {
+				return openTagEditorMsg{
+					beanIDs:   []string{m.bean.ID},
+					beanTitle: m.bean.Title,
+				}
+			}
+
 		case "P":
 			// Open priority picker
 			return m, func() tea.Msg {
@@ -469,6 +478,7 @@ func (m detailModel) View() string {
 		helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 		helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 		helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
+		helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 		helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 		helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 		helpKeyStyle.Render("j/k") + " " + helpStyle.Render("scroll") + "  " +

@@ -432,6 +432,28 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
+			case "T":
+				// Open tag editor for selected bean(s)
+				if len(m.selectedBeans) > 0 {
+					// Multi-select mode
+					ids := make([]string, 0, len(m.selectedBeans))
+					for id := range m.selectedBeans {
+						ids = append(ids, id)
+					}
+					return m, func() tea.Msg {
+						return openTagEditorMsg{
+							beanIDs:   ids,
+							beanTitle: fmt.Sprintf("%d selected beans", len(ids)),
+						}
+					}
+				} else if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg {
+						return openTagEditorMsg{
+							beanIDs:   []string{item.bean.ID},
+							beanTitle: item.bean.Title,
+						}
+					}
+				}
 			case "P":
 				// Open priority picker for selected bean(s)
 				if len(m.selectedBeans) > 0 {
@@ -655,6 +677,7 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
+			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("esc") + " " + helpStyle.Render("clear selection") + "  " +
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
 			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
@@ -666,6 +689,7 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
+			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
@@ -680,6 +704,7 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
+			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +

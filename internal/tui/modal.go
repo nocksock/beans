@@ -15,6 +15,7 @@ type pickerModalConfig struct {
 	BeanID      string // the bean's ID
 	ListContent string // the rendered list
 	Description string // optional description shown below list
+	Help        string // optional help footer (defaults to select/filter/cancel)
 	Width       int    // screen width
 	WidthPct    int    // modal width percentage (default 50)
 	MaxWidth    int    // max modal width (default 60)
@@ -46,9 +47,12 @@ func renderPickerModal(cfg pickerModalConfig) string {
 	subtitle := ui.Muted.Render(cfg.BeanID)
 
 	// Help footer
-	help := helpKeyStyle.Render("enter") + " " + helpStyle.Render("select") + "  " +
-		helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
-		helpKeyStyle.Render("esc") + " " + helpStyle.Render("cancel")
+	help := cfg.Help
+	if help == "" {
+		help = helpKeyStyle.Render("enter") + " " + helpStyle.Render("select") + "  " +
+			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
+			helpKeyStyle.Render("esc") + " " + helpStyle.Render("cancel")
+	}
 
 	// Border style
 	border := lipgloss.NewStyle().
