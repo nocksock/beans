@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
@@ -191,11 +192,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.helpOverlay.Init()
 			}
 		case "q":
-			if a.state == viewDetail || a.state == viewTagPicker || a.state == viewParentPicker || a.state == viewStatusPicker || a.state == viewTypePicker || a.state == viewBlockingPicker || a.state == viewPriorityPicker || a.state == viewHelpOverlay || a.state == viewSessionDialog {
-				return a, tea.Quit
-			}
-			// For list, only quit if not filtering
-			if a.state == viewList && a.list.list.FilterState() != 1 {
+			if a.canQuitWithQ() {
 				return a, tea.Quit
 			}
 		}
@@ -794,6 +791,34 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return a, cmd
+}
+
+// canQuitWithQ returns true if "q" should quit the app in the current state.
+// It must not quit while the user is typing text (filters, text inputs).
+func (a *App) canQuitWithQ() bool {
+	switch a.state {
+	case viewList:
+		return a.list.list.FilterState() != list.Filtering
+	case viewDetail:
+		return a.detail.linkList.FilterState() != list.Filtering
+	case viewTagPicker:
+		return a.tagPicker.list.FilterState() != list.Filtering
+	case viewParentPicker:
+		return a.parentPicker.list.FilterState() != list.Filtering
+	case viewStatusPicker:
+		return a.statusPicker.list.FilterState() != list.Filtering
+	case viewTypePicker:
+		return a.typePicker.list.FilterState() != list.Filtering
+	case viewBlockingPicker:
+		return a.blockingPicker.list.FilterState() != list.Filtering
+	case viewPriorityPicker:
+		return a.priorityPicker.list.FilterState() != list.Filtering
+	case viewHelpOverlay, viewSessionDialog:
+		return true
+	default:
+		// Text input modals (create, tag editor) and launcher dialogs
+		return false
+	}
 }
 
 // collectTagsWithCounts returns all tags with their usage counts
