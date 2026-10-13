@@ -21,6 +21,10 @@ var rootCmd = &cobra.Command{
 Track your work alongside your code and supercharge your coding agent with
 a full view of your project.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Expand ~ in path flags (shells don't expand it in --flag=~/path form)
+		beansPath = config.ExpandHome(beansPath)
+		configPath = config.ExpandHome(configPath)
+
 		// Skip core initialization for init and prime commands
 		if cmd.Name() == "init" || cmd.Name() == "prime" {
 			return nil

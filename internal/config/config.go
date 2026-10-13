@@ -112,7 +112,7 @@ type Config struct {
 
 // BeansConfig defines settings for bean creation.
 type BeansConfig struct {
-	// Path is the path to the beans directory (relative to config file location)
+	// Path is the path to the beans directory (relative to config file location, "~" expands to $HOME)
 	Path          string `yaml:"path,omitempty"`
 	Prefix        string `yaml:"prefix"`
 	IDLength      int    `yaml:"id_length"`
@@ -226,17 +226,31 @@ func LoadFromDirectory(startDir string) (*Config, error) {
 	return Load(configPath)
 }
 
+// ExpandHome replaces a leading "~" in path with the user's home directory.
+// Only "~" and "~/..." are expanded; "~user" forms are returned unchanged.
+func ExpandHome(path string) string {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	return filepath.Join(home, path[1:])
+}
+
 // ResolveBeansPath returns the absolute path to the beans directory.
 func (c *Config) ResolveBeansPath() string {
-	if filepath.IsAbs(c.Beans.Path) {
-		return c.Beans.Path
+	path := ExpandHome(c.Beans.Path)
+	if filepath.IsAbs(path) {
+		return path
 	}
 	if c.configDir == "" {
 		// Fallback: use current directory
 		cwd, _ := os.Getwd()
-		return filepath.Join(cwd, c.Beans.Path)
+		return filepath.Join(cwd, path)
 	}
-	return filepath.Join(c.configDir, c.Beans.Path)
+	return filepath.Join(c.configDir, path)
 }
 
 // ConfigDir returns the directory containing the config file.

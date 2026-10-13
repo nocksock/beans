@@ -1169,3 +1169,42 @@ func TestConfigPath(t *testing.T) {
 		}
 	})
 }
+
+func TestExpandHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{"tilde alone", "~", home},
+		{"tilde with subpath", "~/notes/beans", filepath.Join(home, "notes/beans")},
+		{"absolute path unchanged", "/abs/path", "/abs/path"},
+		{"relative path unchanged", "beans", "beans"},
+		{"tilde in the middle unchanged", "foo/~/bar", "foo/~/bar"},
+		{"other user unchanged", "~bob/beans", "~bob/beans"},
+		{"empty unchanged", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExpandHome(tt.path); got != tt.want {
+				t.Errorf("ExpandHome(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveBeansPathExpandsHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	cfg := &Config{Beans: BeansConfig{Path: "~/notes/beans"}}
+	cfg.SetConfigDir("/project/root")
+
+	want := filepath.Join(home, "notes/beans")
+	if got := cfg.ResolveBeansPath(); got != want {
+		t.Errorf("ResolveBeansPath() = %q, want %q", got, want)
+	}
+}
