@@ -2,7 +2,9 @@ package sessionpoller
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -206,4 +208,36 @@ func CreateExecCommand(execScript, beansDir, beanID, beanTitle string) (*exec.Cm
 	cmd.Dir = projectRoot
 
 	return cmd, nil
+}
+
+// CreateLoggedExecCommand is like CreateExecCommand, but additionally tees the
+// command's stderr into a temporary log file. Stdin and stdout are left unset so
+// tea.ExecProcess attaches them to the terminal and interactive launchers keep
+// working. The caller must close the returned file after the command exits.
+func CreateLoggedExecCommand(execScript, beansDir, beanID, beanTitle string) (*exec.Cmd, *os.File, error) {
+	cmd, err := CreateExecCommand(execScript, beansDir, beanID, beanTitle)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	logFile, err := os.CreateTemp("", "beans-launch-*.log")
+	if err != nil {
+		return nil, nil, err
+	}
+	cmd.Stderr = io.MultiWriter(os.Stderr, logFile)
+
+	return cmd, logFile, nil
+}
+
+// ExitCode extracts the process exit code from the error returned by running a
+// command. It returns 0 for a nil error and -1 if the command could not be run.
+func ExitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode()
+	}
+	return -1
 }

@@ -36,6 +36,7 @@ const (
 	viewConfigureLaunchers
 	viewConfigWriteError
 	viewSessionDialog
+	viewLauncherResult
 )
 
 // beansChangedMsg is sent when beans change on disk (via file watcher)
@@ -97,6 +98,7 @@ type App struct {
 	configureLaunchers configureLaunchersModel
 	configWriteError   configWriteErrorModel
 	sessionDialog      *sessionDialogModel
+	launcherResult     *launcherResultModel
 	sessionPoller      *sessionpoller.Poller
 	history            []detailModel // stack of previous detail views for back navigation
 	core               *beancore.Core
@@ -548,9 +550,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.launcherPicker.Init()
 
 	case launcherSelectedMsg:
-		// Launch the selected launcher in foreground
+		// Close the launcher picker first
+		a.state = a.previousState
+
 		if len(msg.beanIDs) == 0 {
-			a.state = a.previousState
 			return a, nil
 		}
 
@@ -562,16 +565,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			beanTitle = b.Title
 		}
 
-		// Run the launcher directly with tea.ExecProcess
-		cmd, err := sessionpoller.CreateExecCommand(msg.launcher.exec, a.core.Root(), msg.beanIDs[0], beanTitle)
-		if err != nil {
-			return a, nil
-		}
-		a.quitting = true
-		return a, tea.ExecProcess(cmd, func(err error) tea.Msg {
-			a.quitting = false
-			return nil
-		})
+		return a, a.runLauncher(msg.launcher.name, msg.launcher.exec, msg.beanIDs[0], beanTitle)
 
 	case closeLauncherPickerMsg:
 		a.state = a.previousState
@@ -597,17 +591,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case launchSessionMsg:
-		// Run the launch command for the session
+		// Close any dialog first
+		a.state = a.previousState
+
 		if a.config.Session != nil && a.config.Session.Launch != "" {
-			cmd, err := sessionpoller.CreateExecCommand(a.config.Session.Launch, a.core.Root(), msg.beanID, msg.beanTitle)
-			if err != nil {
-				return a, nil
-			}
-			a.quitting = true
-			return a, tea.ExecProcess(cmd, func(err error) tea.Msg {
-				a.quitting = false
-				return nil
-			})
+			return a, a.runLauncher("Session", a.config.Session.Launch, msg.beanID, msg.beanTitle)
 		}
 		return a, nil
 
@@ -618,6 +606,19 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		dialog := newSessionDialogModel(a.sessionPoller, beans, a.width, a.height)
 		a.sessionDialog = &dialog
 		a.state = viewSessionDialog
+		return a, nil
+
+	case launcherResultMsg:
+		// Show the launcher result
+		result := newLauncherResultModel(msg.name, msg.success, msg.exitCode, msg.logPath, a.width, a.height)
+		a.launcherResult = &result
+		a.previousState = a.state
+		a.state = viewLauncherResult
+		return a, nil
+
+	case closeLauncherResultMsg:
+		// Return to previous state
+		a.state = a.previousState
 		return a, nil
 
 	case launchersConfiguredMsg:
@@ -653,8 +654,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearFilterMsg:
 		a.list.clearFilter()
 		return a, a.list.loadBeans
-		// Session was killed - nothing special to do
-		return a, nil
 
 	case selectBeanMsg:
 		// Push current detail view to history if we're already viewing a bean
@@ -734,6 +733,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var m tea.Model
 		m, cmd = a.sessionDialog.Update(msg)
 		a.sessionDialog = m.(*sessionDialogModel)
+	case viewLauncherResult:
+		var m tea.Model
+		m, cmd = a.launcherResult.Update(msg)
+		a.launcherResult = m.(*launcherResultModel)
 	}
 
 	return a, cmd
@@ -800,6 +803,8 @@ func (a *App) View() string {
 		return a.configWriteError.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewSessionDialog:
 		return a.sessionDialog.View()
+	case viewLauncherResult:
+		return a.launcherResult.View()
 	}
 	return ""
 }
@@ -829,6 +834,31 @@ func (a *App) getBackgroundView() string {
 
 // getEditor returns the user's preferred editor using the fallback chain:
 // $VISUAL -> $EDITOR -> vi -> nano
+// runLauncher runs execScript in the foreground (with the terminal handed over
+// to it) and reports its outcome as a launcherResultMsg. Stderr is additionally
+// captured to a log file so failures can be inspected afterwards.
+func (a *App) runLauncher(name, execScript, beanID, beanTitle string) tea.Cmd {
+	cmd, logFile, err := sessionpoller.CreateLoggedExecCommand(execScript, a.core.Root(), beanID, beanTitle)
+	if err != nil {
+		return func() tea.Msg {
+			return launcherResultMsg{name: name, success: false, exitCode: -1}
+		}
+	}
+
+	a.quitting = true
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		logFile.Close()
+		a.quitting = false
+		exitCode := sessionpoller.ExitCode(err)
+		return launcherResultMsg{
+			name:     name,
+			success:  exitCode == 0,
+			exitCode: exitCode,
+			logPath:  logFile.Name(),
+		}
+	})
+}
+
 func getEditor() string {
 	if editor := os.Getenv("VISUAL"); editor != "" {
 		return editor
