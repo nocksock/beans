@@ -1,10 +1,11 @@
 ---
 # beans-t0tv
 title: Refactor TUI to two-column layout with hierarchical navigation
-status: todo
+status: in-progress
 type: feature
+priority: normal
 created_at: 2025-12-14T15:37:22Z
-updated_at: 2025-12-14T15:37:22Z
+updated_at: 2026-03-27T15:53:36Z
 parent: beans-f11p
 ---
 
