@@ -44,6 +44,16 @@ type Mutation {
   Remove a bean from the blocking list
   """
   removeBlocking(id: ID!, targetId: ID!): Bean!
+
+  """
+  Add a bean to the blocked-by list (the target blocks this bean)
+  """
+  addBlockedBy(id: ID!, targetId: ID!): Bean!
+
+  """
+  Remove a bean from the blocked-by list
+  """
+  removeBlockedBy(id: ID!, targetId: ID!): Bean!
 }
 
 """
@@ -66,6 +76,8 @@ input CreateBeanInput {
   parent: String
   "Bean IDs this bean is blocking"
   blocking: [String!]
+  "Bean IDs that are blocking this bean"
+  blockedBy: [String!]
 }
 
 """
@@ -116,13 +128,15 @@ type Bean {
   # Direct link fields
   "Parent bean ID (optional, type-restricted)"
   parentId: String
-  "IDs of beans this bean is blocking"
+  "IDs of beans this bean is blocking (as declared in this bean's blocking field)"
   blockingIds: [String!]!
+  "IDs of beans blocking this bean (as declared in this bean's blocked_by field)"
+  blockedByIds: [String!]!
 
   # Computed relationship fields
-  "Beans that block this one (incoming blocking links)"
+  "Beans that block this one (from blockedByIds and incoming blocking links)"
   blockedBy(filter: BeanFilter): [Bean!]!
-  "Beans this one is blocking (resolved from blockingIds)"
+  "Beans this one is blocking (from blockingIds and incoming blocked_by links)"
   blocking(filter: BeanFilter): [Bean!]!
   "Parent bean (resolved from parentId)"
   parent: Bean

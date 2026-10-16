@@ -92,7 +92,7 @@ var showCmd = &cobra.Command{
 		header.WriteString(ui.Title.Render(b.Title))
 
 		// Display relationships
-		if b.Parent != "" || len(b.Blocking) > 0 {
+		if b.Parent != "" || len(b.Blocking) > 0 || len(b.BlockedBy) > 0 {
 			header.WriteString("\n")
 			header.WriteString(ui.Muted.Render(strings.Repeat("─", 50)))
 			header.WriteString("\n")
@@ -146,6 +146,13 @@ func formatRelationships(b *bean.Bean) string {
 		parts = append(parts, fmt.Sprintf("%s %s",
 			ui.Muted.Render("blocking:"),
 			ui.ID.Render(target)))
+	}
+
+	// Display blocked-by
+	for _, blocker := range b.BlockedBy {
+		parts = append(parts, fmt.Sprintf("%s %s",
+			ui.Muted.Render("blocked by:"),
+			ui.ID.Render(blocker)))
 	}
 	return strings.Join(parts, "\n")
 }

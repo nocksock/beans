@@ -131,6 +131,9 @@ func (m *previewModel) renderBean(width int) string {
 	if len(b.Blocking) > 0 {
 		rels = append(rels, label.Render("Blocking: ")+ui.ID.Render(strings.Join(b.Blocking, ", ")))
 	}
+	if len(b.BlockedBy) > 0 {
+		rels = append(rels, label.Render("Blocked by: ")+ui.ID.Render(strings.Join(b.BlockedBy, ", ")))
+	}
 	if len(rels) > 0 {
 		parts = append(parts, "")
 		parts = append(parts, rels...)

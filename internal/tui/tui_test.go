@@ -116,3 +116,48 @@ func TestCreateModalAcceptsQ(t *testing.T) {
 		t.Errorf("create modal input = %q, want %q", got, "quick")
 	}
 }
+
+func TestBlockedByPicker(t *testing.T) {
+	app, b := newTestApp(t)
+	var blockerID string
+	for _, o := range app.resolver.Core.All() {
+		if o.ID != b.ID {
+			blockerID = o.ID
+		}
+	}
+
+	t.Run("B in list opens blocked-by picker", func(t *testing.T) {
+		_, cmd := app.Update(keyMsg("B"))
+		if cmd == nil {
+			t.Fatal("expected command from B key")
+		}
+		msg, ok := cmd().(openBlockingPickerMsg)
+		if !ok || !msg.blockedBy {
+			t.Fatalf("got %#v, want openBlockingPickerMsg with blockedBy", msg)
+		}
+	})
+
+	t.Run("picker is titled for blocked-by", func(t *testing.T) {
+		app.Update(openBlockingPickerMsg{beanID: b.ID, beanTitle: b.Title, blockedBy: true})
+		if app.state != viewBlockingPicker || !app.blockingPicker.blockedBy {
+			t.Fatalf("state = %v, blockedBy = %v", app.state, app.blockingPicker.blockedBy)
+		}
+		if app.blockingPicker.list.Title != "Manage Blocked By" {
+			t.Errorf("title = %q", app.blockingPicker.list.Title)
+		}
+	})
+
+	t.Run("confirm applies blocked-by mutations", func(t *testing.T) {
+		app.Update(blockingConfirmedMsg{beanID: b.ID, blockedBy: true, toAdd: []string{blockerID}})
+		got, _ := app.resolver.Core.Get(b.ID)
+		if !got.IsBlockedBy(blockerID) || len(got.Blocking) != 0 {
+			t.Errorf("BlockedBy = %v, Blocking = %v; want blocked by %s only", got.BlockedBy, got.Blocking, blockerID)
+		}
+
+		app.Update(blockingConfirmedMsg{beanID: b.ID, blockedBy: true, toRemove: []string{blockerID}})
+		got, _ = app.resolver.Core.Get(b.ID)
+		if got.IsBlockedBy(blockerID) {
+			t.Errorf("BlockedBy = %v, want empty", got.BlockedBy)
+		}
+	})
+}

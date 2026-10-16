@@ -611,9 +611,21 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
 						return openBlockingPickerMsg{
-							beanID:          item.bean.ID,
-							beanTitle:       item.bean.Title,
-							currentBlocking: item.bean.Blocking,
+							beanID:     item.bean.ID,
+							beanTitle:  item.bean.Title,
+							currentIDs: item.bean.Blocking,
+						}
+					}
+				}
+			case "B":
+				// Open blocked-by picker for selected bean
+				if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg {
+						return openBlockingPickerMsg{
+							beanID:     item.bean.ID,
+							beanTitle:  item.bean.Title,
+							blockedBy:  true,
+							currentIDs: item.bean.BlockedBy,
 						}
 					}
 				}
@@ -870,6 +882,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
+			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
 			helpKeyStyle.Render("esc") + " " + helpStyle.Render("clear filter") + "  " +
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
@@ -887,6 +900,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
+			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
 			helpKeyStyle.Render("S") + " " + helpStyle.Render("session") + "  " +
 			helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +

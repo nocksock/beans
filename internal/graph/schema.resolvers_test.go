@@ -324,9 +324,9 @@ func TestBeanRelationships(t *testing.T) {
 		Parent: "parent-1",
 	}
 	blocker := &bean.Bean{
-		ID:     "blocker-1",
-		Title:  "Blocker",
-		Status: "todo",
+		ID:       "blocker-1",
+		Title:    "Blocker",
+		Status:   "todo",
 		Blocking: []string{"child-1"},
 	}
 
@@ -427,9 +427,9 @@ func TestQueryBeansWithParentAndBlocks(t *testing.T) {
 		Parent: "no-rels",
 	}
 	hasBlocks := &bean.Bean{
-		ID:     "has-blocks",
-		Title:  "Has Blocks",
-		Status: "todo",
+		ID:       "has-blocks",
+		Title:    "Has Blocks",
+		Status:   "todo",
 		Blocking: []string{"has-parent"},
 	}
 
@@ -606,7 +606,7 @@ func TestMutationCreateBean(t *testing.T) {
 			Body:     &body,
 			Tags:     []string{"tag1", "tag2"},
 			Parent:   &parent,
-			Blocking:   []string{"some-target"},
+			Blocking: []string{"some-target"},
 		}
 		got, err := mr.CreateBean(ctx, input)
 		if err != nil {
@@ -709,7 +709,6 @@ func TestMutationUpdateBean(t *testing.T) {
 			t.Errorf("UpdateBean().Tags count = %d, want 2", len(got.Tags))
 		}
 	})
-
 
 	t.Run("update nonexistent bean", func(t *testing.T) {
 		mr := resolver.Mutation()
@@ -844,10 +843,10 @@ func TestMutationDeleteBean(t *testing.T) {
 
 		// Create bean that links to target
 		linker := &bean.Bean{
-			ID:     "linker-bean",
-			Title:  "Linker",
-			Status: "todo",
-			Type:   "task",
+			ID:       "linker-bean",
+			Title:    "Linker",
+			Status:   "todo",
+			Type:     "task",
 			Blocking: []string{"target-bean"},
 		}
 		core.Create(linker)
@@ -1049,4 +1048,117 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 			t.Errorf("Blocking(filter status=completed) count = %d, want 0", len(got))
 		}
 	})
+}
+
+func TestMutationAddRemoveBlockedBy(t *testing.T) {
+	resolver, core := setupTestResolver(t)
+	ctx := context.Background()
+	mr := resolver.Mutation()
+
+	createTestBean(t, core, "blocker-1", "Blocker", "todo")
+	createTestBean(t, core, "target-1", "Target", "todo")
+	createTestBean(t, core, "other-1", "Other", "todo")
+
+	t.Run("add blocked-by", func(t *testing.T) {
+		got, err := mr.AddBlockedBy(ctx, "target-1", "blocker-1")
+		if err != nil {
+			t.Fatalf("AddBlockedBy() error = %v", err)
+		}
+		if len(got.BlockedBy) != 1 || got.BlockedBy[0] != "blocker-1" {
+			t.Errorf("AddBlockedBy().BlockedBy = %v, want [blocker-1]", got.BlockedBy)
+		}
+	})
+
+	t.Run("blocker sees target in blocking", func(t *testing.T) {
+		blocker, _ := core.Get("blocker-1")
+		got, err := resolver.Bean().Blocking(ctx, blocker, nil)
+		if err != nil {
+			t.Fatalf("Blocking() error = %v", err)
+		}
+		if len(got) != 1 || got[0].ID != "target-1" {
+			t.Errorf("Blocking() = %v, want [target-1]", got)
+		}
+	})
+
+	t.Run("blockedBy merges with incoming blocking", func(t *testing.T) {
+		if _, err := mr.AddBlocking(ctx, "other-1", "target-1"); err != nil {
+			t.Fatalf("AddBlocking() error = %v", err)
+		}
+		target, _ := core.Get("target-1")
+		got, err := resolver.Bean().BlockedBy(ctx, target, nil)
+		if err != nil {
+			t.Fatalf("BlockedBy() error = %v", err)
+		}
+		if len(got) != 2 {
+			t.Errorf("BlockedBy() count = %d, want 2", len(got))
+		}
+		ids, _ := resolver.Bean().BlockedByIds(ctx, target)
+		if len(ids) != 1 || ids[0] != "blocker-1" {
+			t.Errorf("BlockedByIds() = %v, want [blocker-1]", ids)
+		}
+	})
+
+	t.Run("isBlocked filter honours blocked_by", func(t *testing.T) {
+		isBlocked := true
+		got, err := resolver.Query().Beans(ctx, &model.BeanFilter{IsBlocked: &isBlocked})
+		if err != nil {
+			t.Fatalf("Beans() error = %v", err)
+		}
+		if len(got) != 1 || got[0].ID != "target-1" {
+			t.Errorf("Beans(isBlocked) = %v, want [target-1]", got)
+		}
+	})
+
+	t.Run("hasBlocking filter honours blocked_by", func(t *testing.T) {
+		hasBlocking := true
+		got, err := resolver.Query().Beans(ctx, &model.BeanFilter{HasBlocking: &hasBlocking})
+		if err != nil {
+			t.Fatalf("Beans() error = %v", err)
+		}
+		if len(got) != 2 {
+			t.Errorf("Beans(hasBlocking) count = %d, want 2 (blocker-1, other-1)", len(got))
+		}
+	})
+
+	t.Run("rejects self and cycles", func(t *testing.T) {
+		if _, err := mr.AddBlockedBy(ctx, "target-1", "target-1"); err == nil {
+			t.Error("AddBlockedBy(self) expected error")
+		}
+		if _, err := mr.AddBlockedBy(ctx, "blocker-1", "target-1"); err == nil {
+			t.Error("AddBlockedBy() expected cycle error")
+		}
+		if _, err := mr.AddBlocking(ctx, "target-1", "blocker-1"); err == nil {
+			t.Error("AddBlocking() expected cycle error via blocked_by")
+		}
+		if _, err := mr.AddBlockedBy(ctx, "target-1", "nonexistent"); err == nil {
+			t.Error("AddBlockedBy() expected error for nonexistent target")
+		}
+	})
+
+	t.Run("remove blocked-by", func(t *testing.T) {
+		got, err := mr.RemoveBlockedBy(ctx, "target-1", "blocker-1")
+		if err != nil {
+			t.Fatalf("RemoveBlockedBy() error = %v", err)
+		}
+		if len(got.BlockedBy) != 0 {
+			t.Errorf("RemoveBlockedBy().BlockedBy = %v, want empty", got.BlockedBy)
+		}
+	})
+}
+
+func TestMutationCreateBeanWithBlockedBy(t *testing.T) {
+	resolver, core := setupTestResolver(t)
+	ctx := context.Background()
+	createTestBean(t, core, "blocker-1", "Blocker", "todo")
+
+	got, err := resolver.Mutation().CreateBean(ctx, model.CreateBeanInput{
+		Title:     "Blocked",
+		BlockedBy: []string{"blocker-1"},
+	})
+	if err != nil {
+		t.Fatalf("CreateBean() error = %v", err)
+	}
+	if len(got.BlockedBy) != 1 || got.BlockedBy[0] != "blocker-1" {
+		t.Errorf("CreateBean().BlockedBy = %v, want [blocker-1]", got.BlockedBy)
+	}
 }

@@ -91,6 +91,7 @@ func (m helpOverlayModel) View() string {
 	content.WriteString(shortcut("T", "Edit tags") + "\n")
 	content.WriteString(shortcut("p", "Set parent") + "\n")
 	content.WriteString(shortcut("b", "Manage blocking") + "\n")
+	content.WriteString(shortcut("B", "Manage blocked by") + "\n")
 	content.WriteString(shortcut("Y", "Archive (all completed in list)") + "\n")
 	content.WriteString(shortcut("/", "Filter") + "\n")
 	content.WriteString(shortcut("g t", "Filter by tag") + "\n")
