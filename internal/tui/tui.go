@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,6 +41,7 @@ const (
 	viewSessionDialog
 	viewLauncherResult
 	viewTagEditor
+	viewArchiveConfirm
 )
 
 // beansChangedMsg is sent when beans change on disk (via file watcher)
@@ -92,6 +94,7 @@ type App struct {
 	typePicker         typePickerModel
 	blockingPicker     blockingPickerModel
 	tagEditor          tagEditorModel
+	archiveConfirm     archiveConfirmModel
 	priorityPicker     priorityPickerModel
 	createModal        createModalModel
 	helpOverlay        helpOverlayModel
@@ -446,6 +449,59 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, a.list.loadBeans
 
+	case archiveCompletedMsg:
+		var ids []string
+		beans, _ := a.resolver.Query().Beans(context.Background(), nil)
+		for _, b := range beans {
+			if a.config.IsArchiveStatus(b.Status) {
+				ids = append(ids, b.ID)
+			}
+		}
+		if len(ids) == 0 {
+			return a, nil
+		}
+		a.previousState = a.state
+		a.archiveConfirm = newArchiveConfirmModel(ids,
+			fmt.Sprintf("Archive %d bean(s)?", len(ids)),
+			"All completed and scrapped beans will be deleted.",
+			a.width, a.height)
+		a.state = viewArchiveConfirm
+		return a, nil
+
+	case archiveBeanMsg:
+		b, err := a.resolver.Query().Bean(context.Background(), msg.beanID)
+		if err != nil || b == nil {
+			return a, nil
+		}
+		if a.config.IsArchiveStatus(b.Status) {
+			return a, func() tea.Msg { return archiveConfirmedMsg{beanIDs: []string{b.ID}} }
+		}
+		a.previousState = a.state
+		a.archiveConfirm = newArchiveConfirmModel([]string{b.ID},
+			"Archive unfinished bean?",
+			fmt.Sprintf("%s is %q, not completed. It will be deleted.", b.ID, b.Status),
+			a.width, a.height)
+		a.state = viewArchiveConfirm
+		return a, nil
+
+	case closeArchiveConfirmMsg:
+		a.state = a.previousState
+		return a, nil
+
+	case archiveConfirmedMsg:
+		for _, id := range msg.beanIDs {
+			if _, err := a.resolver.Mutation().DeleteBean(context.Background(), id); err != nil {
+				a.previousState = viewList
+				a.launcherError = newLauncherErrorModel("Archive", err, a.width, a.height)
+				a.state = viewLauncherError
+				return a, a.list.loadBeans
+			}
+		}
+		// Archived beans may be the current detail view or in its history
+		a.state = viewList
+		a.history = nil
+		return a, a.list.loadBeans
+
 	case openCreateModalMsg:
 		a.previousState = a.state
 		a.createModal = newCreateModalModel(a.width, a.height, msg.parentID, msg.parentTitle)
@@ -748,6 +804,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.blockingPicker, cmd = a.blockingPicker.Update(msg)
 	case viewTagEditor:
 		a.tagEditor, cmd = a.tagEditor.Update(msg)
+	case viewArchiveConfirm:
+		a.archiveConfirm, cmd = a.archiveConfirm.Update(msg)
 	case viewCreateModal:
 		a.createModal, cmd = a.createModal.Update(msg)
 	case viewHelpOverlay:
@@ -866,6 +924,8 @@ func (a *App) View() string {
 		return a.blockingPicker.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewTagEditor:
 		return a.tagEditor.ModalView(a.getBackgroundView(), a.width, a.height)
+	case viewArchiveConfirm:
+		return a.archiveConfirm.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewCreateModal:
 		return a.createModal.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewHelpOverlay:

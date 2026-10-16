@@ -573,6 +573,11 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
+			case "y":
+				// Archive all completed beans (asks for confirmation)
+				return m, func() tea.Msg {
+					return archiveCompletedMsg{}
+				}
 			case "S":
 				// Launch session for selected bean(s)
 				if len(m.selectedBeans) > 0 {
@@ -709,6 +714,7 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
 			helpKeyStyle.Render("S") + " " + helpStyle.Render("session") + "  " +
+			helpKeyStyle.Render("y") + " " + helpStyle.Render("archive") + "  " +
 			helpKeyStyle.Render("h/l/z") + " " + helpStyle.Render("fold") + "  " +
 			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +

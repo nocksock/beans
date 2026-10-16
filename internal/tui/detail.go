@@ -399,6 +399,12 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
+		case "y":
+			// Archive this bean (prompts if not completed)
+			return m, func() tea.Msg {
+				return archiveBeanMsg{beanID: m.bean.ID}
+			}
+
 		case "S":
 			// Launch session for this bean
 			return m, func() tea.Msg {
@@ -481,6 +487,7 @@ func (m detailModel) View() string {
 		helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 		helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 		helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
+		helpKeyStyle.Render("y") + " " + helpStyle.Render("archive") + "  " +
 		helpKeyStyle.Render("j/k") + " " + helpStyle.Render("scroll") + "  " +
 		helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
 		helpKeyStyle.Render("esc") + " " + helpStyle.Render("back") + "  " +
