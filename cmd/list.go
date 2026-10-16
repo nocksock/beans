@@ -33,6 +33,7 @@ var (
 	listHasBlocking bool
 	listNoBlocking  bool
 	listIsBlocked   bool
+	listUnblocked   bool
 	listQuiet      bool
 	listSort       string
 	listFull       bool
@@ -93,6 +94,10 @@ Search Syntax (--search/-S):
 		}
 		if listIsBlocked {
 			filter.IsBlocked = &listIsBlocked
+		}
+		if listUnblocked {
+			isBlocked := false
+			filter.IsBlocked = &isBlocked
 		}
 
 		// Execute query via GraphQL resolver
@@ -282,7 +287,9 @@ func init() {
 	listCmd.Flags().StringVar(&listParentID, "parent", "", "Filter by parent ID")
 	listCmd.Flags().BoolVar(&listHasBlocking, "has-blocking", false, "Filter beans that are blocking others")
 	listCmd.Flags().BoolVar(&listNoBlocking, "no-blocking", false, "Filter beans that aren't blocking others")
-	listCmd.Flags().BoolVar(&listIsBlocked, "is-blocked", false, "Filter beans that are blocked by others")
+	listCmd.Flags().BoolVar(&listIsBlocked, "is-blocked", false, "Filter beans that are blocked by an active (not completed/scrapped) bean")
+	listCmd.Flags().BoolVar(&listUnblocked, "unblocked", false, "Filter beans not blocked by any active bean (ready to start)")
+	listCmd.MarkFlagsMutuallyExclusive("is-blocked", "unblocked")
 	listCmd.Flags().BoolVarP(&listQuiet, "quiet", "q", false, "Only output IDs (one per line)")
 	listCmd.Flags().StringVar(&listSort, "sort", "", "Sort by: created, updated, status, priority, id (default: status, priority, type, title)")
 	listCmd.Flags().BoolVar(&listFull, "full", false, "Include bean body in JSON output")

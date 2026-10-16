@@ -261,36 +261,40 @@ func filterByNoBlocking(beans []*bean.Bean) []*bean.Bean {
 	return result
 }
 
-// filterByIsBlocked filters beans that are blocked by others.
+// filterByIsBlocked filters beans that are blocked by at least one active blocker.
 func filterByIsBlocked(beans []*bean.Bean, core *beancore.Core) []*bean.Bean {
 	var result []*bean.Bean
 	for _, b := range beans {
-		incoming := core.FindIncomingLinks(b.ID)
-		for _, link := range incoming {
-			if link.LinkType == "blocking" {
-				result = append(result, b)
-				break
-			}
+		if hasActiveBlocker(b.ID, core) {
+			result = append(result, b)
 		}
 	}
 	return result
 }
 
-// filterByNotBlocked filters beans that are NOT blocked by others.
+// filterByNotBlocked filters beans that are NOT blocked by any active blocker.
 func filterByNotBlocked(beans []*bean.Bean, core *beancore.Core) []*bean.Bean {
 	var result []*bean.Bean
 	for _, b := range beans {
-		isBlocked := false
-		incoming := core.FindIncomingLinks(b.ID)
-		for _, link := range incoming {
-			if link.LinkType == "blocking" {
-				isBlocked = true
-				break
-			}
-		}
-		if !isBlocked {
+		if !hasActiveBlocker(b.ID, core) {
 			result = append(result, b)
 		}
 	}
 	return result
+}
+
+// hasActiveBlocker reports whether any bean blocking targetID is still active.
+// Blockers with an archive status (e.g. completed, scrapped) no longer block.
+func hasActiveBlocker(targetID string, core *beancore.Core) bool {
+	cfg := core.Config()
+	for _, link := range core.FindIncomingLinks(targetID) {
+		if link.LinkType != "blocking" {
+			continue
+		}
+		if cfg != nil && cfg.IsArchiveStatus(link.FromBean.Status) {
+			continue
+		}
+		return true
+	}
+	return false
 }

@@ -174,7 +174,7 @@ input BeanFilter {
   hasBlocking: Boolean
   "Include only beans that are blocking this specific bean ID"
   blockingId: String
-  "Include only beans that are blocked by others"
+  "Include only beans blocked by an active blocker (true), or only beans without one (false). Blockers with an archive status (completed, scrapped) are ignored."
   isBlocked: Boolean
   "Exclude beans that have a parent"
   noParent: Boolean

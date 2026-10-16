@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"testing"
 
 	"github.com/hmans/beans/internal/bean"
@@ -1049,4 +1051,52 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 			t.Errorf("Blocking(filter status=completed) count = %d, want 0", len(got))
 		}
 	})
+}
+
+func TestQueryBeansIsBlockedIgnoresArchivedBlockers(t *testing.T) {
+	resolver, core := setupTestResolver(t)
+	ctx := context.Background()
+
+	createTestBean(t, core, "def", "Blocked by open", "todo")
+	createTestBean(t, core, "jkl", "Blocked by completed", "todo")
+	createTestBean(t, core, "mno", "Blocked by scrapped", "todo")
+	createTestBean(t, core, "pqr", "Blocked by mixed", "todo")
+	for _, b := range []*bean.Bean{
+		{ID: "abc", Slug: "abc", Title: "Open blocker", Status: "in-progress", Blocking: []string{"def", "pqr"}},
+		{ID: "ghi", Slug: "ghi", Title: "Done blocker", Status: "completed", Blocking: []string{"jkl", "pqr"}},
+		{ID: "stu", Slug: "stu", Title: "Scrapped blocker", Status: "scrapped", Blocking: []string{"mno"}},
+	} {
+		if err := core.Create(b); err != nil {
+			t.Fatalf("failed to create bean %s: %v", b.ID, err)
+		}
+	}
+
+	tests := []struct {
+		name      string
+		isBlocked bool
+		status    []string
+		want      []string
+	}{
+		{name: "blocked", isBlocked: true, want: []string{"def", "pqr"}},
+		{name: "unblocked", isBlocked: false, want: []string{"abc", "ghi", "jkl", "mno", "stu"}},
+		{name: "unblocked combined with status", isBlocked: false, status: []string{"todo"}, want: []string{"jkl", "mno"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isBlocked := tt.isBlocked
+			got, err := resolver.Query().Beans(ctx, &model.BeanFilter{IsBlocked: &isBlocked, Status: tt.status})
+			if err != nil {
+				t.Fatalf("Beans() error = %v", err)
+			}
+			ids := make([]string, len(got))
+			for i, b := range got {
+				ids[i] = b.ID
+			}
+			sort.Strings(ids)
+			if !slices.Equal(ids, tt.want) {
+				t.Errorf("Beans() ids = %v, want %v", ids, tt.want)
+			}
+		})
+	}
 }
