@@ -276,6 +276,15 @@ func RenderPriorityText(priority, color string) string {
 	return style.Render(priority)
 }
 
+// ShortCode returns a single-character code for a type or status name,
+// e.g. "in-progress" -> "I", "milestone" -> "M".
+func ShortCode(name string) string {
+	if name == "" {
+		return ""
+	}
+	return strings.ToUpper(string([]rune(name)[0]))
+}
+
 // GetPrioritySymbol returns the raw symbol for a priority without styling.
 // Returns empty string for normal/empty priority.
 func GetPrioritySymbol(priority string) string {
@@ -330,6 +339,7 @@ type BeanRowConfig struct {
 	HasChildren       bool     // Whether this bean has children (for caret indicator)
 	IsCollapsed       bool     // Whether this bean's children are collapsed
 	HasRunningSession bool     // Whether this bean has a running session
+	Compact           bool     // Show single-character type/status codes instead of full names
 }
 
 // Base column widths for bean lists (minimum sizes)
@@ -338,7 +348,13 @@ const (
 	ColWidthStatus = 14
 	ColWidthType   = 12
 	ColWidthTags   = 24
+
+	// Compact type/status columns: one character plus a space
+	ColWidthCompact = 2
 )
+
+// CompactColumnsMaxWidth is the width below which type/status are abbreviated.
+const CompactColumnsMaxWidth = 100
 
 // ResponsiveColumns holds calculated column widths based on available space
 type ResponsiveColumns struct {
@@ -348,6 +364,7 @@ type ResponsiveColumns struct {
 	Tags     int
 	MaxTags  int // How many tags to show
 	ShowTags bool
+	Compact  bool // Single-character type/status codes (narrow viewports)
 }
 
 // CalculateResponsiveColumns determines column widths based on available width.
@@ -360,6 +377,13 @@ func CalculateResponsiveColumns(totalWidth int, hasTags bool) ResponsiveColumns 
 		Tags:     0,
 		MaxTags:  0,
 		ShowTags: false,
+	}
+
+	// Abbreviate type/status in narrow viewports to leave room for the title
+	if totalWidth < CompactColumnsMaxWidth {
+		cols.Compact = true
+		cols.Status = ColWidthCompact
+		cols.Type = ColWidthCompact
 	}
 
 	// Don't show tags in narrow viewports - prioritize title space
@@ -418,6 +442,12 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 	}
 	typeStyle := lipgloss.NewStyle().Width(ColWidthType)
 	statusStyle := lipgloss.NewStyle().Width(ColWidthStatus)
+	if cfg.Compact {
+		typeStyle = typeStyle.Width(ColWidthCompact)
+		statusStyle = statusStyle.Width(ColWidthCompact)
+		typeName = ShortCode(typeName)
+		status = ShortCode(status)
+	}
 
 	tagsColWidth := ColWidthTags
 	if cfg.TagsColWidth > 0 {

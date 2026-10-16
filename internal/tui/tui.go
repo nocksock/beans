@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
 	"github.com/hmans/beans/internal/config"
@@ -43,6 +44,19 @@ const (
 	viewTagEditor
 	viewArchiveConfirm
 )
+
+// Two-column layout constants
+const (
+	twoColumnMinWidth = 120 // minimum terminal width for the list + preview layout
+	previewMaxWidth   = 80  // preview pane width cap (bean bodies are written for ~80 columns)
+	listMinWidth      = 40  // list pane never gets narrower than this
+)
+
+// paneWidths returns the (list, preview) widths for the two-column layout.
+func paneWidths(totalWidth int) (int, int) {
+	preview := min(previewMaxWidth, totalWidth-listMinWidth)
+	return totalWidth - preview, preview
+}
 
 // beansChangedMsg is sent when beans change on disk (via file watcher)
 type beansChangedMsg struct{}
@@ -88,6 +102,7 @@ type App struct {
 	state              viewState
 	list               listModel
 	detail             detailModel
+	preview            previewModel
 	tagPicker          tagPickerModel
 	parentPicker       parentPickerModel
 	statusPicker       statusPickerModel
@@ -139,6 +154,7 @@ func New(core *beancore.Core, cfg *config.Config) *App {
 		resolver:      resolver,
 		config:        cfg,
 		list:          newListModel(resolver, cfg, poller),
+		preview:       newPreviewModel(cfg),
 		sessionPoller: poller,
 	}
 }
@@ -156,6 +172,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
+		// The list is sized for its pane; other views get the full size
+		cmd = a.resizeList()
+		if a.state == viewList {
+			return a, cmd
+		}
 
 	case tea.KeyMsg:
 		// Handle key chord sequences
@@ -777,9 +798,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Stay in viewDetail state
 		} else {
 			a.state = viewList
-			// Force list to pick up any size changes that happened while in detail view
-			a.list, cmd = a.list.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
-			return a, cmd
+			return a, nil
 		}
 		return a, nil
 	}
@@ -851,6 +870,36 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
+// isTwoColumnMode returns true if the terminal is wide enough for list + preview
+func (a *App) isTwoColumnMode() bool {
+	return a.width >= twoColumnMinWidth
+}
+
+// resizeList sizes the list for the full width, or the left pane in two-column mode
+func (a *App) resizeList() tea.Cmd {
+	width := a.width
+	if a.isTwoColumnMode() {
+		width, _ = paneWidths(a.width)
+	}
+	var cmd tea.Cmd
+	a.list, cmd = a.list.Update(tea.WindowSizeMsg{Width: width, Height: a.height})
+	return cmd
+}
+
+// listView renders the list, with the preview pane beside it when there's room
+func (a *App) listView() string {
+	if !a.isTwoColumnMode() || a.list.err != nil || a.list.width == 0 {
+		return a.list.View()
+	}
+
+	_, previewWidth := paneWidths(a.width)
+	a.preview.setBean(a.list.previewData())
+	left := a.list.viewContent()
+	right := a.preview.View(previewWidth, lipgloss.Height(left))
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, left, right) + "\n" + a.list.Footer()
+}
+
 // canQuitWithQ returns true if "q" should quit the app in the current state.
 // It must not quit while the user is typing text (filters, text inputs).
 func (a *App) canQuitWithQ() bool {
@@ -907,7 +956,7 @@ func (a *App) View() string {
 
 	switch a.state {
 	case viewList:
-		return a.list.View()
+		return a.listView()
 	case viewDetail:
 		return a.detail.View()
 	case viewTagPicker:
@@ -964,12 +1013,10 @@ func (a *App) makeRunningSessionChecker(beanID string) func() bool {
 // getBackgroundView returns the view to show behind modal pickers
 func (a *App) getBackgroundView() string {
 	switch a.previousState {
-	case viewList:
-		return a.list.View()
 	case viewDetail:
 		return a.detail.View()
 	default:
-		return a.list.View()
+		return a.listView()
 	}
 }
 

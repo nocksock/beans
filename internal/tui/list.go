@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -72,7 +73,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	if d.cols.ShowTags {
 		baseWidth += d.cols.Tags
 	}
-	maxTitleWidth := max(0, m.Width()-baseWidth)
+	maxTitleWidth := max(1, m.Width()-baseWidth) // 0 would disable truncation
 
 	// Check if bean is marked for multi-select
 	var isMarked bool
@@ -118,6 +119,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 			HasChildren:       item.hasChildren,
 			IsCollapsed:       isCollapsed,
 			HasRunningSession: hasRunningSession,
+			Compact:           d.cols.Compact,
 		},
 	)
 
@@ -149,6 +151,18 @@ type listModel struct {
 
 	// Session poller for checking running sessions
 	sessionPoller sessionStatusProvider
+
+	// Hierarchical navigation: IDs of beans drilled into, outermost first.
+	// When non-empty, only descendants of the last entry are listed.
+	rootStack []string
+	rootBeans []*bean.Bean // resolved beans for rootStack (for the breadcrumb)
+
+	// cursorTarget is a bean ID to move the cursor to after the next load
+	cursorTarget string
+
+	// Relationship info across all beans (for the preview pane)
+	beansByID   map[string]*bean.Bean
+	childCounts map[string]int
 }
 
 func newListModel(resolver *graph.Resolver, cfg *config.Config, poller sessionStatusProvider) listModel {
@@ -183,8 +197,11 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config, poller sessionSt
 
 // beansLoadedMsg is sent when beans are loaded
 type beansLoadedMsg struct {
-	items      []ui.FlatItem // flattened tree items
-	idColWidth int           // calculated ID column width for tree
+	items       []ui.FlatItem         // flattened tree items
+	idColWidth  int                   // calculated ID column width for tree
+	rootBeans   []*bean.Bean          // resolved drill-down roots (may be shorter than rootStack if some vanished)
+	beansByID   map[string]*bean.Bean // all beans by ID
+	childCounts map[string]int        // number of children per bean ID
 }
 
 // errMsg is sent when an error occurs
@@ -220,6 +237,32 @@ func (m listModel) loadBeans() tea.Msg {
 		return errMsg{err}
 	}
 
+	beansByID := make(map[string]*bean.Bean, len(allBeans))
+	childCounts := make(map[string]int)
+	for _, b := range allBeans {
+		beansByID[b.ID] = b
+		if b.Parent != "" {
+			childCounts[b.Parent]++
+		}
+	}
+
+	// Resolve drill-down roots; stop at the first one that no longer exists
+	var rootBeans []*bean.Bean
+	for _, id := range m.rootStack {
+		b, ok := beansByID[id]
+		if !ok {
+			break
+		}
+		rootBeans = append(rootBeans, b)
+	}
+
+	// Restrict the list to descendants of the current root
+	if len(rootBeans) > 0 {
+		root := rootBeans[len(rootBeans)-1].ID
+		filteredBeans = descendantsOf(root, filteredBeans, beansByID)
+		allBeans = descendantsOf(root, allBeans, beansByID)
+	}
+
 	// Sort function for tree building
 	sortFn := func(beans []*bean.Bean) {
 		bean.SortByStatusPriorityAndType(beans, m.config.StatusNames(), m.config.PriorityNames(), m.config.TypeNames())
@@ -243,7 +286,67 @@ func (m listModel) loadBeans() tea.Msg {
 		idColWidth += maxDepth * 3 // 3 chars per depth level (├─ + space)
 	}
 
-	return beansLoadedMsg{items: items, idColWidth: idColWidth}
+	return beansLoadedMsg{
+		items:       items,
+		idColWidth:  idColWidth,
+		rootBeans:   rootBeans,
+		beansByID:   beansByID,
+		childCounts: childCounts,
+	}
+}
+
+// descendantsOf returns the beans in candidates that are (transitive) children of rootID.
+func descendantsOf(rootID string, candidates []*bean.Bean, beansByID map[string]*bean.Bean) []*bean.Bean {
+	var result []*bean.Bean
+	for _, b := range candidates {
+		// Walk up the parent chain; seen guards against cycles
+		seen := map[string]bool{b.ID: true}
+		for p := b.Parent; p != "" && !seen[p]; {
+			if p == rootID {
+				result = append(result, b)
+				break
+			}
+			seen[p] = true
+			parent, ok := beansByID[p]
+			if !ok {
+				break
+			}
+			p = parent.Parent
+		}
+	}
+	return result
+}
+
+// drillInto makes the given bean the new root, showing only its descendants
+func (m *listModel) drillInto(id string) {
+	m.rootStack = append(m.rootStack, id)
+	m.cursorTarget = ""
+	m.list.ResetFilter()
+	m.list.Select(0)
+}
+
+// drillOut navigates one level up the hierarchy. Returns false if already at the top.
+func (m *listModel) drillOut() bool {
+	if len(m.rootStack) == 0 {
+		return false
+	}
+	// Put the cursor back on the bean we came out of
+	m.cursorTarget = m.rootStack[len(m.rootStack)-1]
+	m.rootStack = m.rootStack[:len(m.rootStack)-1]
+	m.list.ResetFilter()
+	return true
+}
+
+// previewData returns the highlighted bean and its relationship context
+func (m *listModel) previewData() (*bean.Bean, previewContext) {
+	item, ok := m.list.SelectedItem().(beanItem)
+	if !ok {
+		return nil, previewContext{}
+	}
+	return item.bean, previewContext{
+		parent:     m.beansByID[item.bean.Parent],
+		childCount: m.childCounts[item.bean.ID],
+	}
 }
 
 // setTagFilter sets the tag filter
@@ -292,6 +395,20 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		}
 		m.list.SetItems(items)
 		m.idColWidth = msg.idColWidth
+		m.beansByID = msg.beansByID
+		m.childCounts = msg.childCounts
+		// Drop roots that no longer exist (e.g. deleted or archived)
+		m.rootBeans = msg.rootBeans
+		m.rootStack = m.rootStack[:len(msg.rootBeans)]
+		if m.cursorTarget != "" {
+			for i, it := range items {
+				if bi, ok := it.(beanItem); ok && bi.bean.ID == m.cursorTarget {
+					m.list.Select(i)
+					break
+				}
+			}
+			m.cursorTarget = ""
+		}
 		// Calculate responsive columns based on hasTags and width
 		m.cols = ui.CalculateResponsiveColumns(m.width, m.hasTags)
 		m.updateDelegate()
@@ -348,6 +465,18 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				}
 				return m, nil
 			case "enter":
+				// Drill into beans with children, open leaf beans
+				if item, ok := m.list.SelectedItem().(beanItem); ok {
+					if item.hasChildren {
+						m.drillInto(item.bean.ID)
+						return m, m.loadBeans
+					}
+					return m, func() tea.Msg {
+						return selectBeanMsg{bean: item.bean}
+					}
+				}
+			case "v":
+				// Open full detail view
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
 						return selectBeanMsg{bean: item.bean}
@@ -610,6 +739,14 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					clear(m.selectedBeans)
 					return m, nil
 				}
+				// Let the list clear an applied text filter
+				if m.list.FilterState() == list.FilterApplied {
+					break
+				}
+				// Then navigate up the hierarchy
+				if m.drillOut() {
+					return m, m.loadBeans
+				}
 				// Then clear active filter if any
 				if m.hasActiveFilter() {
 					return m, func() tea.Msg {
@@ -649,24 +786,58 @@ func (m listModel) View() string {
 		return "Loading..."
 	}
 
-	// Update title based on active filter
-	if m.tagFilter != "" {
-		m.list.Title = fmt.Sprintf("Beans [tag: %s]", m.tagFilter)
-	} else {
-		m.list.Title = "Beans"
-	}
+	return m.viewContent() + "\n" + m.Footer()
+}
 
-	// Simple bordered container
+// viewContent renders the bordered list without the footer
+// (m.height-2 lines tall, m.width wide).
+func (m listModel) viewContent() string {
+	m.list.Title = m.breadcrumbTitle(m.width - 6)
+
 	border := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ui.ColorMuted).
 		Width(m.width - 2).
 		Height(m.height - 4)
 
-	content := border.Render(m.list.View())
+	return border.Render(m.list.View())
+}
 
-	// Footer - show different help based on filter/selection state
+// breadcrumbTitle renders the list title, e.g. "Beans › Parent › Child [tag: x]",
+// eliding outer levels to fit maxWidth.
+func (m listModel) breadcrumbTitle(maxWidth int) string {
+	const sep = " › "
+	suffix := ""
+	if m.tagFilter != "" {
+		suffix = fmt.Sprintf(" [tag: %s]", m.tagFilter)
+	}
+
+	crumbs := make([]string, 0, len(m.rootBeans)+1)
+	crumbs = append(crumbs, "Beans")
+	for _, b := range m.rootBeans {
+		crumbs = append(crumbs, b.Title)
+	}
+
+	title := strings.Join(crumbs, sep) + suffix
+	// Replace outer crumbs (after "Beans") with "…" until it fits
+	for elided := 1; lipgloss.Width(title) > maxWidth && elided < len(crumbs)-1; elided++ {
+		title = strings.Join(append([]string{"Beans", "…"}, crumbs[elided+1:]...), sep) + suffix
+	}
+	if maxWidth > 1 && lipgloss.Width(title) > maxWidth {
+		title = string([]rune(title)[:maxWidth-1]) + "…"
+	}
+	return title
+}
+
+// Footer renders the help/status line below the list
+func (m listModel) Footer() string {
 	var help string
+
+	// esc goes up a level when drilled in
+	var backHelp string
+	if len(m.rootStack) > 0 {
+		backHelp = helpKeyStyle.Render("esc") + " " + helpStyle.Render("up") + "  "
+	}
 
 	// Show selection count if any beans are selected
 	var selectionPrefix string
@@ -687,8 +858,10 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
 			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
 	} else if m.hasActiveFilter() {
-		help = helpKeyStyle.Render("space") + " " + helpStyle.Render("select") + "  " +
-			helpKeyStyle.Render("enter") + " " + helpStyle.Render("view") + "  " +
+		help = backHelp +
+			helpKeyStyle.Render("space") + " " + helpStyle.Render("select") + "  " +
+			helpKeyStyle.Render("enter") + " " + helpStyle.Render("open") + "  " +
+			helpKeyStyle.Render("v") + " " + helpStyle.Render("view") + "  " +
 			helpKeyStyle.Render("c") + " " + helpStyle.Render("create") + "  " +
 			helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
@@ -702,8 +875,10 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
 			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
 	} else {
-		help = helpKeyStyle.Render("space") + " " + helpStyle.Render("select") + "  " +
-			helpKeyStyle.Render("enter") + " " + helpStyle.Render("view") + "  " +
+		help = backHelp +
+			helpKeyStyle.Render("space") + " " + helpStyle.Render("select") + "  " +
+			helpKeyStyle.Render("enter") + " " + helpStyle.Render("open") + "  " +
+			helpKeyStyle.Render("v") + " " + helpStyle.Render("view") + "  " +
 			helpKeyStyle.Render("c") + " " + helpStyle.Render("create") + "  " +
 			helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
@@ -721,7 +896,7 @@ func (m listModel) View() string {
 			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
 	}
 
-	return content + "\n" + selectionPrefix + help
+	return selectionPrefix + help
 }
 
 func (m listModel) findBeanItem(id string) (beanItem, bool) {

@@ -1,6 +1,11 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 func TestRenderBeanRow_NarrowWidth(t *testing.T) {
 	// Test that RenderBeanRow doesn't panic with very small MaxTitleWidth values
@@ -83,5 +88,74 @@ func TestRenderBeanRow_NarrowWidthWithPriority(t *testing.T) {
 				t.Error("expected non-empty result")
 			}
 		})
+	}
+}
+
+func TestShortCode(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"milestone", "M"},
+		{"epic", "E"},
+		{"bug", "B"},
+		{"feature", "F"},
+		{"task", "T"},
+		{"draft", "D"},
+		{"todo", "T"},
+		{"in-progress", "I"},
+		{"completed", "C"},
+		{"scrapped", "S"},
+		{"ünicode", "Ü"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			if got := ShortCode(tt.input); got != tt.want {
+				t.Errorf("ShortCode(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCalculateResponsiveColumns_Compact(t *testing.T) {
+	tests := []struct {
+		name        string
+		width       int
+		wantCompact bool
+		wantStatus  int
+		wantType    int
+	}{
+		{"narrow", 60, true, ColWidthCompact, ColWidthCompact},
+		{"just below threshold", CompactColumnsMaxWidth - 1, true, ColWidthCompact, ColWidthCompact},
+		{"at threshold", CompactColumnsMaxWidth, false, ColWidthStatus, ColWidthType},
+		{"wide", 200, false, ColWidthStatus, ColWidthType},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cols := CalculateResponsiveColumns(tt.width, false)
+			if cols.Compact != tt.wantCompact || cols.Status != tt.wantStatus || cols.Type != tt.wantType {
+				t.Errorf("got compact=%v status=%d type=%d, want compact=%v status=%d type=%d",
+					cols.Compact, cols.Status, cols.Type, tt.wantCompact, tt.wantStatus, tt.wantType)
+			}
+		})
+	}
+}
+
+func TestRenderBeanRow_Compact(t *testing.T) {
+	cfg := BeanRowConfig{StatusColor: "green", TypeColor: "blue"}
+
+	full := RenderBeanRow("abc123", "in-progress", "feature", "Title", cfg)
+	if !strings.Contains(full, "in-progress") || !strings.Contains(full, "feature") {
+		t.Errorf("full row should contain full names, got %q", full)
+	}
+
+	cfg.Compact = true
+	compact := RenderBeanRow("abc123", "in-progress", "feature", "Title", cfg)
+	if strings.Contains(compact, "in-progress") || strings.Contains(compact, "feature") {
+		t.Errorf("compact row should not contain full names, got %q", compact)
+	}
+	if lipgloss.Width(compact) >= lipgloss.Width(full) {
+		t.Errorf("compact row (%d) should be narrower than full row (%d)", lipgloss.Width(compact), lipgloss.Width(full))
 	}
 }

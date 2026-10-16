@@ -120,6 +120,7 @@ func (d linkDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 			ShowTags:      d.cols.ShowTags,
 			TagsColWidth:  d.cols.Tags,
 			MaxTags:       d.cols.MaxTags,
+			Compact:       d.cols.Compact,
 		},
 	)
 
