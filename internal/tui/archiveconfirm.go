@@ -23,7 +23,7 @@ type archiveConfirmedMsg struct {
 type closeArchiveConfirmMsg struct{}
 
 // archiveConfirmModel asks the user to confirm archiving bean(s).
-// Confirming with "y" means "yy" always archives from the detail view.
+// Confirming with "Y" (or "y") means "YY" always archives from the detail view.
 type archiveConfirmModel struct {
 	beanIDs []string
 	title   string
@@ -63,7 +63,7 @@ func (m archiveConfirmModel) View() string {
 		Foreground(ui.ColorWarning).
 		Render(m.title)
 
-	help := helpKeyStyle.Render("y") + " " + helpStyle.Render("archive") + "  " +
+	help := helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
 		helpKeyStyle.Render("n/esc") + " " + helpStyle.Render("cancel")
 
 	border := lipgloss.NewStyle().

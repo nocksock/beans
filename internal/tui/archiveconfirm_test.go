@@ -71,48 +71,48 @@ func TestArchive(t *testing.T) {
 		wantState viewState
 	}{
 		{
-			name:      "list y prompts",
-			keys:      []string{"y"},
+			name:      "list Y prompts",
+			keys:      []string{"Y"},
 			wantKept:  []string{"todo", "completed", "scrapped"},
 			wantState: viewArchiveConfirm,
 		},
 		{
-			name:      "list yy archives all completed",
-			keys:      []string{"y", "y"},
+			name:      "list YY archives all completed",
+			keys:      []string{"Y", "Y"},
 			wantKept:  []string{"todo"},
 			wantState: viewList,
 		},
 		{
-			name:      "list y n cancels",
-			keys:      []string{"y", "n"},
+			name:      "list Y n cancels",
+			keys:      []string{"Y", "n"},
 			wantKept:  []string{"todo", "completed", "scrapped"},
 			wantState: viewList,
 		},
 		{
-			name:      "detail y archives completed bean directly",
+			name:      "detail Y archives completed bean directly",
 			openBean:  "completed",
-			keys:      []string{"y"},
+			keys:      []string{"Y"},
 			wantKept:  []string{"todo", "scrapped"},
 			wantState: viewList,
 		},
 		{
-			name:      "detail y prompts for unfinished bean",
+			name:      "detail Y prompts for unfinished bean",
 			openBean:  "todo",
-			keys:      []string{"y"},
+			keys:      []string{"Y"},
 			wantKept:  []string{"todo", "completed", "scrapped"},
 			wantState: viewArchiveConfirm,
 		},
 		{
-			name:      "detail yy archives unfinished bean",
+			name:      "detail YY archives unfinished bean",
 			openBean:  "todo",
-			keys:      []string{"y", "y"},
+			keys:      []string{"Y", "Y"},
 			wantKept:  []string{"completed", "scrapped"},
 			wantState: viewList,
 		},
 		{
-			name:      "detail y esc cancels",
+			name:      "detail Y esc cancels",
 			openBean:  "todo",
-			keys:      []string{"y", "esc"},
+			keys:      []string{"Y", "esc"},
 			wantKept:  []string{"todo", "completed", "scrapped"},
 			wantState: viewDetail,
 		},
@@ -141,5 +141,13 @@ func TestArchive(t *testing.T) {
 				t.Errorf("state = %v, want %v", app.state, tt.wantState)
 			}
 		})
+	}
+}
+
+func TestArchiveLowercaseYIgnored(t *testing.T) {
+	app, _ := newArchiveTestApp(t)
+	pump(app, keyMsg("y"))
+	if app.state != viewList {
+		t.Errorf("state = %v, want list (lowercase y must not archive)", app.state)
 	}
 }
