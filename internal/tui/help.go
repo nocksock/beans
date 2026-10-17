@@ -96,6 +96,7 @@ func (m helpOverlayModel) View() string {
 	content.WriteString(shortcut("b", "Manage blocking") + "\n")
 	content.WriteString(shortcut("B", "Manage blocked by") + "\n")
 	content.WriteString(shortcut("Y", "Archive (all completed in list)") + "\n")
+	content.WriteString(shortcut("A", "Show / hide archived") + "\n")
 	content.WriteString(shortcut("/", "Filter") + "\n")
 	content.WriteString(shortcut("g t", "Filter by tag") + "\n")
 	content.WriteString(shortcut("h", "Collapse item") + "\n")

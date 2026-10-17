@@ -127,7 +127,8 @@ type listModel struct {
 	idColWidth int                  // ID column width (accounts for tree depth)
 
 	// Active filters
-	tagFilter string // if set, only show beans with this tag
+	tagFilter    string // if set, only show beans with this tag
+	showArchived bool   // if false, beans with the archived status are hidden
 
 	// Multi-select state
 	selectedBeans map[string]bool // IDs of beans marked for multi-edit
@@ -204,10 +205,13 @@ func (m listModel) Init() tea.Cmd {
 }
 
 func (m listModel) loadBeans() tea.Msg {
-	// Build filter if tag filter is set
-	var filter *model.BeanFilter
+	// Build filter from the tag filter and archived visibility
+	filter := &model.BeanFilter{}
 	if m.tagFilter != "" {
-		filter = &model.BeanFilter{Tags: []string{m.tagFilter}}
+		filter.Tags = []string{m.tagFilter}
+	}
+	if !m.showArchived {
+		filter.ExcludeStatus = []string{config.StatusArchived}
 	}
 
 	// Query filtered beans
@@ -222,14 +226,22 @@ func (m listModel) loadBeans() tea.Msg {
 		return errMsg{err}
 	}
 
+	// beansByID keeps archived beans so relationships still resolve; the tree
+	// and child counts only use visible beans, so archived parents stay hidden
 	beansByID := make(map[string]*bean.Bean, len(allBeans))
 	childCounts := make(map[string]int)
+	visibleBeans := allBeans[:0:0]
 	for _, b := range allBeans {
 		beansByID[b.ID] = b
+		if !m.showArchived && m.config.IsArchived(b.Status) {
+			continue
+		}
+		visibleBeans = append(visibleBeans, b)
 		if b.Parent != "" {
 			childCounts[b.Parent]++
 		}
 	}
+	allBeans = visibleBeans
 
 	// Resolve drill-down roots; stop at the first one that no longer exists
 	var rootBeans []*bean.Bean
@@ -718,6 +730,10 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				return m, func() tea.Msg {
 					return archiveCompletedMsg{}
 				}
+			case "A":
+				// Toggle showing archived beans
+				m.showArchived = !m.showArchived
+				return m, m.loadBeans
 			case "esc", "backspace":
 				// First clear selection if any beans are selected
 				if len(m.selectedBeans) > 0 {
@@ -795,6 +811,9 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 	if m.tagFilter != "" {
 		suffix = fmt.Sprintf(" [tag: %s]", m.tagFilter)
 	}
+	if m.showArchived {
+		suffix += " [+archived]"
+	}
 
 	crumbs := make([]string, 0, len(m.rootBeans)+1)
 	crumbs = append(crumbs, "Beans")
@@ -828,6 +847,11 @@ func (m listModel) Footer() string {
 	if len(m.selectedBeans) > 0 {
 		selectionStyle := lipgloss.NewStyle().Foreground(ui.ColorWarning).Bold(true)
 		selectionPrefix = selectionStyle.Render(fmt.Sprintf("(%d selected) ", len(m.selectedBeans)))
+	}
+
+	archivedHelp := "show archived"
+	if m.showArchived {
+		archivedHelp = "hide archived"
 	}
 
 	if len(m.selectedBeans) > 0 {
@@ -879,6 +903,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
 			helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
+			helpKeyStyle.Render("A") + " " + helpStyle.Render(archivedHelp) + "  " +
 			helpKeyStyle.Render("h/l/z") + " " + helpStyle.Render("fold") + "  " +
 			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +

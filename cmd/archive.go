@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/charmbracelet/huh"
 	"github.com/hmans/beans/internal/bean"
-	"github.com/hmans/beans/internal/beancore"
+	"github.com/hmans/beans/internal/config"
+	"github.com/hmans/beans/internal/graph"
+	"github.com/hmans/beans/internal/graph/model"
 	"github.com/hmans/beans/internal/output"
 	"github.com/hmans/beans/internal/ui"
 	"github.com/spf13/cobra"
@@ -18,21 +21,26 @@ var (
 
 var archiveCmd = &cobra.Command{
 	Use:   "archive",
-	Short: "Delete all beans with an archive status",
-	Long: `Deletes all beans with status "completed" or "scrapped". Asks for confirmation unless --force is provided.
+	Short: "Move completed and scrapped beans to the archived status",
+	Long: `Sets the status of all "completed" and "scrapped" beans to "archived". Archived beans are kept
+(including their relationships) but hidden from "beans list" and the TUI by default.
+Asks for confirmation unless --force is provided.
 
-If other beans reference beans being archived (as parent or via blocking/blocked-by), you will be
-warned and those references will be removed. Use -f to skip all warnings.`,
+Use "beans list --include archived" to see archived beans, and "beans delete" to remove beans for good.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		allBeans := core.All()
+		ctx := context.Background()
+		resolver := &graph.Resolver{Core: core}
 
-		// Find beans with any archive status
+		allBeans, err := resolver.Query().Beans(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		// Find done beans that are not archived yet
 		var archiveBeans []*bean.Bean
-		archiveSet := make(map[string]bool)
 		for _, b := range allBeans {
-			if cfg.IsArchiveStatus(b.Status) {
+			if cfg.IsArchivable(b.Status) {
 				archiveBeans = append(archiveBeans, b)
-				archiveSet[b.ID] = true
 			}
 		}
 
@@ -40,52 +48,22 @@ warned and those references will be removed. Use -f to skip all warnings.`,
 			if archiveJSON {
 				return output.SuccessMessage("No beans to archive")
 			}
-			fmt.Println("No beans with archive status to archive.")
+			fmt.Println("No completed or scrapped beans to archive.")
 			return nil
 		}
 
 		// Sort beans for consistent display
 		bean.SortByStatusPriorityAndType(archiveBeans, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
 
-		// Find incoming links from non-archived beans to beans being archived
-		var externalLinks []beancore.IncomingLink
-		for _, b := range archiveBeans {
-			links := core.FindIncomingLinks(b.ID)
-			for _, link := range links {
-				// Only count links from beans NOT being archived
-				if !archiveSet[link.FromBean.ID] {
-					externalLinks = append(externalLinks, link)
-				}
-			}
-		}
-		hasExternalLinks := len(externalLinks) > 0
-
 		// JSON implies force (no prompts for machines)
 		if !archiveForce && !archiveJSON {
-			// Show list of beans to be archived
 			fmt.Printf("Beans to archive (%d):\n\n", len(archiveBeans))
 			printBeanList(archiveBeans)
 			fmt.Println()
 
-			// Show warning if there are external links
-			if hasExternalLinks {
-				fmt.Printf("Warning: %d bean(s) link to beans being archived:\n", len(externalLinks))
-				for _, link := range externalLinks {
-					fmt.Printf("  - %s (%s) links to %s via %s\n",
-						link.FromBean.ID, link.FromBean.DisplayTitle(),
-						link.LinkType, link.LinkType)
-				}
-				fmt.Println()
-			}
-
 			var confirm bool
-			title := fmt.Sprintf("Archive %d bean(s)?", len(archiveBeans))
-			if hasExternalLinks {
-				title = fmt.Sprintf("Archive %d bean(s) and remove %d reference(s)?", len(archiveBeans), len(externalLinks))
-			}
-
 			err := huh.NewConfirm().
-				Title(title).
+				Title(fmt.Sprintf("Archive %d bean(s)?", len(archiveBeans))).
 				Affirmative("Yes").
 				Negative("No").
 				Value(&confirm).
@@ -101,39 +79,20 @@ warned and those references will be removed. Use -f to skip all warnings.`,
 			}
 		}
 
-		// Remove external links before deletion
-		removedRefs := 0
+		status := config.StatusArchived
 		for _, b := range archiveBeans {
-			removed, err := core.RemoveLinksTo(b.ID)
-			if err != nil {
+			if _, err := resolver.Mutation().UpdateBean(ctx, b.ID, model.UpdateBeanInput{Status: &status}); err != nil {
 				if archiveJSON {
-					return output.Error(output.ErrFileError, fmt.Sprintf("failed to remove references to %s: %s", b.ID, err))
+					return output.Error(output.ErrFileError, fmt.Sprintf("failed to archive bean %s: %s", b.ID, err))
 				}
-				return fmt.Errorf("failed to remove references to %s: %w", b.ID, err)
+				return fmt.Errorf("failed to archive bean %s: %w", b.ID, err)
 			}
-			removedRefs += removed
-		}
-
-		// Delete all beans with archive status
-		var deleted []string
-		for _, b := range archiveBeans {
-			if err := core.Delete(b.ID); err != nil {
-				if archiveJSON {
-					return output.Error(output.ErrFileError, fmt.Sprintf("failed to delete bean %s: %s", b.ID, err.Error()))
-				}
-				return fmt.Errorf("failed to delete bean %s: %w", b.ID, err)
-			}
-			deleted = append(deleted, b.ID)
 		}
 
 		if archiveJSON {
-			return output.SuccessMessage(fmt.Sprintf("Archived %d bean(s)", len(deleted)))
+			return output.SuccessMessage(fmt.Sprintf("Archived %d bean(s)", len(archiveBeans)))
 		}
-
-		if removedRefs > 0 {
-			fmt.Printf("Removed %d reference(s)\n", removedRefs)
-		}
-		fmt.Printf("Archived %d bean(s)\n", len(deleted))
+		fmt.Printf("Archived %d bean(s)\n", len(archiveBeans))
 		return nil
 	},
 }
@@ -179,7 +138,7 @@ func printBeanList(beans []*bean.Bean) {
 }
 
 func init() {
-	archiveCmd.Flags().BoolVarP(&archiveForce, "force", "f", false, "Skip confirmation and warnings")
+	archiveCmd.Flags().BoolVarP(&archiveForce, "force", "f", false, "Skip confirmation")
 	archiveCmd.Flags().BoolVar(&archiveJSON, "json", false, "Output as JSON (implies --force)")
 	rootCmd.AddCommand(archiveCmd)
 }

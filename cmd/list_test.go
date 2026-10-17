@@ -161,32 +161,37 @@ func TestHiddenStatuses(t *testing.T) {
 	}{
 		{
 			name: "hides done statuses and their substatuses by default",
-			want: []string{"completed", "merged", "released", "scrapped"},
+			want: []string{"completed", "merged", "released", "scrapped", "archived"},
 		},
 		{
 			name:    "include builtin includes its substatuses",
 			include: []string{"completed"},
-			want:    []string{"scrapped"},
+			want:    []string{"scrapped", "archived"},
 		},
 		{
-			name:    "include both",
-			include: []string{"completed", "scrapped"},
+			name:    "include all",
+			include: []string{"completed", "scrapped", "archived"},
 			want:    []string{},
+		},
+		{
+			name:    "include archived",
+			include: []string{"archived"},
+			want:    []string{"completed", "merged", "released", "scrapped"},
 		},
 		{
 			name:    "include substatus only",
 			include: []string{"merged"},
-			want:    []string{"completed", "released", "scrapped"},
+			want:    []string{"completed", "released", "scrapped", "archived"},
 		},
 		{
 			name:   "explicit status filter shows hidden status and its substatuses",
 			status: []string{"completed"},
-			want:   []string{"scrapped"},
+			want:   []string{"scrapped", "archived"},
 		},
 		{
 			name:   "explicit status filter for a substatus shows it",
 			status: []string{"merged"},
-			want:   []string{"completed", "released", "scrapped"},
+			want:   []string{"completed", "released", "scrapped", "archived"},
 		},
 		{
 			name:    "invalid include value",

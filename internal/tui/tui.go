@@ -483,7 +483,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var ids []string
 		beans, _ := a.resolver.Query().Beans(context.Background(), nil)
 		for _, b := range beans {
-			if a.config.IsArchiveStatus(b.Status) {
+			if a.config.IsArchivable(b.Status) {
 				ids = append(ids, b.ID)
 			}
 		}
@@ -493,7 +493,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.previousState = a.state
 		a.archiveConfirm = newArchiveConfirmModel(ids,
 			fmt.Sprintf("Archive %d bean(s)?", len(ids)),
-			"All completed and scrapped beans will be deleted.",
+			"All completed and scrapped beans will be moved to archived.",
 			a.width, a.height)
 		a.state = viewArchiveConfirm
 		return a, nil
@@ -503,13 +503,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil || b == nil {
 			return a, nil
 		}
+		if a.config.IsArchived(b.Status) {
+			return a, nil
+		}
 		if a.config.IsArchiveStatus(b.Status) {
 			return a, func() tea.Msg { return archiveConfirmedMsg{beanIDs: []string{b.ID}} }
 		}
 		a.previousState = a.state
 		a.archiveConfirm = newArchiveConfirmModel([]string{b.ID},
 			"Archive unfinished bean?",
-			fmt.Sprintf("%s is %q, not completed. It will be deleted.", b.ID, b.Status),
+			fmt.Sprintf("%s is %q, not completed. It will be archived anyway.", b.ID, b.Status),
 			a.width, a.height)
 		a.state = viewArchiveConfirm
 		return a, nil
@@ -519,17 +522,27 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case archiveConfirmedMsg:
+		status := config.StatusArchived
 		for _, id := range msg.beanIDs {
-			if _, err := a.resolver.Mutation().DeleteBean(context.Background(), id); err != nil {
+			if _, err := a.resolver.Mutation().UpdateBean(context.Background(), id, model.UpdateBeanInput{
+				Status: &status,
+			}); err != nil {
 				a.previousState = viewList
 				a.launcherError = newLauncherErrorModel("Archive", err, a.width, a.height)
 				a.state = viewLauncherError
 				return a, a.list.loadBeans
 			}
 		}
-		// Archived beans may be the current detail view or in its history
+		// Archiving from the detail view stays there, showing the new status
+		fromDetail := a.state == viewDetail || (a.state == viewArchiveConfirm && a.previousState == viewDetail)
+		if fromDetail && len(msg.beanIDs) == 1 {
+			if updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0]); updatedBean != nil {
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+				a.state = viewDetail
+				return a, a.list.loadBeans
+			}
+		}
 		a.state = viewList
-		a.history = nil
 		return a, a.list.loadBeans
 
 	case openCreateModalMsg:
