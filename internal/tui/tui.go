@@ -43,6 +43,7 @@ const (
 	viewLauncherResult
 	viewTagEditor
 	viewArchiveConfirm
+	viewDepNav
 )
 
 // Two-column layout constants
@@ -96,6 +97,7 @@ type App struct {
 	state              viewState
 	list               listModel
 	detail             detailModel
+	depNav             depNavModel
 	preview            previewModel
 	tagPicker          tagPickerModel
 	parentPicker       parentPickerModel
@@ -127,6 +129,13 @@ type App struct {
 
 	// Modal state - tracks view behind modal pickers
 	previousState viewState
+
+	// Dependency navigator state - the view it was opened from, and whether
+	// the detail view was opened from it (so going back returns to it)
+	depNavOrigin     viewState
+	detailFromDepNav bool
+	depNavHistory    int         // detail history depth when the navigator opened a bean
+	depNavDetail     detailModel // detail view the navigator was opened from
 
 	// Editor state - tracks bean being edited to update updated_at on save
 	editingBeanID      string
@@ -214,6 +223,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case beansChangedMsg:
 		// Beans changed on disk - refresh
+		if a.state == viewDepNav && !a.depNav.reload() {
+			a.state = a.depNavOrigin
+		}
 		if a.state == viewDetail {
 			// Try to reload the current bean via GraphQL
 			updatedBean, err := a.resolver.Query().Bean(context.Background(), a.detail.bean.ID)
@@ -807,10 +819,34 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.list.clearFilter()
 		return a, a.list.loadBeans
 
+	case openDepNavMsg:
+		a.depNavOrigin = a.state
+		a.depNavDetail = a.detail
+		a.detailFromDepNav = false
+		a.depNav = newDepNavModel(msg.bean, a.resolver, a.config, a.width, a.height)
+		a.state = viewDepNav
+		return a, a.depNav.Init()
+
+	case closeDepNavMsg:
+		a.state = a.depNavOrigin
+		if a.state == viewDetail {
+			// The navigator may have opened other beans; restore the original one
+			a.detail = a.depNavDetail
+			if b, err := a.resolver.Query().Bean(context.Background(), a.detail.bean.ID); err == nil && b != nil {
+				a.detail = newDetailModel(b, a.resolver, a.config, a.width, a.height)
+			}
+		}
+		return a, a.list.loadBeans
+
 	case selectBeanMsg:
 		// Push current detail view to history if we're already viewing a bean
 		if a.state == viewDetail {
 			a.history = append(a.history, a.detail)
+		}
+		if a.state == viewDepNav {
+			// Going back from this detail view returns to the navigator
+			a.depNavHistory = len(a.history)
+			a.detailFromDepNav = true
 		}
 		a.state = viewDetail
 		a.detail = newDetailModel(msg.bean, a.resolver, a.config, a.width, a.height)
@@ -823,6 +859,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case backToListMsg:
+		// Return to the dependency navigator if the detail view came from it
+		if a.state == viewDetail && a.detailFromDepNav && len(a.history) == a.depNavHistory {
+			a.detailFromDepNav = false
+			if !a.depNav.reload() {
+				a.state = a.depNavOrigin
+				return a, nil
+			}
+			a.state = viewDepNav
+			return a, nil
+		}
 		// Pop from history if available, otherwise go to list
 		if len(a.history) > 0 {
 			a.detail = a.history[len(a.history)-1]
@@ -841,6 +887,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.list, cmd = a.list.Update(msg)
 	case viewDetail:
 		a.detail, cmd = a.detail.Update(msg)
+	case viewDepNav:
+		a.depNav, cmd = a.depNav.Update(msg)
 	case viewTagPicker:
 		a.tagPicker, cmd = a.tagPicker.Update(msg)
 	case viewParentPicker:
@@ -984,6 +1032,8 @@ func (a *App) chordBindings() []key.Binding {
 		return append(allBindings(keymap.Global), allBindings(keymap.List)...)
 	case viewDetail:
 		return append(allBindings(keymap.Global), allBindings(keymap.Detail)...)
+	case viewDepNav:
+		return append(allBindings(keymap.Global), allBindings(keymap.DepNav)...)
 	case viewHelpOverlay:
 		return allBindings(keymap.Help)
 	case viewTagPicker, viewParentPicker, viewStatusPicker, viewTypePicker, viewBlockingPicker, viewPriorityPicker, viewLauncherPicker:
@@ -1031,7 +1081,7 @@ func (a *App) canQuit() bool {
 		return a.blockingPicker.list.FilterState() != list.Filtering
 	case viewPriorityPicker:
 		return a.priorityPicker.list.FilterState() != list.Filtering
-	case viewHelpOverlay:
+	case viewHelpOverlay, viewDepNav:
 		return true
 	default:
 		// Text input modals (create, tag editor) and launcher dialogs
@@ -1070,6 +1120,8 @@ func (a *App) View() string {
 		return a.listView()
 	case viewDetail:
 		return a.detail.View()
+	case viewDepNav:
+		return a.depNav.View()
 	case viewTagPicker:
 		return a.tagPicker.View()
 	case viewParentPicker:

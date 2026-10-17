@@ -415,6 +415,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
+		case key.Matches(msg, k.Dependencies):
+			return m, func() tea.Msg { return openDepNavMsg{bean: m.bean} }
+
 		case key.Matches(msg, k.Edit):
 			// Open the edit form for this bean
 			return m, func() tea.Msg {
@@ -524,6 +527,7 @@ func (m detailModel) View() string {
 		hint(k.ChangeParent, ""),
 		hint(k.ManageBlocking, ""),
 		hint(k.ManageBlockedBy, ""),
+		hint(k.Dependencies, ""),
 		hint(k.Archive, ""),
 		groupHint("scroll", k.ScrollDown, k.ScrollUp),
 		groupHint("prev/next", k.PrevBean, k.NextBean),

@@ -27,6 +27,7 @@ type KeyMap struct {
 	Global             GlobalKeyMap
 	List               ListKeyMap
 	Detail             DetailKeyMap
+	DepNav             DepNavKeyMap
 	Help               HelpKeyMap
 	Picker             PickerKeyMap
 	TagEditor          TagEditorKeyMap
@@ -76,6 +77,7 @@ type ListKeyMap struct {
 	ChangeParent    key.Binding
 	ManageBlocking  key.Binding
 	ManageBlockedBy key.Binding
+	Dependencies    key.Binding
 	Launch          key.Binding
 	Archive         key.Binding
 	ToggleArchived  key.Binding
@@ -107,8 +109,19 @@ type DetailKeyMap struct {
 	ChangeParent    key.Binding
 	ManageBlocking  key.Binding
 	ManageBlockedBy key.Binding
+	Dependencies    key.Binding
 	Launch          key.Binding
 	Archive         key.Binding
+}
+
+// DepNavKeyMap holds bindings for the dependency navigator.
+type DepNavKeyMap struct {
+	Up         key.Binding
+	Down       key.Binding
+	Open       key.Binding
+	Refocus    key.Binding
+	ToggleDone key.Binding
+	Back       key.Binding
 }
 
 // HelpKeyMap holds bindings for the help overlay.
@@ -227,6 +240,7 @@ func DefaultKeyMap() KeyMap {
 			ChangeParent:    bind("parent", "p"),
 			ManageBlocking:  bind("blocking", "b"),
 			ManageBlockedBy: bind("blocked by", "B"),
+			Dependencies:    bind("dependencies", "D"),
 			Launch:          bind("launch", "!"),
 			Archive:         bind("archive", "Y"),
 			ToggleArchived:  bind("show archived", "A"),
@@ -256,8 +270,17 @@ func DefaultKeyMap() KeyMap {
 			ChangeParent:    bind("parent", "p"),
 			ManageBlocking:  bind("blocking", "b"),
 			ManageBlockedBy: bind("blocked by", "B"),
+			Dependencies:    bind("dependencies", "D"),
 			Launch:          bind("launch", "!"),
 			Archive:         bind("archive", "Y"),
+		},
+		DepNav: DepNavKeyMap{
+			Up:         bind("up", "up", "k"),
+			Down:       bind("down", "down", "j"),
+			Open:       bind("open", "enter"),
+			Refocus:    bind("focus", "D"),
+			ToggleDone: bind("show done", "A"),
+			Back:       bind("back", "esc", "backspace"),
 		},
 		Help: HelpKeyMap{
 			Close: bind("close", "?", "esc"),
@@ -364,7 +387,7 @@ func (km KeyMap) conflicts() []string {
 	for i := 0; i < root.NumField(); i++ {
 		ctxName := configName(root.Type().Field(i).Name)
 		bindings := contextBindings(root.Field(i), "")
-		if ctxName == "list" || ctxName == "detail" {
+		if ctxName == "list" || ctxName == "detail" || ctxName == "depNav" {
 			bindings = append(contextBindings(global, "global."), bindings...)
 		}
 
