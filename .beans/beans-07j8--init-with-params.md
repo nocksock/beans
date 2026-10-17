@@ -19,3 +19,6 @@ basically provide a parameter for every field we can set in beans.yml
 2026-10-17 10:00: Blocker beans-4wwa not started; went with explicit init flags instead of generic key setter
 2026-10-17 10:20: Added --path, --prefix, --id-length, --default-status, --default-type, --prompt-extra, --disable-launcher-warning to `beans init` (validated) + tests + README
 2026-10-17 10:25: --path cannot combine with --beans-path; cascade left for follow-up beans-9p2n
+
+## Note from beans-4wwa
+`config.SetSetting(path, key, value)` validates dotted keys/values against the config schema and writes them into .beans.yml; init flags could be applied through it.

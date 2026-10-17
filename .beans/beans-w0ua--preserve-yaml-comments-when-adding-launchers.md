@@ -25,3 +25,6 @@ Improve the appendLaunchersToConfig function to preserve existing comments and f
 - Comments in .beans.yml are preserved when adding launchers
 - Existing formatting is maintained
 - Launchers section is inserted in a logical location (e.g., after beans section)
+
+## Note from beans-4wwa
+`config.SetSetting` (internal/config/settings.go) already edits .beans.yml via yaml.v3 nodes and keeps comments; its `setNode`/`mappingValue` helpers could be reused for appending launchers.

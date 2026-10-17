@@ -9,3 +9,7 @@ updated_at: 2026-10-17T13:50:54Z
 ---
 
 run review agents to review code for code quality. some beans will become obsolete, some otherwise affected by refactor suggestions. update beans after we settled on what refactors to include.
+
+## Work Log
+
+2026-10-17 15:51: Started; dispatching 4 parallel code-quality reviewers (tui, cmd+graph, core/config, launcher+ui)
