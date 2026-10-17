@@ -172,7 +172,7 @@ func selectedBeanID(a *App) string {
 func TestCreateBeanMovesCursorToNewBean(t *testing.T) {
 	app, _ := newTestApp(t)
 
-	_, cmd := app.Update(beanCreatedMsg{title: "Zzz newly created"})
+	_, cmd := app.Update(beanCreatedMsg{title: "Zzz newly created", openEditor: true})
 	if cmd == nil {
 		t.Fatal("expected command after creating bean")
 	}
