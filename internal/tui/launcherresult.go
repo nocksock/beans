@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -52,14 +53,14 @@ func (m *launcherResultModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter", "esc", "q":
+		switch {
+		case key.Matches(msg, keymap.LauncherResult.Close):
 			// Clean up temp log file
 			if m.logPath != "" {
 				os.Remove(m.logPath)
 			}
 			return m, func() tea.Msg { return closeLauncherResultMsg{} }
-		case "e":
+		case key.Matches(msg, keymap.LauncherResult.OpenLog):
 			// Open log in editor
 			if m.logPath != "" {
 				editor := getEditor()
@@ -82,7 +83,7 @@ func (m *launcherResultModel) View() string {
 	if m.success {
 		headerStyle = headerStyle.Foreground(lipgloss.Color("10"))
 		content.WriteString(headerStyle.Render("✓ ") + m.name + " completed successfully\n\n")
-		content.WriteString(ui.Muted.Render("Press Enter or Esc to continue"))
+		content.WriteString(ui.Muted.Render("Press " + keyLabel(keymap.LauncherResult.Close.Keys()) + " to continue"))
 	} else {
 		headerStyle = headerStyle.Foreground(lipgloss.Color("9"))
 		content.WriteString(headerStyle.Render("✗ ") + m.name + " failed (exit " + strconv.Itoa(m.exitCode) + ")\n\n")
@@ -94,7 +95,8 @@ func (m *launcherResultModel) View() string {
 			content.WriteString("\n\n")
 		}
 
-		content.WriteString(ui.Muted.Render("e: open in editor    Enter/Esc: close"))
+		k := keymap.LauncherResult
+		content.WriteString(ui.Muted.Render(keyLabel(k.OpenLog.Keys()) + ": open in editor    " + keyLabel(k.Close.Keys()) + ": close"))
 	}
 
 	// Center the content

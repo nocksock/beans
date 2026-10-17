@@ -11,8 +11,9 @@ const watchDebounce = 100 * time.Millisecond
 
 // Watch calls onChange (debounced) whenever a config file is created, changed
 // or removed in startDir or any directory above it, i.e. anywhere a file
-// affecting the config loaded from startDir could live. Directories that
-// can't be watched are skipped. Call the returned function to stop watching.
+// affecting the config loaded from startDir could live, or when the user
+// config changes. Directories that can't be watched are skipped. Call the
+// returned function to stop watching.
 func Watch(startDir string, onChange func()) (func(), error) {
 	dir, err := filepath.Abs(startDir)
 	if err != nil {
@@ -31,6 +32,10 @@ func Watch(startDir string, onChange func()) (func(), error) {
 		}
 		dir = parent
 	}
+	userPath := UserConfigPath()
+	if userPath != "" {
+		_ = watcher.Add(filepath.Dir(userPath))
+	}
 
 	done := make(chan struct{})
 	go func() {
@@ -47,7 +52,8 @@ func Watch(startDir string, onChange func()) (func(), error) {
 				if !ok {
 					return
 				}
-				if filepath.Base(event.Name) != ConfigFileName || event.Op == fsnotify.Chmod {
+				isConfig := filepath.Base(event.Name) == ConfigFileName || (userPath != "" && event.Name == userPath)
+				if !isConfig || event.Op == fsnotify.Chmod {
 					continue
 				}
 				if timer != nil {

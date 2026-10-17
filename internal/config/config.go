@@ -117,6 +117,9 @@ type Config struct {
 	Launchers      []Launcher     `yaml:"launchers,omitempty"`
 	Prompt         *PromptConfig  `yaml:"prompt,omitempty"` // Agent prompt customization
 
+	// Keybinding overrides TUI key bindings, per context and action
+	Keybinding Keybindings `yaml:"keybinding,omitempty"`
+
 	// configDir is the directory containing the config file (not serialized)
 	// Used to resolve relative paths
 	configDir string `yaml:"-"`
@@ -187,18 +190,42 @@ func FindConfig(startDir string) (string, error) {
 }
 
 // Load reads configuration from the given config file path, merged with the
-// settings of cascading ancestor configs (see findChain).
+// settings of cascading ancestor configs (see findChain) and the user config
+// (see UserConfigPath).
 // Returns default config if the file doesn't exist.
 func Load(configPath string) (*Config, error) {
 	layers, err := findChain(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return Default(), nil
+			return loadDefault("")
 		}
 		return nil, err
 	}
 
+	layers, err = withUserLayer(layers)
+	if err != nil {
+		return nil, err
+	}
 	return fromLayers(configPath, layers)
+}
+
+// loadDefault returns the default config with the user config applied,
+// anchored at dir.
+func loadDefault(dir string) (*Config, error) {
+	layers, err := withUserLayer(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := Default()
+	if len(layers) > 0 {
+		if cfg, err = fromLayers("", layers); err != nil {
+			return nil, err
+		}
+		cfg.configPath = ""
+	}
+	cfg.configDir = dir
+	return cfg, nil
 }
 
 // fromLayers builds the config for configPath from its layers (root-first).
@@ -299,9 +326,7 @@ func LoadFromDirectory(startDir string) (*Config, error) {
 
 	if configPath == "" {
 		// No config found, return default anchored at startDir
-		cfg := Default()
-		cfg.configDir = startDir
-		return cfg, nil
+		return loadDefault(startDir)
 	}
 
 	return Load(configPath)

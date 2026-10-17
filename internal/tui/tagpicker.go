@@ -5,6 +5,7 @@ import (
 	"io"
 	"sort"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -82,6 +83,7 @@ func newTagPickerModel(tags []tagWithCount, width, height int) tagPickerModel {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+	l.KeyMap = pickerListKeyMap()
 	l.Styles.Title = listTitleStyle
 	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 1, 1)
 	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.ColorPrimary)
@@ -110,14 +112,14 @@ func (m tagPickerModel) Update(msg tea.Msg) (tagPickerModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.list.FilterState() != list.Filtering {
-			switch msg.String() {
-			case "enter":
+			switch {
+			case key.Matches(msg, keymap.Picker.Confirm):
 				if item, ok := m.list.SelectedItem().(tagItem); ok {
 					return m, func() tea.Msg {
 						return tagSelectedMsg{tag: item.tag}
 					}
 				}
-			case "esc", "backspace":
+			case key.Matches(msg, keymap.Picker.Cancel):
 				// Return to list without selecting a tag
 				return m, func() tea.Msg {
 					return backToListMsg{}
@@ -145,10 +147,8 @@ func (m tagPickerModel) View() string {
 	content := border.Render(m.list.View())
 
 	// Footer
-	help := helpKeyStyle.Render("enter") + " " + helpStyle.Render("select") + "  " +
-		helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
-		helpKeyStyle.Render("esc") + " " + helpStyle.Render("cancel") + "  " +
-		helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
+	k := keymap.Picker
+	help := hints(hint(k.Confirm, ""), hint(k.Filter, ""), hint(k.Cancel, ""), hint(keymap.Global.Quit, ""))
 
 	return content + "\n" + help
 }

@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/hmans/beans/internal/config"
@@ -110,24 +111,25 @@ func (m configureLaunchersModel) Update(msg tea.Msg) (configureLaunchersModel, t
 		m.height = msg.Height
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
+		k := keymap.ConfigureLaunchers
+		switch {
+		case key.Matches(msg, k.Up):
 			if m.cursor > 0 {
 				m.cursor--
 			}
 
-		case "down", "j":
+		case key.Matches(msg, k.Down):
 			if m.cursor < len(m.items)-1 {
 				m.cursor++
 			}
 
-		case " ", "enter":
+		case key.Matches(msg, k.Toggle):
 			// Toggle selection of current item
 			if m.cursor < len(m.items) {
 				m.items[m.cursor].selected = !m.items[m.cursor].selected
 			}
 
-		case "y":
+		case key.Matches(msg, k.Confirm):
 			// Confirm selections
 			var selectedLaunchers []config.Launcher
 			for _, item := range m.items {
@@ -151,7 +153,7 @@ func (m configureLaunchersModel) Update(msg tea.Msg) (configureLaunchersModel, t
 				return launchersConfiguredMsg{launchers: selectedLaunchers}
 			}
 
-		case "esc", "q":
+		case key.Matches(msg, k.Cancel):
 			return m, func() tea.Msg {
 				return closeConfigureLaunchersMsg{}
 			}
@@ -200,9 +202,8 @@ func (m configureLaunchersModel) View() string {
 		itemsStr.WriteString(cursor + checkbox + " " + item.launcher.name + status + "\n")
 	}
 
-	help := helpKeyStyle.Render("y") + " " + helpStyle.Render("confirm") + "  " +
-		helpKeyStyle.Render("space") + " " + helpStyle.Render("toggle") + "  " +
-		helpKeyStyle.Render("esc") + " " + helpStyle.Render("cancel")
+	k := keymap.ConfigureLaunchers
+	help := hints(hint(k.Confirm, ""), hint(k.Toggle, ""), hint(k.Cancel, ""))
 
 	border := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

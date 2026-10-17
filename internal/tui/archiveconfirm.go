@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/hmans/beans/internal/ui"
@@ -44,11 +45,11 @@ func newArchiveConfirmModel(beanIDs []string, title, message string, width, heig
 
 func (m archiveConfirmModel) Update(msg tea.Msg) (archiveConfirmModel, tea.Cmd) {
 	if msg, ok := msg.(tea.KeyMsg); ok {
-		switch msg.String() {
-		case "y", "Y":
+		switch {
+		case key.Matches(msg, keymap.ArchiveConfirm.Confirm):
 			ids := m.beanIDs
 			return m, func() tea.Msg { return archiveConfirmedMsg{beanIDs: ids} }
-		case "n", "N", "esc", "backspace":
+		case key.Matches(msg, keymap.ArchiveConfirm.Cancel):
 			return m, func() tea.Msg { return closeArchiveConfirmMsg{} }
 		}
 	}
@@ -63,8 +64,8 @@ func (m archiveConfirmModel) View() string {
 		Foreground(ui.ColorWarning).
 		Render(m.title)
 
-	help := helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
-		helpKeyStyle.Render("n/esc") + " " + helpStyle.Render("cancel")
+	k := keymap.ArchiveConfirm
+	help := hints(hint(k.Confirm, ""), hint(k.Cancel, ""))
 
 	border := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

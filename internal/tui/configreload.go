@@ -30,6 +30,11 @@ func (a *App) reloadConfig() tea.Cmd {
 	if err != nil {
 		return a.showNotice(fmt.Sprintf("Config not reloaded: %v", err), true)
 	}
+	keyWarnings, err := applyKeymap(cfg)
+	if err != nil {
+		return a.showNotice(fmt.Sprintf("Config not reloaded: keybinding: %v", err), true)
+	}
+	a.list.list.KeyMap = mainListKeyMap()
 
 	a.core.ReplaceConfig(cfg)
 	if a.config != a.core.Config() {
@@ -42,7 +47,19 @@ func (a *App) reloadConfig() tea.Cmd {
 		}
 	}
 
+	if len(keyWarnings) > 0 {
+		return tea.Batch(a.showNotice("Config reloaded; "+keyWarningNotice(keyWarnings), true), a.list.loadBeans)
+	}
 	return tea.Batch(a.showNotice("Config reloaded", false), a.list.loadBeans)
+}
+
+// keyWarningNotice summarizes key binding conflicts for the footer.
+func keyWarningNotice(warnings []string) string {
+	msg := "key conflict: " + warnings[0]
+	if len(warnings) > 1 {
+		msg += fmt.Sprintf(" (+%d more)", len(warnings)-1)
+	}
+	return msg
 }
 
 // showNotice shows msg in the list footer for noticeDuration.

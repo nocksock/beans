@@ -54,9 +54,8 @@ func renderPickerModal(cfg pickerModalConfig) string {
 	// Help footer
 	help := cfg.Help
 	if help == "" {
-		help = helpKeyStyle.Render("enter") + " " + helpStyle.Render("select") + "  " +
-			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
-			helpKeyStyle.Render("esc") + " " + helpStyle.Render("cancel")
+		k := keymap.Picker
+		help = hints(hint(k.Confirm, ""), hint(k.Filter, ""), hint(k.Cancel, ""))
 	}
 
 	// Border style
