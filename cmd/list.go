@@ -48,11 +48,13 @@ var hiddenByDefaultStatuses = []string{"completed", "scrapped"}
 
 // defaultExcludedStatuses returns the exclude-status list for `beans list`,
 // adding the hidden-by-default statuses unless they were explicitly included
-// or requested via --status.
-func defaultExcludedStatuses(status, excludeStatus, include []string) ([]string, error) {
+// or requested via --status. Excluding a builtin status also hides its custom
+// substatuses, so requesting a substatus counts as requesting its builtin.
+func defaultExcludedStatuses(cfg *config.Config, status, excludeStatus, include []string) ([]string, error) {
 	requested := make(map[string]bool)
 	for _, s := range status {
 		requested[s] = true
+		requested[cfg.StatusCategory(s)] = true
 	}
 	for _, s := range include {
 		valid := false
@@ -104,7 +106,7 @@ Search Syntax (--search/-S):
   title:login    Search only in title field
   body:auth      Search only in body field`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		excludeStatus, err := defaultExcludedStatuses(listStatus, listNoStatus, listInclude)
+		excludeStatus, err := defaultExcludedStatuses(cfg, listStatus, listNoStatus, listInclude)
 		if err != nil {
 			return err
 		}

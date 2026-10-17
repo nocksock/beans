@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -168,6 +170,11 @@ func TestDefaultExcludedStatuses(t *testing.T) {
 			want:   []string{"scrapped"},
 		},
 		{
+			name:   "explicit status filter for a substatus shows it",
+			status: []string{"merged"},
+			want:   []string{"scrapped"},
+		},
+		{
 			name:          "keeps user exclusions without duplicates",
 			excludeStatus: []string{"draft", "completed"},
 			want:          []string{"draft", "completed", "scrapped"},
@@ -185,9 +192,18 @@ func TestDefaultExcludedStatuses(t *testing.T) {
 		},
 	}
 
+	configPath := filepath.Join(t.TempDir(), config.ConfigFileName)
+	if err := os.WriteFile(configPath, []byte("statuses:\n  completed:\n    - name: merged\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := defaultExcludedStatuses(tt.status, tt.excludeStatus, tt.include)
+			got, err := defaultExcludedStatuses(cfg, tt.status, tt.excludeStatus, tt.include)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got %v", got)

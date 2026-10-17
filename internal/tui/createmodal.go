@@ -92,7 +92,7 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 		textInput:   ti,
 		body:        ta,
 		types:       config.DefaultTypes,
-		statuses:    config.DefaultStatuses,
+		statuses:    cfg.Statuses(),
 		priorities:  config.DefaultPriorities,
 		width:       width,
 		height:      height,

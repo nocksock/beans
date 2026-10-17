@@ -513,9 +513,9 @@ func TestStatusDescriptions(t *testing.T) {
 		}
 	})
 
-	t.Run("statuses in config file are ignored", func(t *testing.T) {
-		// Even if a config file has custom statuses, they should be ignored
-		// and hardcoded statuses should be used instead
+	t.Run("legacy status list in config file is ignored", func(t *testing.T) {
+		// Old config files list statuses without grouping them below a builtin;
+		// that form is ignored and only the builtins are used
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, ConfigFileName)
 
