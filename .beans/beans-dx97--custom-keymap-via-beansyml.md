@@ -45,3 +45,4 @@ very similar to the format that lazygit has
 2026-10-17 15:04: Config: user-global layer + keybinding section done (tui validates names)
 2026-10-17 15:13: TUI keymap registry, all handlers/footers/help converted, chords, reload, README, tests (ad91f22)
 2026-10-17 15:13: Manually verified in tmux: rebinding, chords, disabled actions, conflict warning, invalid name error
+2026-10-17 15:18: Merged dev into branch (added openEditor/toggleArchived bindings), then merged into dev (462a172)
