@@ -16,10 +16,11 @@ in light mode its white
 
 ## Plan
 
-- [ ] Remove the hardcoded foreground from `descStyle` in `help.go` so descriptions use the terminal default colour
-- [ ] Add a test asserting the help overlay's description style doesn't force a foreground colour
-- [ ] Run `go test ./...`
+- [x] Remove the hardcoded foreground from `descStyle` in `help.go` so descriptions use the terminal default colour
+- [x] Add a test asserting the help overlay's description style doesn't force a foreground colour
+- [x] Run `go test ./...`
 
 ## Work Log
 
 2026-10-17 15:25: Found cause (hardcoded #fff in help overlay); plan agreed: use terminal default colour
+2026-10-17 15:32: Removed #fff from help overlay descriptions, added test; go test ./... green
