@@ -1,11 +1,11 @@
 ---
 # beans-6a8o
 title: filter items based on tags
-status: draft
+status: todo
 type: task
 priority: normal
 created_at: 2025-12-15T13:10:32Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T12:12:12Z
 blocking:
     - beans-4sfw
 ---

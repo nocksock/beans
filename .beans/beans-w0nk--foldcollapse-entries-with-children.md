@@ -1,11 +1,11 @@
 ---
 # beans-w0nk
 title: fold/collapse entries with children
-status: draft
+status: todo
 type: task
 priority: normal
 created_at: 2025-12-15T13:06:30Z
-updated_at: 2025-12-15T13:07:50Z
+updated_at: 2026-10-17T12:12:12Z
 ---
 
 shortcuts:

@@ -1,11 +1,11 @@
 ---
 # beans-jq47
 title: move session command to launcher
-status: draft
+status: todo
 type: task
 priority: normal
 created_at: 2026-10-17T10:45:34Z
-updated_at: 2026-10-17T10:45:59Z
+updated_at: 2026-10-17T12:12:12Z
 ---
 
 should just be a launcher instead of a first level feature (so we don't need to own tmux integration)
