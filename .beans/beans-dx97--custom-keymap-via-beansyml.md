@@ -32,14 +32,16 @@ very similar to the format that lazygit has
 ### Steps
 - [x] config: add a user-global layer at the bottom of `findChain`, with tests (XDG/HOME, missing file, override order, rejected `beans.path`)
 - [x] config: `Keybinding` section (string-or-list unmarshal, `<disabled>`), validation against the known action table
-- [ ] tui: central keymap registry per context (`key.Binding` with keys + help text), defaults equal to today's hardcoded keys
-- [ ] tui: replace every `msg.String()` switch with `key.Matches` lookups: tui.go, list.go, detail.go, help.go, then each picker/modal. Text-input modals only bind non-printable keys so typing still works.
-- [ ] tui: chord support (`g t`) through the registry
-- [ ] tui: generate the help overlay and footers from the keymap so they show the actual bindings
-- [ ] wire through config reload (`R`)
-- [ ] docs: README/config docs section with the full action list and defaults
-- [ ] tests: table-driven tests for parsing/merging/validation, plus TUI tests that a rebound key triggers its action and the old key doesn't
+- [x] tui: central keymap registry per context (`key.Binding` with keys + help text), defaults equal to today's hardcoded keys
+- [x] tui: replace every `msg.String()` switch with `key.Matches` lookups: tui.go, list.go, detail.go, help.go, then each picker/modal. Text-input modals only bind non-printable keys so typing still works.
+- [x] tui: chord support (`g t`) through the registry
+- [x] tui: generate the help overlay and footers from the keymap so they show the actual bindings
+- [x] wire through config reload (`R`)
+- [x] docs: README/config docs section with the full action list and defaults
+- [x] tests: table-driven tests for parsing/merging/validation, plus TUI tests that a rebound key triggers its action and the old key doesn't
 
 ## Work Log
 2026-10-17 14:57: Planned with user, plan written, set in-progress
 2026-10-17 15:04: Config: user-global layer + keybinding section done (tui validates names)
+2026-10-17 15:13: TUI keymap registry, all handlers/footers/help converted, chords, reload, README, tests (ad91f22)
+2026-10-17 15:13: Manually verified in tmux: rebinding, chords, disabled actions, conflict warning, invalid name error
