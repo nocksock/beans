@@ -31,13 +31,15 @@ Replace the launcher result modal with a lazygit-style log panel at the bottom o
 - **Remove**: `launcherresult.go` modal, `viewLauncherResult`, related msgs (move `readLastLines`/`centerContent` if still used).
 
 ### Checklist
-- [ ] Add `background` field to launcher config (+ docs/README)
-- [ ] `CreateBackgroundCommand` in `internal/launcher` with tests
-- [ ] Log model + messages with tests (state transitions, 50 cap)
-- [ ] Panel rendering + layout integration (list height, auto-show, `L`, `O`) with tests
-- [ ] Route foreground + background launches into the log; multi-bean parallel background runs
-- [ ] Remove launcher result modal
-- [ ] Manual test in a scratch project
+- [x] Add `background` field to launcher config (+ docs/README)
+- [x] `CreateBackgroundCommand` in `internal/launcher` with tests
+- [x] Log model + messages with tests (state transitions, 50 cap)
+- [x] Panel rendering + layout integration (list height, auto-show, `L`, `O`) with tests
+- [x] Route foreground + background launches into the log; multi-bean parallel background runs
+- [x] Remove launcher result modal
+- [x] Manual test in a scratch project
 
 ## Work Log
 2026-10-17 15:20: Planned design with user; plan written
+2026-10-17 15:24: Implemented exec helper, config flag, log panel, App wiring; removed result modal
+2026-10-17 15:25: Manually tested in scratch project via tmux (multi-bean bg, failure, L, O); filed beans-z7jr for README conflict markers
