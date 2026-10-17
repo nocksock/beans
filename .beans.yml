@@ -45,22 +45,7 @@ launchers:
       set -euo pipefail
 
       cd "${BEANS_ROOT:-.}"
-      WORKTREE_DIR=".worktrees/$BEANS_ID"
-
-      # Create worktree if it doesn't exist
-      if [ ! -d "$WORKTREE_DIR" ]; then
-        git worktree prune
-
-        if git show-ref --verify --quiet "refs/heads/task/$BEANS_ID"; then
-          git worktree add --no-checkout "$WORKTREE_DIR" "task/$BEANS_ID"
-        else
-          git worktree add --no-checkout "$WORKTREE_DIR" -b "task/$BEANS_ID"
-        fi
-
-        # Keep beans data in the main worktree only
-        git -C "$WORKTREE_DIR" sparse-checkout set --no-cone '/*' '!/.beans' '!/.beans.yml'
-        git -C "$WORKTREE_DIR" checkout
-      fi
+      WORKTREE_DIR="$(./scripts/bean-worktree)"
 
       # Claude renames the window itself once it knows what the bean is about
       read -r -d '' RENAME_NOTE <<'EOF' || true
@@ -71,7 +56,7 @@ launchers:
       EOF
       PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
 
-      tmux new-window -c "$PWD/$WORKTREE_DIR" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
+      tmux new-window -c "$WORKTREE_DIR" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
         'claude "$BEANS_PROMPT"'
   - name: crush
     exec: crush run "Work on task $BEANS_ID"
@@ -83,29 +68,10 @@ launchers:
       #!/usr/bin/env bash
       set -euo pipefail
 
-      WORKTREE_DIR=".worktrees/$BEANS_ID"
-
-      # Create worktree if it doesn't exist
-      if [ ! -d "$WORKTREE_DIR" ]; then
-        # Clean up any stale worktree registrations
-        git worktree prune
-
-        # Check if branch already exists
-        if git show-ref --verify --quiet "refs/heads/task/$BEANS_ID"; then
-          # Branch exists, check it out in the worktree
-          git worktree add --no-checkout "$WORKTREE_DIR" "task/$BEANS_ID"
-        else
-          # Create new branch
-          git worktree add --no-checkout "$WORKTREE_DIR" -b "task/$BEANS_ID"
-        fi
-        
-        # Configure sparse checkout in the worktree
-        cd "$WORKTREE_DIR"
-        git sparse-checkout set --no-cone '/*' '!/.beans' '!/.beans.yml'
-        git checkout
-      fi
+      cd "${BEANS_ROOT:-.}"
+      WORKTREE_DIR="$(./scripts/bean-worktree)"
 
       # Open in new kitty window
-      kitty @ launch --type=window --cwd="$BEANS_ROOT/$WORKTREE_DIR" \
+      kitty @ launch --type=window --cwd="$WORKTREE_DIR" \
         opencode -p "Work on task $BEANS_ID"
 
