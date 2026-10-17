@@ -17,7 +17,6 @@ import (
 	"github.com/hmans/beans/internal/graph"
 	"github.com/hmans/beans/internal/graph/model"
 	launcherexec "github.com/hmans/beans/internal/launcher"
-	"github.com/hmans/beans/internal/sessionpoller"
 )
 
 // viewState represents which view is currently active
@@ -40,7 +39,6 @@ const (
 	viewNoLaunchersMulti
 	viewConfigureLaunchers
 	viewConfigWriteError
-	viewSessionDialog
 	viewLauncherResult
 	viewTagEditor
 	viewArchiveConfirm
@@ -79,12 +77,6 @@ type openEditorMsg struct {
 	beanPath string
 }
 
-// reattachSessionMsg requests re-attaching to an existing running session
-type reattachSessionMsg struct {
-	beanID    string
-	sessionID string
-}
-
 // editorFinishedMsg is sent when the editor closes
 type editorFinishedMsg struct {
 	err error
@@ -120,9 +112,7 @@ type App struct {
 	noLaunchersMulti   noLaunchersMultiModel
 	configureLaunchers configureLaunchersModel
 	configWriteError   configWriteErrorModel
-	sessionDialog      *sessionDialogModel
 	launcherResult     *launcherResultModel
-	sessionPoller      *sessionpoller.Poller
 	history            []detailModel // stack of previous detail views for back navigation
 	core               *beancore.Core
 	resolver           *graph.Resolver
@@ -148,15 +138,13 @@ type App struct {
 // New creates a new TUI application
 func New(core *beancore.Core, cfg *config.Config) *App {
 	resolver := &graph.Resolver{Core: core}
-	poller := sessionpoller.New(cfg.Session, core.Root())
 	return &App{
-		state:         viewList,
-		core:          core,
-		resolver:      resolver,
-		config:        cfg,
-		list:          newListModel(resolver, cfg, poller),
-		preview:       newPreviewModel(cfg),
-		sessionPoller: poller,
+		state:    viewList,
+		core:     core,
+		resolver: resolver,
+		config:   cfg,
+		list:     newListModel(resolver, cfg),
+		preview:  newPreviewModel(cfg),
 	}
 }
 
@@ -233,7 +221,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.history = nil
 			} else {
 				// Recreate detail view with fresh bean data
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
 			}
 		}
 		// Trigger list refresh
@@ -302,7 +290,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail && len(msg.beanIDs) == 1 {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
 			}
 		}
 		return a, a.list.loadBeans
@@ -336,7 +324,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail && len(msg.beanIDs) == 1 {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
 			}
 		}
 		return a, a.list.loadBeans
@@ -370,7 +358,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail && len(msg.beanIDs) == 1 {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
 			}
 		}
 		return a, a.list.loadBeans
@@ -429,7 +417,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail && len(msg.beanIDs) == 1 {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
 			}
 		}
 		return a, a.list.loadBeans
@@ -470,7 +458,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.state == viewDetail {
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanID)
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
 			}
 		}
 		return a, a.list.loadBeans
@@ -642,7 +630,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Refresh the bean to show updated parent
 			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
 			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(updatedBean.ID))
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
 			}
 		}
 		return a, a.list.loadBeans
@@ -718,43 +706,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 		return a, nil
 
-	case closeSessionDialogMsg:
-		a.state = a.previousState
-		return a, nil
-
-	case attachSessionMsg:
-		// Run the attach command for the session
-		if a.config.Session != nil && a.config.Session.Attach != "" {
-			cmd, err := sessionpoller.CreateExecCommand(a.newLaunch(a.config.Session.Attach, a.config.Session.AttachDir, msg.beanID, msg.beanTitle))
-			if err != nil {
-				return a, nil
-			}
-			a.quitting = true
-			return a, tea.ExecProcess(cmd, func(err error) tea.Msg {
-				a.quitting = false
-				return nil
-			})
-		}
-		return a, nil
-
-	case launchSessionMsg:
-		// Close any dialog first
-		a.state = a.previousState
-
-		if a.config.Session != nil && a.config.Session.Launch != "" {
-			return a, a.runLauncher("Session", a.newLaunch(a.config.Session.Launch, a.config.Session.LaunchDir, msg.beanID, msg.beanTitle))
-		}
-		return a, nil
-
-	case openSessionDialogMsg:
-		// Get all beans for the session dialog
-		beans, _ := a.resolver.Query().Beans(context.Background(), nil)
-		a.previousState = a.state
-		dialog := newSessionDialogModel(a.sessionPoller, beans, a.width, a.height)
-		a.sessionDialog = &dialog
-		a.state = viewSessionDialog
-		return a, nil
-
 	case launcherResultMsg:
 		// Show the launcher result
 		result := newLauncherResultModel(msg.name, msg.success, msg.exitCode, msg.logPath, a.width, a.height)
@@ -804,7 +755,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.history = append(a.history, a.detail)
 		}
 		a.state = viewDetail
-		a.detail = newDetailModel(msg.bean, a.resolver, a.config, a.width, a.height, a.makeRunningSessionChecker(msg.bean.ID))
+		a.detail = newDetailModel(msg.bean, a.resolver, a.config, a.width, a.height)
 		return a, a.detail.Init()
 
 	case backToListMsg:
@@ -874,10 +825,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.state = a.previousState
 			return a, nil
 		}
-	case viewSessionDialog:
-		var m tea.Model
-		m, cmd = a.sessionDialog.Update(msg)
-		a.sessionDialog = m.(*sessionDialogModel)
 	case viewLauncherResult:
 		var m tea.Model
 		m, cmd = a.launcherResult.Update(msg)
@@ -937,7 +884,7 @@ func (a *App) canQuitWithQ() bool {
 		return a.blockingPicker.list.FilterState() != list.Filtering
 	case viewPriorityPicker:
 		return a.priorityPicker.list.FilterState() != list.Filtering
-	case viewHelpOverlay, viewSessionDialog:
+	case viewHelpOverlay:
 		return true
 	default:
 		// Text input modals (create, tag editor) and launcher dialogs
@@ -1008,23 +955,10 @@ func (a *App) View() string {
 		return a.configureLaunchers.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewConfigWriteError:
 		return a.configWriteError.ModalView(a.getBackgroundView(), a.width, a.height)
-	case viewSessionDialog:
-		return a.sessionDialog.View()
 	case viewLauncherResult:
 		return a.launcherResult.View()
 	}
 	return ""
-}
-
-// makeRunningSessionChecker returns a function that checks if a bean has a running session
-func (a *App) makeRunningSessionChecker(beanID string) func() bool {
-	return func() bool {
-		if a.sessionPoller == nil {
-			return false
-		}
-		status := a.sessionPoller.GetStatus(beanID)
-		return status.HasSession
-	}
 }
 
 // getBackgroundView returns the view to show behind modal pickers
@@ -1065,7 +999,7 @@ func (a *App) newLaunch(script, configDir, beanID, beanTitle string) launcherexe
 // to it) and reports its outcome as a launcherResultMsg. Stderr is additionally
 // captured to a log file so failures can be inspected afterwards.
 func (a *App) runLauncher(name string, l launcherexec.Launch) tea.Cmd {
-	cmd, logFile, err := sessionpoller.CreateLoggedExecCommand(l)
+	cmd, logFile, err := launcherexec.CreateLoggedExecCommand(l)
 	if err != nil {
 		return func() tea.Msg {
 			return launcherResultMsg{name: name, success: false, exitCode: -1}
@@ -1076,7 +1010,7 @@ func (a *App) runLauncher(name string, l launcherexec.Launch) tea.Cmd {
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		logFile.Close()
 		a.quitting = false
-		exitCode := sessionpoller.ExitCode(err)
+		exitCode := launcherexec.ExitCode(err)
 		return launcherResultMsg{
 			name:     name,
 			success:  exitCode == 0,

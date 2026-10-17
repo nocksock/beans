@@ -13,14 +13,8 @@ import (
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph"
 	"github.com/hmans/beans/internal/graph/model"
-	"github.com/hmans/beans/internal/sessionpoller"
 	"github.com/hmans/beans/internal/ui"
 )
-
-// sessionStatusProvider defines the methods we need from the session poller
-type sessionStatusProvider interface {
-	GetStatus(beanID string) sessionpoller.SessionStatus
-}
 
 // beanItem wraps a Bean to implement list.Item, with tree context
 type beanItem struct {
@@ -44,7 +38,6 @@ type itemDelegate struct {
 	idColWidth     int                  // ID column width (accounts for tree prefix)
 	selectedBeans  *map[string]bool     // pointer to marked beans for multi-select
 	collapsedBeans *map[string]bool     // pointer to collapsed beans
-	sessionPoller  sessionStatusProvider
 }
 
 func newItemDelegate(cfg *config.Config) itemDelegate {
@@ -87,39 +80,31 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		isCollapsed = (*d.collapsedBeans)[item.bean.ID]
 	}
 
-	// Check if bean has a running session via sessionPoller
-	var hasRunningSession bool
-	if d.sessionPoller != nil {
-		status := d.sessionPoller.GetStatus(item.bean.ID)
-		hasRunningSession = status.HasSession
-	}
-
 	str := ui.RenderBeanRow(
 		item.bean.ID,
 		item.bean.Status,
 		item.bean.Type,
 		item.bean.Title,
 		ui.BeanRowConfig{
-			StatusColor:       colors.StatusColor,
-			TypeColor:         colors.TypeColor,
-			PriorityColor:     colors.PriorityColor,
-			Priority:          item.bean.Priority,
-			IsArchive:         colors.IsArchive,
-			MaxTitleWidth:     maxTitleWidth,
-			ShowCursor:        true,
-			IsSelected:        index == m.Index(),
-			IsMarked:          isMarked,
-			Tags:              item.bean.Tags,
-			ShowTags:          d.cols.ShowTags,
-			TagsColWidth:      d.cols.Tags,
-			MaxTags:           d.cols.MaxTags,
-			TreePrefix:        item.treePrefix,
-			Dimmed:            !item.matched,
-			IDColWidth:        d.idColWidth,
-			HasChildren:       item.hasChildren,
-			IsCollapsed:       isCollapsed,
-			HasRunningSession: hasRunningSession,
-			Compact:           d.cols.Compact,
+			StatusColor:   colors.StatusColor,
+			TypeColor:     colors.TypeColor,
+			PriorityColor: colors.PriorityColor,
+			Priority:      item.bean.Priority,
+			IsArchive:     colors.IsArchive,
+			MaxTitleWidth: maxTitleWidth,
+			ShowCursor:    true,
+			IsSelected:    index == m.Index(),
+			IsMarked:      isMarked,
+			Tags:          item.bean.Tags,
+			ShowTags:      d.cols.ShowTags,
+			TagsColWidth:  d.cols.Tags,
+			MaxTags:       d.cols.MaxTags,
+			TreePrefix:    item.treePrefix,
+			Dimmed:        !item.matched,
+			IDColWidth:    d.idColWidth,
+			HasChildren:   item.hasChildren,
+			IsCollapsed:   isCollapsed,
+			Compact:       d.cols.Compact,
 		},
 	)
 
@@ -149,9 +134,6 @@ type listModel struct {
 	// Collapse/fold state
 	collapsedBeans map[string]bool // IDs of beans whose children are hidden
 
-	// Session poller for checking running sessions
-	sessionPoller sessionStatusProvider
-
 	// Hierarchical navigation: IDs of beans drilled into, outermost first.
 	// When non-empty, only descendants of the last entry are listed.
 	rootStack []string
@@ -165,14 +147,13 @@ type listModel struct {
 	childCounts map[string]int
 }
 
-func newListModel(resolver *graph.Resolver, cfg *config.Config, poller sessionStatusProvider) listModel {
+func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	selectedBeans := make(map[string]bool)
 	collapsedBeans := make(map[string]bool)
 	delegate := itemDelegate{
 		cfg:            cfg,
 		selectedBeans:  &selectedBeans,
 		collapsedBeans: &collapsedBeans,
-		sessionPoller:  poller,
 	}
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
@@ -191,7 +172,6 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config, poller sessionSt
 		config:         cfg,
 		selectedBeans:  selectedBeans,
 		collapsedBeans: collapsedBeans,
-		sessionPoller:  poller,
 	}
 }
 
@@ -726,32 +706,6 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				return m, func() tea.Msg {
 					return archiveCompletedMsg{}
 				}
-			case "S":
-				// Launch session for selected bean(s)
-				if len(m.selectedBeans) > 0 {
-					// Get first selected bean for the session
-					for id := range m.selectedBeans {
-						if item, ok := m.findBeanItem(id); ok {
-							return m, func() tea.Msg {
-								return launchSessionMsg{beanID: item.bean.ID, beanTitle: item.bean.Title}
-							}
-						}
-					}
-				} else if item, ok := m.list.SelectedItem().(beanItem); ok {
-					return m, func() tea.Msg {
-						return launchSessionMsg{beanID: item.bean.ID, beanTitle: item.bean.Title}
-					}
-				} else {
-					// No bean selected - use first bean in list if available
-					items := m.list.Items()
-					if len(items) > 0 {
-						if item, ok := items[0].(beanItem); ok {
-							return m, func() tea.Msg {
-								return launchSessionMsg{beanID: item.bean.ID, beanTitle: item.bean.Title}
-							}
-						}
-					}
-				}
 			case "esc", "backspace":
 				// First clear selection if any beans are selected
 				if len(m.selectedBeans) > 0 {
@@ -791,7 +745,6 @@ func (m *listModel) updateDelegate() {
 		idColWidth:     m.idColWidth,
 		selectedBeans:  &m.selectedBeans,
 		collapsedBeans: &m.collapsedBeans,
-		sessionPoller:  m.sessionPoller,
 	}
 	m.list.SetDelegate(delegate)
 }
@@ -911,7 +864,6 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
-			helpKeyStyle.Render("S") + " " + helpStyle.Render("session") + "  " +
 			helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
 			helpKeyStyle.Render("h/l/z") + " " + helpStyle.Render("fold") + "  " +
 			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +

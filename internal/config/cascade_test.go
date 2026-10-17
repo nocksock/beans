@@ -10,9 +10,6 @@ beans:
   path: .beans
   prefix: root-
   id_length: 6
-session:
-  check: ./scripts/check
-  launch: ./scripts/launch
 launchers:
   - name: claude
     exec: claude "$BEANS_ID"
@@ -26,8 +23,6 @@ func TestLoadCascade(t *testing.T) {
 		".beans.yml": cascadingRoot,
 		"pkg/.beans.yml": `beans:
   prefix: pkg-
-session:
-  launch: ./launch
 launchers:
   - name: tmux
     exec: ./pkg-tmux
@@ -84,22 +79,6 @@ launchers:
 			if l.Name != w.name || l.Exec != w.exec || l.Dir != w.dir {
 				t.Errorf("Launchers[%d] = %+v, want %+v", i, l, w)
 			}
-		}
-	})
-
-	t.Run("session commands keep origin dirs", func(t *testing.T) {
-		s := cfg.Session
-		if s == nil {
-			t.Fatal("Session is nil")
-		}
-		if s.Check != "./scripts/check" || s.CheckDir != root {
-			t.Errorf("check = %q in %q", s.Check, s.CheckDir)
-		}
-		if s.Launch != "./launch" || s.LaunchDir != pkg {
-			t.Errorf("launch = %q in %q", s.Launch, s.LaunchDir)
-		}
-		if s.Attach != "" || s.AttachDir != "" {
-			t.Errorf("attach = %q in %q, want unset", s.Attach, s.AttachDir)
 		}
 	})
 
