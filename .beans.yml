@@ -6,11 +6,6 @@ beans:
     default_status: todo
     default_type: task
 
-session:
-  check: ./scripts/tmux-session-check
-  attach: ./scripts/tmux-session-attach
-  launch: ./scripts/tmux-session-run
-
 launchers:
   - name: opencode
     exec: cd dev && opencode --prompt "Work on task $BEANS_ID"
