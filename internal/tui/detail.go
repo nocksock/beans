@@ -376,9 +376,20 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			// Open blocking picker
 			return m, func() tea.Msg {
 				return openBlockingPickerMsg{
-					beanID:          m.bean.ID,
-					beanTitle:       m.bean.Title,
-					currentBlocking: m.bean.Blocking,
+					beanID:     m.bean.ID,
+					beanTitle:  m.bean.Title,
+					currentIDs: m.bean.Blocking,
+				}
+			}
+
+		case "B":
+			// Open blocked-by picker
+			return m, func() tea.Msg {
+				return openBlockingPickerMsg{
+					beanID:     m.bean.ID,
+					beanTitle:  m.bean.Title,
+					blockedBy:  true,
+					currentIDs: m.bean.BlockedBy,
 				}
 			}
 
@@ -488,6 +499,7 @@ func (m detailModel) View() string {
 		helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 		helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 		helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
+		helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 		helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
 		helpKeyStyle.Render("j/k") + " " + helpStyle.Render("scroll") + "  " +
 		helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +

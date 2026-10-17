@@ -68,6 +68,8 @@ type CreateBeanInput struct {
 	Parent *string `json:"parent,omitempty"`
 	// Bean IDs this bean is blocking
 	Blocking []string `json:"blocking,omitempty"`
+	// Bean IDs that are blocking this bean
+	BlockedBy []string `json:"blockedBy,omitempty"`
 }
 
 type Mutation struct {

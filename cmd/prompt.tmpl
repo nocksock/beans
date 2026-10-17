@@ -75,7 +75,10 @@ Beans can have relationships to other beans. Use these to express dependencies a
 - `parent` - assigns a bean to a parent bean (type-restricted hierarchy: milestone → epic → feature → task/bug)
 
 **Blocking (multiple values):**
+- `blocked_by` - this bean is blocked by another bean (prefer this: the blocked bean usually knows what it is waiting on)
 - `blocking` - this bean is blocking another bean (prevents work on the blocked bean until this one is done)
+
+Both directions are equivalent: "A blocked_by B" and "B blocking A" express the same dependency, and queries (`blockedBy`, `blocking`, `isBlocked`) combine them.
 
 **Managing relationships (CLI):**
 
@@ -83,6 +86,8 @@ Beans can have relationships to other beans. Use these to express dependencies a
 - `beans update <bean-id> --remove-parent` - Remove the parent
 - `beans update <bean-id> --blocking <other-id>` - Add a blocking relationship
 - `beans update <bean-id> --remove-blocking <other-id>` - Remove a blocking relationship
+- `beans update <bean-id> --blocked-by <other-id>` - Mark this bean as blocked by another
+- `beans update <bean-id> --remove-blocked-by <other-id>` - Remove a blocked-by relationship
 
 **Querying relationships (GraphQL):**
 

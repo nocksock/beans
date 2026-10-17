@@ -435,7 +435,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openBlockingPickerMsg:
 		a.previousState = a.state
-		a.blockingPicker = newBlockingPickerModel(msg.beanID, msg.beanTitle, msg.currentBlocking, a.resolver, a.config, a.width, a.height)
+		a.blockingPicker = newBlockingPickerModel(msg.beanID, msg.beanTitle, msg.blockedBy, msg.currentIDs, a.resolver, a.config, a.width, a.height)
 		a.state = viewBlockingPicker
 		return a, a.blockingPicker.Init()
 
@@ -446,15 +446,19 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case blockingConfirmedMsg:
 		// Apply all blocking changes via GraphQL mutations
+		addLink, removeLink := a.resolver.Mutation().AddBlocking, a.resolver.Mutation().RemoveBlocking
+		if msg.blockedBy {
+			addLink, removeLink = a.resolver.Mutation().AddBlockedBy, a.resolver.Mutation().RemoveBlockedBy
+		}
 		for _, targetID := range msg.toAdd {
-			_, err := a.resolver.Mutation().AddBlocking(context.Background(), msg.beanID, targetID)
+			_, err := addLink(context.Background(), msg.beanID, targetID)
 			if err != nil {
 				// Continue with other changes even if one fails
 				continue
 			}
 		}
 		for _, targetID := range msg.toRemove {
-			_, err := a.resolver.Mutation().RemoveBlocking(context.Background(), msg.beanID, targetID)
+			_, err := removeLink(context.Background(), msg.beanID, targetID)
 			if err != nil {
 				// Continue with other changes even if one fails
 				continue

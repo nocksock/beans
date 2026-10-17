@@ -824,18 +824,18 @@ func TestValidateTag(t *testing.T) {
 		{"urgent2", false},
 		{"wont-fix", false},
 		{"a-b-c", false},
-		{"", true},           // empty
-		{"Frontend", true},   // uppercase
-		{"URGENT", true},     // all uppercase
-		{"123", true},        // starts with number
-		{"123abc", true},     // starts with number
-		{"my tag", true},     // contains space
-		{"my_tag", true},     // contains underscore
-		{"my--tag", true},    // consecutive hyphens
-		{"-tag", true},       // starts with hyphen
-		{"tag-", true},       // ends with hyphen
-		{"my.tag", true},     // contains dot
-		{"my/tag", true},     // contains slash
+		{"", true},         // empty
+		{"Frontend", true}, // uppercase
+		{"URGENT", true},   // all uppercase
+		{"123", true},      // starts with number
+		{"123abc", true},   // starts with number
+		{"my tag", true},   // contains space
+		{"my_tag", true},   // contains underscore
+		{"my--tag", true},  // consecutive hyphens
+		{"-tag", true},     // starts with hyphen
+		{"tag-", true},     // ends with hyphen
+		{"my.tag", true},   // contains dot
+		{"my/tag", true},   // contains slash
 	}
 
 	for _, tt := range tests {
@@ -1214,5 +1214,72 @@ func TestRenderWithIDCommentRoundtrip(t *testing.T) {
 	}
 	if parsed.Status != original.Status {
 		t.Errorf("Status roundtrip: got %q, want %q", parsed.Status, original.Status)
+	}
+}
+
+func TestBlockedByRoundtrip(t *testing.T) {
+	tests := []struct {
+		name      string
+		blocking  []string
+		blockedBy []string
+		wantYAML  string
+	}{
+		{name: "blocked_by only", blockedBy: []string{"abc123"}, wantYAML: "blocked_by:\n    - abc123\n"},
+		{name: "multiple blocked_by", blockedBy: []string{"abc123", "def456"}, wantYAML: "blocked_by:\n    - abc123\n    - def456\n"},
+		{name: "blocking and blocked_by", blocking: []string{"xyz789"}, blockedBy: []string{"abc123"}, wantYAML: "blocked_by:\n    - abc123\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := &Bean{Title: "Test", Status: "todo", Blocking: tt.blocking, BlockedBy: tt.blockedBy}
+
+			rendered, err := original.Render()
+			if err != nil {
+				t.Fatalf("Render error: %v", err)
+			}
+			if !strings.Contains(string(rendered), tt.wantYAML) {
+				t.Errorf("rendered output missing %q:\n%s", tt.wantYAML, rendered)
+			}
+
+			parsed, err := Parse(strings.NewReader(string(rendered)))
+			if err != nil {
+				t.Fatalf("Parse error: %v", err)
+			}
+			if strings.Join(parsed.BlockedBy, ",") != strings.Join(tt.blockedBy, ",") {
+				t.Errorf("BlockedBy = %v, want %v", parsed.BlockedBy, tt.blockedBy)
+			}
+			if strings.Join(parsed.Blocking, ",") != strings.Join(tt.blocking, ",") {
+				t.Errorf("Blocking = %v, want %v", parsed.Blocking, tt.blocking)
+			}
+		})
+	}
+
+	t.Run("omitted when empty", func(t *testing.T) {
+		rendered, err := (&Bean{Title: "Test", Status: "todo"}).Render()
+		if err != nil {
+			t.Fatalf("Render error: %v", err)
+		}
+		if strings.Contains(string(rendered), "blocked_by") {
+			t.Errorf("expected no blocked_by in output:\n%s", rendered)
+		}
+	})
+}
+
+func TestBlockedByMethods(t *testing.T) {
+	b := &Bean{}
+
+	b.AddBlockedBy("abc123")
+	b.AddBlockedBy("abc123") // duplicate is ignored
+	b.AddBlockedBy("def456")
+	if len(b.BlockedBy) != 2 {
+		t.Fatalf("BlockedBy = %v, want 2 entries", b.BlockedBy)
+	}
+	if !b.IsBlockedBy("abc123") || b.IsBlockedBy("nope") {
+		t.Errorf("IsBlockedBy returned wrong result for %v", b.BlockedBy)
+	}
+
+	b.RemoveBlockedBy("abc123")
+	if b.IsBlockedBy("abc123") || len(b.BlockedBy) != 1 {
+		t.Errorf("RemoveBlockedBy left %v", b.BlockedBy)
 	}
 }

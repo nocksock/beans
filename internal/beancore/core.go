@@ -187,6 +187,9 @@ func (c *Core) loadBean(path string) (*bean.Bean, error) {
 	if b.Blocking == nil {
 		b.Blocking = []string{}
 	}
+	if b.BlockedBy == nil {
+		b.BlockedBy = []string{}
+	}
 	if b.CreatedAt == nil {
 		if b.UpdatedAt != nil {
 			b.CreatedAt = b.UpdatedAt

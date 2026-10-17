@@ -27,28 +27,19 @@ func (r *beanResolver) BlockingIds(ctx context.Context, obj *bean.Bean) ([]strin
 	return obj.Blocking, nil
 }
 
+// BlockedByIds is the resolver for the blockedByIds field.
+func (r *beanResolver) BlockedByIds(ctx context.Context, obj *bean.Bean) ([]string, error) {
+	return obj.BlockedBy, nil
+}
+
 // BlockedBy is the resolver for the blockedBy field.
 func (r *beanResolver) BlockedBy(ctx context.Context, obj *bean.Bean, filter *model.BeanFilter) ([]*bean.Bean, error) {
-	incoming := r.Core.FindIncomingLinks(obj.ID)
-	var result []*bean.Bean
-	for _, link := range incoming {
-		if link.LinkType == "blocking" {
-			result = append(result, link.FromBean)
-		}
-	}
-	return ApplyFilter(result, filter, r.Core), nil
+	return ApplyFilter(r.Core.FindBlockers(obj.ID), filter, r.Core), nil
 }
 
 // Blocking is the resolver for the blocking field.
 func (r *beanResolver) Blocking(ctx context.Context, obj *bean.Bean, filter *model.BeanFilter) ([]*bean.Bean, error) {
-	var result []*bean.Bean
-	for _, targetID := range obj.Blocking {
-		// Filter out broken links
-		if target, err := r.Core.Get(targetID); err == nil {
-			result = append(result, target)
-		}
-	}
-	return ApplyFilter(result, filter, r.Core), nil
+	return ApplyFilter(r.Core.FindBlocked(obj.ID), filter, r.Core), nil
 }
 
 // Parent is the resolver for the parent field.
@@ -79,10 +70,11 @@ func (r *beanResolver) Children(ctx context.Context, obj *bean.Bean, filter *mod
 // CreateBean is the resolver for the createBean field.
 func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBeanInput) (*bean.Bean, error) {
 	b := &bean.Bean{
-		Slug:     bean.Slugify(input.Title),
-		Title:    input.Title,
-		Type:     "task", // default
-		Blocking: []string{},
+		Slug:      bean.Slugify(input.Title),
+		Title:     input.Title,
+		Type:      "task", // default
+		Blocking:  []string{},
+		BlockedBy: []string{},
 	}
 
 	// Optional fields with defaults documented in schema
@@ -113,6 +105,11 @@ func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBea
 	// Handle blocking
 	if len(input.Blocking) > 0 {
 		b.Blocking = input.Blocking
+	}
+
+	// Handle blocked-by
+	if len(input.BlockedBy) > 0 {
+		b.BlockedBy = input.BlockedBy
 	}
 
 	if err := r.Core.Create(b); err != nil {
@@ -243,6 +240,48 @@ func (r *mutationResolver) RemoveBlocking(ctx context.Context, id string, target
 	}
 
 	b.RemoveBlocking(targetID)
+	if err := r.Core.Update(b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// AddBlockedBy is the resolver for the addBlockedBy field.
+func (r *mutationResolver) AddBlockedBy(ctx context.Context, id string, targetID string) (*bean.Bean, error) {
+	b, err := r.Core.Get(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if targetID == b.ID {
+		return nil, fmt.Errorf("bean cannot be blocked by itself")
+	}
+
+	// Check target exists
+	if _, err := r.Core.Get(targetID); err != nil {
+		return nil, fmt.Errorf("target bean not found: %s", targetID)
+	}
+
+	// Check for cycles
+	if cycle := r.Core.DetectCycle(b.ID, "blocked_by", targetID); cycle != nil {
+		return nil, fmt.Errorf("would create cycle: %v", cycle)
+	}
+
+	b.AddBlockedBy(targetID)
+	if err := r.Core.Update(b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// RemoveBlockedBy is the resolver for the removeBlockedBy field.
+func (r *mutationResolver) RemoveBlockedBy(ctx context.Context, id string, targetID string) (*bean.Bean, error) {
+	b, err := r.Core.Get(id)
+	if err != nil {
+		return nil, err
+	}
+
+	b.RemoveBlockedBy(targetID)
 	if err := r.Core.Update(b); err != nil {
 		return nil, err
 	}
