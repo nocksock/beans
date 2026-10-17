@@ -761,6 +761,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.detail = newDetailModel(msg.bean, a.resolver, a.config, a.width, a.height)
 		return a, a.detail.Init()
 
+	case browseBeanMsg:
+		if a.state == viewDetail {
+			a.browseBean(msg.delta)
+		}
+		return a, nil
+
 	case backToListMsg:
 		// Pop from history if available, otherwise go to list
 		if len(a.history) > 0 {
@@ -835,6 +841,28 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return a, cmd
+}
+
+// browseBean replaces the detail view with the bean delta positions away from
+// the current one in the list's visible order, moving the list cursor along.
+// It does nothing at the ends of the list or when the bean isn't listed.
+func (a *App) browseBean(delta int) {
+	items := a.list.list.VisibleItems()
+	for i, it := range items {
+		if bi, ok := it.(beanItem); ok && bi.bean.ID == a.detail.bean.ID {
+			j := i + delta
+			if j < 0 || j >= len(items) {
+				return
+			}
+			next, ok := items[j].(beanItem)
+			if !ok {
+				return
+			}
+			a.list.list.Select(j)
+			a.detail = newDetailModel(next.bean, a.resolver, a.config, a.width, a.height)
+			return
+		}
+	}
 }
 
 // isTwoColumnMode returns true if the terminal is wide enough for list + preview

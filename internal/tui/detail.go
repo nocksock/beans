@@ -41,6 +41,11 @@ func getGlamourRenderer() *glamour.TermRenderer {
 // backToListMsg signals navigation back to the list
 type backToListMsg struct{}
 
+// browseBeanMsg asks the app to show the previous (-1) or next (+1) bean of the list in the detail view
+type browseBeanMsg struct {
+	delta int
+}
+
 // resolvedLink represents a link with the target bean resolved
 type resolvedLink struct {
 	linkType string
@@ -303,6 +308,16 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				return backToListMsg{}
 			}
 
+		case "h", "l":
+			// Browse to the previous/next bean in list order
+			delta := 1
+			if msg.String() == "h" {
+				delta = -1
+			}
+			return m, func() tea.Msg {
+				return browseBeanMsg{delta: delta}
+			}
+
 		case "tab":
 			// Toggle focus between links and body
 			if len(m.links) > 0 {
@@ -494,6 +509,7 @@ func (m detailModel) View() string {
 		helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 		helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
 		helpKeyStyle.Render("j/k") + " " + helpStyle.Render("scroll") + "  " +
+		helpKeyStyle.Render("h/l") + " " + helpStyle.Render("prev/next") + "  " +
 		helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
 		helpKeyStyle.Render("esc") + " " + helpStyle.Render("back") + "  " +
 		helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
