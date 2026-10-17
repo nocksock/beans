@@ -26,8 +26,17 @@ launchers:
     exec: |
       #!/usr/bin/env bash
       set -euo pipefail
-      tmux new-window -c "${BEANS_ROOT:-.}" -n "$BEANS_ID" \
-        "claude \"\$(beans show --raw $BEANS_ID)\""
+      # Claude renames the window itself once it knows what the bean is about
+      read -r -d '' RENAME_NOTE <<'EOF' || true
+      ## tmux window
+
+      You are running in a tmux window. Before starting, rename it to `<bean-id>: <label>`, where <label> is a short summary of this bean of at most 20 characters:
+      `tmux rename-window -t "$TMUX_PANE" '<bean-id>: <label>'`
+      EOF
+      PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
+
+      tmux new-window -c "${BEANS_ROOT:-.}" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
+        'claude "$BEANS_PROMPT"'
   - name: worktree-tmux+claude
     multiple: true
     description: "Create git worktree and open Claude Code in a new tmux window"
@@ -53,8 +62,17 @@ launchers:
         git -C "$WORKTREE_DIR" checkout
       fi
 
-      tmux new-window -c "$PWD/$WORKTREE_DIR" -n "$BEANS_ID" \
-        "claude \"\$(beans show --raw $BEANS_ID)\""
+      # Claude renames the window itself once it knows what the bean is about
+      read -r -d '' RENAME_NOTE <<'EOF' || true
+      ## tmux window
+
+      You are running in a tmux window. Before starting, rename it to `<bean-id>: <label>`, where <label> is a short summary of this bean of at most 20 characters:
+      `tmux rename-window -t "$TMUX_PANE" '<bean-id>: <label>'`
+      EOF
+      PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
+
+      tmux new-window -c "$PWD/$WORKTREE_DIR" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
+        'claude "$BEANS_PROMPT"'
   - name: crush
     exec: crush run "Work on task $BEANS_ID"
     description: "Open task in Crush"
