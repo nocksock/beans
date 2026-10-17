@@ -37,12 +37,6 @@ var defaultLaunchers = []defaultLauncher{
 	},
 }
 
-// openConfigureLaunchersMsg requests opening the configure launchers dialog
-type openConfigureLaunchersMsg struct {
-	beanID    string
-	beanTitle string
-}
-
 // launchersConfiguredMsg is sent when launchers have been selected and added to config
 type launchersConfiguredMsg struct {
 	launchers []config.Launcher
@@ -50,11 +44,6 @@ type launchersConfiguredMsg struct {
 
 // closeConfigureLaunchersMsg is sent when the dialog is cancelled
 type closeConfigureLaunchersMsg struct{}
-
-// configWriteErrorMsg is sent when writing to config fails
-type configWriteErrorMsg struct {
-	err error
-}
 
 // launcherChecklistItem represents a single launcher option in the checklist
 type launcherChecklistItem struct {

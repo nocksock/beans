@@ -37,8 +37,8 @@ type itemDelegate struct {
 	width          int
 	cols           ui.ResponsiveColumns // cached responsive columns
 	idColWidth     int                  // ID column width (accounts for tree prefix)
-	selectedBeans  *map[string]bool     // pointer to marked beans for multi-select
-	collapsedBeans *map[string]bool     // pointer to collapsed beans
+	selectedBeans  map[string]bool      // marked beans for multi-select (shared with listModel)
+	collapsedBeans map[string]bool      // collapsed beans (shared with listModel)
 }
 
 func newItemDelegate(cfg *config.Config) itemDelegate {
@@ -69,17 +69,8 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 	maxTitleWidth := max(1, m.Width()-baseWidth) // 0 would disable truncation
 
-	// Check if bean is marked for multi-select
-	var isMarked bool
-	if d.selectedBeans != nil {
-		isMarked = (*d.selectedBeans)[item.bean.ID]
-	}
-
-	// Check if bean is collapsed
-	var isCollapsed bool
-	if d.collapsedBeans != nil {
-		isCollapsed = (*d.collapsedBeans)[item.bean.ID]
-	}
+	isMarked := d.selectedBeans[item.bean.ID]
+	isCollapsed := d.collapsedBeans[item.bean.ID]
 
 	str := ui.RenderBeanRow(
 		item.bean.ID,
@@ -168,8 +159,8 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	collapsedBeans := make(map[string]bool)
 	delegate := itemDelegate{
 		cfg:            cfg,
-		selectedBeans:  &selectedBeans,
-		collapsedBeans: &collapsedBeans,
+		selectedBeans:  selectedBeans,
+		collapsedBeans: collapsedBeans,
 	}
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
@@ -813,8 +804,8 @@ func (m *listModel) updateDelegate() {
 		width:          m.width,
 		cols:           m.cols,
 		idColWidth:     m.idColWidth,
-		selectedBeans:  &m.selectedBeans,
-		collapsedBeans: &m.collapsedBeans,
+		selectedBeans:  m.selectedBeans,
+		collapsedBeans: m.collapsedBeans,
 	}
 	m.list.SetDelegate(delegate)
 }

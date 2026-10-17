@@ -9,9 +9,6 @@ import (
 	"github.com/hmans/beans/internal/ui"
 )
 
-// openHelpMsg requests opening the help overlay
-type openHelpMsg struct{}
-
 // closeHelpMsg is sent when the help overlay is closed
 type closeHelpMsg struct{}
 

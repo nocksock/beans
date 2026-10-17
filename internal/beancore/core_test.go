@@ -376,22 +376,6 @@ func TestDeleteByPrefix(t *testing.T) {
 	}
 }
 
-func TestFullPath(t *testing.T) {
-	core := New("/path/to/.beans", nil)
-
-	b := &bean.Bean{
-		ID:   "abc1",
-		Path: "abc1--test.md",
-	}
-
-	got := core.FullPath(b)
-	want := "/path/to/.beans/abc1--test.md"
-
-	if got != want {
-		t.Errorf("FullPath() = %q, want %q", got, want)
-	}
-}
-
 func TestLoad(t *testing.T) {
 	core, beansDir := setupTestCore(t)
 

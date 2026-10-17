@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/hmans/beans/internal/beancore"
 	"github.com/hmans/beans/internal/config"
+	"github.com/spf13/cobra"
 )
 
 var core *beancore.Core

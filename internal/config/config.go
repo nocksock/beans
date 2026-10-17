@@ -14,8 +14,6 @@ const (
 	ConfigFileName = ".beans.yml"
 	// DefaultBeansPath is the default directory for storing beans
 	DefaultBeansPath = ".beans"
-	// LegacyConfigFile is the old config file location (deprecated)
-	LegacyConfigFile = "config.yaml"
 )
 
 // StatusArchived is the status beans are moved to by `beans archive`.
@@ -103,18 +101,11 @@ type Launcher struct {
 	Dir string `yaml:"-"`
 }
 
-// TUIConfig holds TUI-specific configuration.
-type TUIConfig struct {
-	// DisableLauncherWarning disables the confirmation prompt when launching for 5+ beans
-	DisableLauncherWarning bool `yaml:"disable_launcher_warning,omitempty"`
-}
-
 // Config holds the beans configuration.
 type Config struct {
 	Beans BeansConfig `yaml:"beans"`
 	// CustomStatuses maps a builtin status to the custom statuses grouped below it.
 	CustomStatuses CustomStatuses `yaml:"statuses,omitempty"`
-	TUI            TUIConfig      `yaml:"tui,omitempty"`
 	Launchers      []Launcher     `yaml:"launchers,omitempty"`
 	Prompt         *PromptConfig  `yaml:"prompt,omitempty"` // Agent prompt customization
 

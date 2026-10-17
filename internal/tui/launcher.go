@@ -20,7 +20,7 @@ type launcher struct {
 
 // discoverLaunchers discovers all available launchers from config.
 // All configured launchers are considered available (validation happens at execution time).
-func discoverLaunchers(cfg *config.Config, beansRoot string) []launcher {
+func discoverLaunchers(cfg *config.Config) []launcher {
 	var launchers []launcher
 
 	for _, lc := range cfg.Launchers {
@@ -44,8 +44,8 @@ func discoverLaunchers(cfg *config.Config, beansRoot string) []launcher {
 
 // discoverLaunchersForMultiple discovers launchers that support multiple beans in parallel.
 // Returns only launchers configured with multiple: true.
-func discoverLaunchersForMultiple(cfg *config.Config, beansRoot string) []launcher {
-	allLaunchers := discoverLaunchers(cfg, beansRoot)
+func discoverLaunchersForMultiple(cfg *config.Config) []launcher {
+	allLaunchers := discoverLaunchers(cfg)
 
 	var multiLaunchers []launcher
 	for _, l := range allLaunchers {

@@ -11,11 +11,11 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/executor"
+	"github.com/hmans/beans/internal/graph"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
 	"github.com/vektah/gqlparser/v2/formatter"
 	"github.com/vektah/gqlparser/v2/gqlerror"
-	"github.com/hmans/beans/internal/graph"
 )
 
 var (

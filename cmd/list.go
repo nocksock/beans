@@ -19,18 +19,18 @@ import (
 )
 
 var (
-	listJSON       bool
-	listSearch     string
-	listStatus     []string
-	listNoStatus   []string
-	listType       []string
-	listNoType     []string
-	listPriority   []string
-	listNoPriority []string
-	listSize       []string
-	listNoSize     []string
-	listTag        []string
-	listNoTag      []string
+	listJSON        bool
+	listSearch      string
+	listStatus      []string
+	listNoStatus    []string
+	listType        []string
+	listNoType      []string
+	listPriority    []string
+	listNoPriority  []string
+	listSize        []string
+	listNoSize      []string
+	listTag         []string
+	listNoTag       []string
 	listHasParent   bool
 	listNoParent    bool
 	listParentID    string
@@ -38,10 +38,10 @@ var (
 	listNoBlocking  bool
 	listIsBlocked   bool
 	listUnblocked   bool
-	listQuiet      bool
-	listSort       string
-	listFull       bool
-	listInclude    []string
+	listQuiet       bool
+	listSort        string
+	listFull        bool
+	listInclude     []string
 )
 
 // hiddenByDefaultStatuses are statuses excluded from `beans list` unless
@@ -324,13 +324,6 @@ func sortBeans(beans []*bean.Bean, sortBy string, cfg *config.Config) {
 		// Default: sort by status order, then priority, then type order, then title (same as TUI)
 		bean.SortByStatusPriorityAndType(beans, statusNames, priorityNames, typeNames)
 	}
-}
-
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }
 
 func init() {

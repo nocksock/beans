@@ -5,22 +5,21 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/hmans/beans/internal/beancore"
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/output"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var (
-	initJSON                   bool
-	initPath                   string
-	initPrefix                 string
-	initIDLength               int
-	initDefaultStatus          string
-	initDefaultType            string
-	initPromptExtra            string
-	initDisableLauncherWarning bool
+	initJSON          bool
+	initPath          string
+	initPrefix        string
+	initIDLength      int
+	initDefaultStatus string
+	initDefaultType   string
+	initPromptExtra   string
 )
 
 var initCmd = &cobra.Command{
@@ -121,9 +120,6 @@ func initConfig(dirName string, flags *pflag.FlagSet) (*config.Config, error) {
 	if flags.Changed("prompt-extra") {
 		cfg.Prompt = &config.PromptConfig{Extra: initPromptExtra}
 	}
-	if flags.Changed("disable-launcher-warning") {
-		cfg.TUI.DisableLauncherWarning = initDisableLauncherWarning
-	}
 
 	return cfg, nil
 }
@@ -137,6 +133,5 @@ func init() {
 	flags.StringVar(&initDefaultStatus, "default-status", "", "Status for new beans (sets beans.default_status, default: todo)")
 	flags.StringVar(&initDefaultType, "default-type", "", "Type for new beans (sets beans.default_type, default: task)")
 	flags.StringVar(&initPromptExtra, "prompt-extra", "", "Text appended to generated bean prompts (sets prompt.extra)")
-	flags.BoolVar(&initDisableLauncherWarning, "disable-launcher-warning", false, "Skip the confirmation when launching for many beans (sets tui.disable_launcher_warning)")
 	rootCmd.AddCommand(initCmd)
 }

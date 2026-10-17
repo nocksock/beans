@@ -17,7 +17,7 @@ var settingsCmd = &cobra.Command{
 	Long: `Read and change settings in .beans.yml.
 
 Settings are addressed by dotted keys, e.g. "beans.prefix" or
-"tui.disable_launcher_warning".`,
+"prompt.extra".`,
 }
 
 var settingsGetCmd = &cobra.Command{

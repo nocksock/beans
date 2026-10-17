@@ -860,29 +860,6 @@ launchers:
 	}
 }
 
-func TestTUIDisableLauncherWarningDefaultValue(t *testing.T) {
-	// Test that TUIConfig.DisableLauncherWarning defaults to false
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, ConfigFileName)
-
-	// Config without TUI section
-	configYAML := `beans:
-  prefix: "test-"
-`
-	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
-		t.Fatalf("WriteFile error = %v", err)
-	}
-
-	cfg, err := Load(configPath)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-
-	if cfg.TUI.DisableLauncherWarning != false {
-		t.Errorf("TUI.DisableLauncherWarning = %v, want false", cfg.TUI.DisableLauncherWarning)
-	}
-}
-
 func TestLauncherConfigPersistence(t *testing.T) {
 	// Test that launcher config fields persist through save/load cycle
 	tmpDir := t.TempDir()
@@ -893,9 +870,6 @@ func TestLauncherConfigPersistence(t *testing.T) {
 			Prefix:      "test-",
 			IDLength:    4,
 			DefaultType: "task",
-		},
-		TUI: TUIConfig{
-			DisableLauncherWarning: true,
 		},
 		Launchers: []Launcher{
 			{
@@ -919,11 +893,6 @@ func TestLauncherConfigPersistence(t *testing.T) {
 	loaded, err := Load(configPath)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
-	}
-
-	// Verify TUI.DisableLauncherWarning persisted
-	if loaded.TUI.DisableLauncherWarning != true {
-		t.Errorf("TUI.DisableLauncherWarning = %v, want true", loaded.TUI.DisableLauncherWarning)
 	}
 
 	// Verify Launcher.Multiple persisted

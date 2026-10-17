@@ -68,11 +68,6 @@ func (b *Bean) RemoveTag(tag string) {
 	b.Tags = result
 }
 
-// HasParent returns true if the bean has a parent.
-func (b *Bean) HasParent() bool {
-	return b.Parent != ""
-}
-
 // maxBodySnippetRunes caps the body snippet used in place of a missing title.
 const maxBodySnippetRunes = 120
 

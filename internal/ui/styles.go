@@ -54,33 +54,6 @@ func IsValidColor(color string) bool {
 	return ok
 }
 
-// Status badge styles (for inline use, like in show command)
-var (
-	StatusOpen = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#fff")).
-			Background(ColorSuccess).
-			Padding(0, 1).
-			Bold(true)
-
-	StatusDone = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#fff")).
-			Background(ColorSecondary).
-			Padding(0, 1)
-
-	StatusInProgress = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#fff")).
-				Background(ColorWarning).
-				Padding(0, 1).
-				Bold(true)
-)
-
-// Status text styles (for table use, no background/padding)
-var (
-	StatusOpenText       = lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true)
-	StatusDoneText       = lipgloss.NewStyle().Foreground(ColorSecondary)
-	StatusInProgressText = lipgloss.NewStyle().Foreground(ColorWarning).Bold(true)
-)
-
 // Tag badge style - black text on gray background
 var TagBadge = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("#000")).
@@ -141,13 +114,12 @@ func RenderTagsCompact(tags []string, maxTags int) string {
 
 // Text styles
 var (
-	Bold      = lipgloss.NewStyle().Bold(true)
-	Muted     = lipgloss.NewStyle().Foreground(ColorMuted)
-	Primary   = lipgloss.NewStyle().Foreground(ColorPrimary)
-	Success   = lipgloss.NewStyle().Foreground(ColorSuccess)
-	Warning   = lipgloss.NewStyle().Foreground(ColorWarning)
-	Danger    = lipgloss.NewStyle().Foreground(ColorDanger)
-	Secondary = lipgloss.NewStyle().Foreground(ColorSecondary)
+	Bold    = lipgloss.NewStyle().Bold(true)
+	Muted   = lipgloss.NewStyle().Foreground(ColorMuted)
+	Primary = lipgloss.NewStyle().Foreground(ColorPrimary)
+	Success = lipgloss.NewStyle().Foreground(ColorSuccess)
+	Warning = lipgloss.NewStyle().Foreground(ColorWarning)
+	Danger  = lipgloss.NewStyle().Foreground(ColorDanger)
 )
 
 // ID style - distinctive for bean IDs
@@ -160,43 +132,6 @@ var TreeLine = lipgloss.NewStyle().Foreground(ColorSubtle)
 
 // Title style
 var Title = lipgloss.NewStyle().Bold(true)
-
-// Path style - subdued
-var Path = lipgloss.NewStyle().Foreground(ColorMuted)
-
-// Header style for section headers
-var Header = lipgloss.NewStyle().
-	Foreground(ColorPrimary).
-	Bold(true).
-	MarginBottom(1)
-
-// RenderStatus returns a styled status badge based on the status string (legacy, uses hardcoded colors)
-func RenderStatus(status string) string {
-	switch status {
-	case "todo", "draft":
-		return StatusOpen.Render(status)
-	case "completed", "scrapped", "archived":
-		return StatusDone.Render(status)
-	case "in-progress", "in_progress":
-		return StatusInProgress.Render(status)
-	default:
-		return Muted.Render(status)
-	}
-}
-
-// RenderStatusText returns styled status text (for tables, no background) (legacy, uses hardcoded colors)
-func RenderStatusText(status string) string {
-	switch status {
-	case "todo", "draft":
-		return StatusOpenText.Render(status)
-	case "completed", "scrapped", "archived":
-		return StatusDoneText.Render(status)
-	case "in-progress", "in_progress":
-		return StatusInProgressText.Render("in-progress")
-	default:
-		return Muted.Render(status)
-	}
-}
 
 // RenderStatusWithColor returns a styled status badge using the specified color.
 func RenderStatusWithColor(status, color string, isArchiveStatus bool) string {
@@ -236,20 +171,6 @@ func RenderTypeText(typeName, color string) string {
 	}
 	c := ResolveColor(color)
 	return lipgloss.NewStyle().Foreground(c).Render(typeName)
-}
-
-// RenderTypeWithColor returns a styled type badge with colored background.
-func RenderTypeWithColor(typeName, color string) string {
-	if typeName == "" {
-		return ""
-	}
-	c := ResolveColor(color)
-	style := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#fff")).
-		Background(c).
-		Bold(true).
-		Padding(0, 1)
-	return style.Render(typeName)
 }
 
 // RenderPriorityWithColor returns a styled priority badge using the specified color.

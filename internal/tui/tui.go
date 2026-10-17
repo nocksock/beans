@@ -430,12 +430,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, a.list.loadBeans
 
-	case openHelpMsg:
-		a.previousState = a.state
-		a.helpOverlay = newHelpOverlayModel(a.width, a.height)
-		a.state = viewHelpOverlay
-		return a, a.helpOverlay.Init()
-
 	case closeHelpMsg:
 		a.state = a.previousState
 		return a, nil
@@ -762,10 +756,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if len(msg.beanIDs) > 1 {
 			// Multiple beans - only show launchers with multiple: true
-			launchers = discoverLaunchersForMultiple(a.config, a.core.Root())
+			launchers = discoverLaunchersForMultiple(a.config)
 		} else {
 			// Single bean - show all launchers
-			launchers = discoverLaunchers(a.config, a.core.Root())
+			launchers = discoverLaunchers(a.config)
 		}
 
 		if len(launchers) == 0 {
@@ -1228,8 +1222,6 @@ func (a *App) getBackgroundView() string {
 	}
 }
 
-// getEditor returns the user's preferred editor using the fallback chain:
-// $VISUAL -> $EDITOR -> vi -> nano
 // projectRoot returns the directory of the project's config file, falling back
 // to the parent of the beans directory when no config file was loaded.
 func (a *App) projectRoot() string {

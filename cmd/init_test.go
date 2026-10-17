@@ -50,15 +50,12 @@ func TestInitConfig(t *testing.T) {
 			want: config.BeansConfig{Path: ".beans", Prefix: "", IDLength: 4, DefaultStatus: "todo", DefaultType: "task"},
 		},
 		{
-			name: "prompt and tui settings",
-			args: []string{"--prompt-extra", "be nice", "--disable-launcher-warning"},
+			name: "prompt settings",
+			args: []string{"--prompt-extra", "be nice"},
 			want: config.BeansConfig{Path: ".beans", Prefix: "proj-", IDLength: 4, DefaultStatus: "todo", DefaultType: "task"},
 			check: func(t *testing.T, cfg *config.Config) {
 				if got := cfg.PromptExtra(); got != "be nice" {
 					t.Errorf("prompt extra = %q, want %q", got, "be nice")
-				}
-				if !cfg.TUI.DisableLauncherWarning {
-					t.Error("disable launcher warning not set")
 				}
 			},
 		},

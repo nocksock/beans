@@ -142,7 +142,6 @@ type detailModel struct {
 	config      *config.Config
 	width       int
 	height      int
-	ready       bool
 	links       []resolvedLink       // combined outgoing + incoming links
 	linkList    list.Model           // list component for links (supports filtering)
 	linksActive bool                 // true = links section focused
@@ -156,7 +155,6 @@ func newDetailModel(b *bean.Bean, resolver *graph.Resolver, cfg *config.Config, 
 		config:      cfg,
 		width:       width,
 		height:      height,
-		ready:       true,
 		linksActive: false,
 	}
 
@@ -289,16 +287,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			vpHeight = 1
 		}
 
-		if !m.ready {
-			m.viewport = viewport.New(vpWidth, vpHeight)
-			m.viewport.KeyMap = detailViewportKeyMap()
-			m.viewport.SetContent(m.renderBody(vpWidth))
-			m.ready = true
-		} else {
-			m.viewport.Width = vpWidth
-			m.viewport.Height = vpHeight
-			m.viewport.SetContent(m.renderBody(vpWidth))
-		}
+		m.viewport.Width = vpWidth
+		m.viewport.Height = vpHeight
+		m.viewport.SetContent(m.renderBody(vpWidth))
 
 	case tea.KeyMsg:
 		// If links list is filtering, let it handle all keys except quit
@@ -483,10 +474,6 @@ func (m *detailModel) updateLinkListDelegate() {
 }
 
 func (m detailModel) View() string {
-	if !m.ready {
-		return "Loading..."
-	}
-
 	// Header (bean info only, no links)
 	header := m.renderHeader()
 
