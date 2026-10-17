@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/config"
@@ -37,13 +39,56 @@ var (
 	listQuiet      bool
 	listSort       string
 	listFull       bool
+	listInclude    []string
 )
+
+// hiddenByDefaultStatuses are statuses excluded from `beans list` unless
+// explicitly requested via --include or --status.
+var hiddenByDefaultStatuses = []string{"completed", "scrapped"}
+
+// defaultExcludedStatuses returns the exclude-status list for `beans list`,
+// adding the hidden-by-default statuses unless they were explicitly included
+// or requested via --status.
+func defaultExcludedStatuses(status, excludeStatus, include []string) ([]string, error) {
+	requested := make(map[string]bool)
+	for _, s := range status {
+		requested[s] = true
+	}
+	for _, s := range include {
+		valid := false
+		for _, h := range hiddenByDefaultStatuses {
+			if s == h {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return nil, fmt.Errorf("invalid --include value %q (allowed: %s)", s, strings.Join(hiddenByDefaultStatuses, ", "))
+		}
+		requested[s] = true
+	}
+
+	result := append([]string(nil), excludeStatus...)
+	for _, h := range hiddenByDefaultStatuses {
+		if !requested[h] && !slices.Contains(result, h) {
+			result = append(result, h)
+		}
+	}
+	return result, nil
+}
 
 var listCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
 	Short:   "List all beans",
 	Long: `Lists all beans in the .beans directory.
+
+Completed and scrapped beans are hidden by default. Use --include to show them:
+
+  beans list --include completed,scrapped
+  beans list --include completed --include scrapped
+
+Explicitly filtering by status (e.g. --status completed) also shows them.
 
 Search Syntax (--search/-S):
   The search flag supports Bleve query string syntax:
@@ -59,10 +104,15 @@ Search Syntax (--search/-S):
   title:login    Search only in title field
   body:auth      Search only in body field`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		excludeStatus, err := defaultExcludedStatuses(listStatus, listNoStatus, listInclude)
+		if err != nil {
+			return err
+		}
+
 		// Build GraphQL filter from CLI flags
 		filter := &model.BeanFilter{
 			Status:          listStatus,
-			ExcludeStatus:   listNoStatus,
+			ExcludeStatus:   excludeStatus,
 			Type:            listType,
 			ExcludeType:     listNoType,
 			Priority:        listPriority,
@@ -275,6 +325,7 @@ func init() {
 	listCmd.Flags().BoolVar(&listJSON, "json", false, "Output as JSON")
 	listCmd.Flags().StringVarP(&listSearch, "search", "S", "", "Full-text search in title and body")
 	listCmd.Flags().StringArrayVarP(&listStatus, "status", "s", nil, "Filter by status (can be repeated)")
+	listCmd.Flags().StringSliceVar(&listInclude, "include", nil, "Include statuses hidden by default: completed, scrapped (comma-separated or repeated)")
 	listCmd.Flags().StringArrayVar(&listNoStatus, "no-status", nil, "Exclude by status (can be repeated)")
 	listCmd.Flags().StringArrayVarP(&listType, "type", "t", nil, "Filter by type (can be repeated)")
 	listCmd.Flags().StringArrayVar(&listNoType, "no-type", nil, "Exclude by type (can be repeated)")

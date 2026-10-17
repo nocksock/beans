@@ -138,3 +138,73 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+
+func TestDefaultExcludedStatuses(t *testing.T) {
+	tests := []struct {
+		name          string
+		status        []string
+		excludeStatus []string
+		include       []string
+		want          []string
+		wantErr       bool
+	}{
+		{
+			name: "hides completed and scrapped by default",
+			want: []string{"completed", "scrapped"},
+		},
+		{
+			name:    "include completed",
+			include: []string{"completed"},
+			want:    []string{"scrapped"},
+		},
+		{
+			name:    "include both",
+			include: []string{"completed", "scrapped"},
+			want:    []string{},
+		},
+		{
+			name:   "explicit status filter shows hidden status",
+			status: []string{"completed"},
+			want:   []string{"scrapped"},
+		},
+		{
+			name:          "keeps user exclusions without duplicates",
+			excludeStatus: []string{"draft", "completed"},
+			want:          []string{"draft", "completed", "scrapped"},
+		},
+		{
+			name:          "explicit exclusion wins over include",
+			excludeStatus: []string{"completed"},
+			include:       []string{"completed"},
+			want:          []string{"completed", "scrapped"},
+		},
+		{
+			name:    "invalid include value",
+			include: []string{"todo"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := defaultExcludedStatuses(tt.status, tt.excludeStatus, tt.include)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got %v", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("got %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
