@@ -129,30 +129,28 @@ func (d linkDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 // detailModel displays a single bean's details
 type detailModel struct {
-	viewport          viewport.Model
-	bean              *bean.Bean
-	resolver          *graph.Resolver
-	config            *config.Config
-	width             int
-	height            int
-	ready             bool
-	links             []resolvedLink       // combined outgoing + incoming links
-	linkList          list.Model           // list component for links (supports filtering)
-	linksActive       bool                 // true = links section focused
-	cols              ui.ResponsiveColumns // responsive column widths for links
-	hasRunningSession func() bool          // function to check if bean has running session
+	viewport    viewport.Model
+	bean        *bean.Bean
+	resolver    *graph.Resolver
+	config      *config.Config
+	width       int
+	height      int
+	ready       bool
+	links       []resolvedLink       // combined outgoing + incoming links
+	linkList    list.Model           // list component for links (supports filtering)
+	linksActive bool                 // true = links section focused
+	cols        ui.ResponsiveColumns // responsive column widths for links
 }
 
-func newDetailModel(b *bean.Bean, resolver *graph.Resolver, cfg *config.Config, width, height int, hasRunningSession func() bool) detailModel {
+func newDetailModel(b *bean.Bean, resolver *graph.Resolver, cfg *config.Config, width, height int) detailModel {
 	m := detailModel{
-		bean:              b,
-		resolver:          resolver,
-		config:            cfg,
-		width:             width,
-		height:            height,
-		ready:             true,
-		linksActive:       false,
-		hasRunningSession: hasRunningSession,
+		bean:        b,
+		resolver:    resolver,
+		config:      cfg,
+		width:       width,
+		height:      height,
+		ready:       true,
+		linksActive: false,
 	}
 
 	// Resolve all links
@@ -416,12 +414,6 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return archiveBeanMsg{beanID: m.bean.ID}
 			}
-
-		case "S":
-			// Launch session for this bean
-			return m, func() tea.Msg {
-				return launchSessionMsg{beanID: m.bean.ID, beanTitle: m.bean.Title}
-			}
 		}
 	}
 
@@ -491,7 +483,6 @@ func (m detailModel) View() string {
 		footer += helpKeyStyle.Render("enter") + " " + helpStyle.Render("go to") + "  "
 	}
 	footer += helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
-		helpKeyStyle.Render("S") + " " + helpStyle.Render("sessions") + "  " +
 		helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
 		helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 		helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
@@ -532,12 +523,6 @@ func (m detailModel) renderHeader() string {
 	// ID
 	id := ui.ID.Render(m.bean.ID)
 
-	// Running session indicator
-	var sessionIndicator string
-	if m.hasRunningSession != nil && m.hasRunningSession() {
-		sessionIndicator = lipgloss.NewStyle().Foreground(ui.ColorSuccess).Render("● running") + "  "
-	}
-
 	// Status badge
 	statusCfg := m.config.GetStatus(m.bean.Status)
 	statusColor := "gray"
@@ -551,7 +536,7 @@ func (m detailModel) renderHeader() string {
 	var headerContent strings.Builder
 	headerContent.WriteString(title)
 	headerContent.WriteString("\n")
-	headerContent.WriteString(sessionIndicator + id + "  " + status)
+	headerContent.WriteString(id + "  " + status)
 
 	// Add tags if present
 	if len(m.bean.Tags) > 0 {

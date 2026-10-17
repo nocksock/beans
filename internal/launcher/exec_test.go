@@ -1,7 +1,6 @@
-package sessionpoller
+package launcher
 
 import (
-	"github.com/hmans/beans/internal/launcher"
 	"os"
 	"strings"
 	"testing"
@@ -19,10 +18,7 @@ func TestExitCode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, err := CreateExecCommand(launcher.Launch{Script: tt.script, ProjectRoot: t.TempDir(), BeanID: "beans-x", BeanTitle: "X"})
-			if err != nil {
-				t.Fatal(err)
-			}
+			cmd := CreateShellCommand(Launch{Script: tt.script, ProjectRoot: t.TempDir(), BeanID: "beans-x", BeanTitle: "X"})
 			if got := ExitCode(cmd.Run()); got != tt.want {
 				t.Errorf("ExitCode() = %d, want %d", got, tt.want)
 			}
@@ -30,7 +26,7 @@ func TestExitCode(t *testing.T) {
 	}
 
 	t.Run("command not startable", func(t *testing.T) {
-		cmd, _ := CreateExecCommand(launcher.Launch{Script: "true", ProjectRoot: "/nonexistent-dir", BeanID: "beans-x", BeanTitle: "X"})
+		cmd := CreateShellCommand(Launch{Script: "true", ProjectRoot: "/nonexistent-dir", BeanID: "beans-x", BeanTitle: "X"})
 		if got := ExitCode(cmd.Run()); got != -1 {
 			t.Errorf("ExitCode() = %d, want -1", got)
 		}
@@ -38,7 +34,7 @@ func TestExitCode(t *testing.T) {
 }
 
 func TestCreateLoggedExecCommand(t *testing.T) {
-	cmd, logFile, err := CreateLoggedExecCommand(launcher.Launch{Script: `echo out; echo "err $BEANS_ID" >&2; exit 2`, ProjectRoot: t.TempDir(), BeanID: "beans-x", BeanTitle: "X"})
+	cmd, logFile, err := CreateLoggedExecCommand(Launch{Script: `echo out; echo "err $BEANS_ID" >&2; exit 2`, ProjectRoot: t.TempDir(), BeanID: "beans-x", BeanTitle: "X"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,12 +59,9 @@ func TestCreateLoggedExecCommand(t *testing.T) {
 	}
 }
 
-func TestCreateExecCommandRunsInConfigDir(t *testing.T) {
+func TestCreateShellCommandRunsInConfigDir(t *testing.T) {
 	configDir := t.TempDir()
-	cmd, err := CreateExecCommand(launcher.Launch{Script: `pwd; echo "$BEANS_CONFIG_DIR"`, ProjectRoot: t.TempDir(), ConfigDir: configDir})
-	if err != nil {
-		t.Fatal(err)
-	}
+	cmd := CreateShellCommand(Launch{Script: `pwd; echo "$BEANS_CONFIG_DIR"`, ProjectRoot: t.TempDir(), ConfigDir: configDir})
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatal(err)
