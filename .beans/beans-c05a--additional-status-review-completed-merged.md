@@ -60,3 +60,4 @@ filter in-progress would show all substates.
 2026-10-17 14:30: callers use cfg.Statuses(); TUI picker indents substatuses; prime lists custom statuses
 2026-10-17 14:40: GraphQL filters expand builtins, statusCategory field; beans list exclusions category-aware
 2026-10-17 14:50: README section, full test suite green, manual CLI test ok
+2026-10-17 15:05: beans list --include accepts custom statuses (exact local hidden-status filter)
