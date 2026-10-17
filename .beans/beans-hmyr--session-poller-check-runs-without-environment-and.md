@@ -5,8 +5,8 @@ status: todo
 type: bug
 priority: normal
 created_at: 2026-10-17T11:05:00Z
-updated_at: 2026-10-17T12:12:47Z
-parent: beans-f11p
+updated_at: 2026-10-17T12:14:17Z
+parent: beans-gl8t
 ---
 
 Found while implementing beans-jzty.
