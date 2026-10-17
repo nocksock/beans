@@ -3,9 +3,9 @@
 title: Session poller check runs without environment and wrong BEANS_ROOT/BEANS_DIR
 status: todo
 type: bug
-priority: high
+priority: normal
 created_at: 2026-10-17T11:05:00Z
-updated_at: 2026-10-17T12:08:04Z
+updated_at: 2026-10-17T12:12:47Z
 parent: beans-f11p
 ---
 
