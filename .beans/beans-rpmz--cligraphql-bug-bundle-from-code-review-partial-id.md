@@ -3,10 +3,12 @@
 title: CLI/GraphQL bug bundle from code review (partial-ID links, tags, misc)
 status: todo
 type: bug
+priority: normal
+size: md
 tags:
     - code-review
 created_at: 2026-10-17T14:02:00Z
-updated_at: 2026-10-17T14:02:00Z
+updated_at: 2026-10-17T14:10:28Z
 parent: beans-iaia
 ---
 
@@ -20,3 +22,6 @@ From review beans-9pxj (`docs/reviews/2026-10-17-code-quality-review.md` in hub)
 - [ ] `err == beancore.ErrNotFound` → `errors.Is` (`schema.resolvers.go:56,326`)
 - [ ] `Core.Delete` returns sentinel ErrAmbiguousID vs Get's AmbiguousIDError type
 - [ ] `update` repeats "blocking" in changes once per target
+## Sequencing (review beans-9pxj)
+
+Step 2 of 5: one change to the mutation path together with beans-ole9 and beans-zs6d B1.

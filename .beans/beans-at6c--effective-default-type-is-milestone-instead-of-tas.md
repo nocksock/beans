@@ -3,8 +3,10 @@
 title: Effective default_type is milestone instead of task
 status: todo
 type: bug
+priority: high
+size: xs
 created_at: 2026-10-17T13:50:53Z
-updated_at: 2026-10-17T13:50:53Z
+updated_at: 2026-10-17T14:10:28Z
 parent: beans-xqrj
 ---
 
@@ -12,3 +14,7 @@ config.applyDefaults sets Beans.DefaultType to DefaultTypes[0].Name, which is "m
 ## Code review 2026-10-17 (beans-9pxj)
 
 Confirmed: applyDefaults uses DefaultTypes[0] (config.go:305) = milestone; Default() says task; loadBean (core.go:191) and resolver (schema.resolvers.go:94) hardcode task. 'todo'/IDLength 4 defaults duplicated (config.go:157/302/447, core.go:334). Fix: applyDefaults copies from Default(); single source.
+
+## Sequencing (review beans-9pxj)
+
+Step 1 of 5: do first (at6c → et11 → zs6d B2-B4). One-line fix with high impact.

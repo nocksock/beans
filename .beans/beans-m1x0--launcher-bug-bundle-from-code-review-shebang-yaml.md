@@ -3,10 +3,12 @@
 title: Launcher bug bundle from code review (shebang, YAML, hang)
 status: todo
 type: bug
+priority: normal
+size: md
 tags:
     - code-review
 created_at: 2026-10-17T14:02:00Z
-updated_at: 2026-10-17T14:02:00Z
+updated_at: 2026-10-17T14:10:28Z
 parent: beans-gl8t
 ---
 
@@ -16,3 +18,6 @@ From review beans-9pxj (`docs/reviews/2026-10-17-code-quality-review.md` in hub)
 - [ ] B16: `appendLaunchersToConfig` builds YAML via string formatting (`tui/launcher.go:96-101`) → invalid YAML for quotes/colons/#/newlines. Marshal `[]config.Launcher` with yaml.v3 (coordinate with beans-w0ua).
 - [ ] B17: foreground run can hang if detached grandchild keeps stderr pipe (MultiWriter, `exec.go:29`). Set `cmd.WaitDelay`.
 - [ ] Tests: tailLines with CR progress output and >16KiB offset
+## Sequencing (review beans-9pxj)
+
+Step 3 of 5: after beans-bufq; unblocks deleting launcher.go in beans-re37.

@@ -18,3 +18,4 @@ run review agents to review code for code quality. some beans will become obsole
 2026-10-17 15:55: tui review done (nil-deref after config write error; modal-interface refactor proposal; w0nk, 6aax done)
 2026-10-17 15:56: core/config review done; consolidating
 2026-10-17 16:03: Filed 4 bug bundles (zs6d, rpmz, et11, m1x0), 9 refactor beans (re37, r7wv, u7nb, wg30, bufq, eywq, ole9, v6no, vgo6); applied verdicts (3 completed, 8 scrapped, 4 reshaped, notes on 9 more); review doc in docs/reviews/
+2026-10-17 16:10: Set priority, size and sequencing notes on 17 review beans (via dev build for --size)

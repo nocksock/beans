@@ -3,10 +3,12 @@
 title: Core bug bundle from code review (race, reload, cycles, ID collision)
 status: todo
 type: bug
+priority: high
+size: lg
 tags:
     - code-review
 created_at: 2026-10-17T14:01:43Z
-updated_at: 2026-10-17T14:01:43Z
+updated_at: 2026-10-17T14:10:28Z
 parent: beans-c8p4
 ---
 
@@ -20,3 +22,6 @@ From review beans-9pxj (`docs/reviews/2026-10-17-code-quality-review.md` in hub)
 - [ ] Legacy single-dash fallback parses `beans-abcd.md` as id `beans` (`bean/id.go:42-47`)
 - [ ] Unstable sort without ID tie-break (`bean/sort.go:448`)
 - [ ] Tests: parse failure during reload, cycle regression, concurrent Update vs All under -race
+## Sequencing (review beans-9pxj)
+
+Step 1 of 5 for B2/B3/B4 (small); B1 (race / Update API) belongs to step 2 together with beans-rpmz and beans-ole9.

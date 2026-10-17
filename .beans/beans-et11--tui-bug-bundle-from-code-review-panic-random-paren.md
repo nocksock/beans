@@ -3,10 +3,12 @@
 title: TUI bug bundle from code review (panic, random parent, truncation)
 status: todo
 type: bug
+priority: high
+size: sm
 tags:
     - code-review
 created_at: 2026-10-17T14:02:00Z
-updated_at: 2026-10-17T14:02:00Z
+updated_at: 2026-10-17T14:10:28Z
 parent: beans-7jm4
 ---
 
@@ -20,3 +22,6 @@ From review beans-9pxj (`docs/reviews/2026-10-17-code-quality-review.md` in hub)
 - [ ] `pickerModalConfig.Title` never rendered
 - [ ] `ui.IsValidColor` accepts `#zzz` (`ui/styles.go:47-51`)
 - [ ] Tests: status/type/priority/parent selected flows, back navigation, launchersConfiguredMsg error path
+## Sequencing (review beans-9pxj)
+
+Step 1 of 5: after beans-at6c, before beans-zs6d B2-B4.

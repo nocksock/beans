@@ -3,12 +3,13 @@
 title: modalSize helper for remaining inline modal size math
 status: todo
 type: task
-priority: normal
+priority: low
+size: sm
 tags:
     - technical-debt
     - refactoring
 created_at: 2025-12-15T12:48:49Z
-updated_at: 2026-10-17T14:02:53Z
+updated_at: 2026-10-17T14:10:28Z
 parent: beans-gl8t
 blocking:
     - beans-5c6x
@@ -32,3 +33,7 @@ Add helper to modal.go and update all call sites.
 ## Code review 2026-10-17 (beans-9pxj)
 
 Reshaped (R11): calculateModalWidth exists (modal.go:11). Add `modalSize(w,h,pct,maxW,maxH)` and replace ~12 inline copies (status/type/priority pickers, archiveconfirm, configurelaunchersdialog:171,241, help, parent/blocking pickers, launcherpicker:90,127 height). Detail ctor/resize duplicate layout; only resize clamps vpHeight.
+
+## Sequencing (review beans-9pxj)
+
+Step 5 of 5: cleanup, any time (easier after beans-5c6x).
