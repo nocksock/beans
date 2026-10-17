@@ -1,11 +1,11 @@
 ---
 # beans-4hsk
 title: e to edit in new popup E to edit in editor
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T12:45:01Z
-updated_at: 2026-10-17T12:55:25Z
+updated_at: 2026-10-17T13:20:53Z
 ---
 
 Rebind the TUI edit keys: `e` opens an in-TUI edit popup (based on the create modal), and `E` opens `$EDITOR` (what `e` does today).

@@ -1,11 +1,11 @@
 ---
 # beans-mrl5
 title: command reload config in tui
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T11:29:34Z
-updated_at: 2026-10-17T12:37:37Z
+updated_at: 2026-10-17T13:20:53Z
 parent: beans-xqrj
 ---
 

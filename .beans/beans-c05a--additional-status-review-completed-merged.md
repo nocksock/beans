@@ -1,11 +1,11 @@
 ---
 # beans-c05a
 title: 'additional status: review -> completed -> merged'
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2025-12-15T15:44:08Z
-updated_at: 2026-10-17T13:14:00Z
+updated_at: 2026-10-17T13:20:53Z
 parent: beans-xqrj
 ---
 
