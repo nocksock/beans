@@ -295,7 +295,7 @@ launchers:
 
 Background launchers get no stdin; their stdout and stderr are captured. With `multiple: true` and several beans selected, one run per bean starts in parallel.
 
-Every run, foreground or background, shows up in the **log panel** below the bean list: time, ⟳/✓/✗, launcher, bean ID, exit code, and the last lines of output (only stderr for foreground runs, since their stdout is the terminal). The panel appears when a run starts or fails; press `L` to toggle it and `O` to open the latest run's full output in `$EDITOR`. The log is kept for the TUI session only. Background runs still going when you quit keep running.
+Every run, foreground or background, shows up in the **log panel** below the bean list: time, ⟳/✓/✗, launcher, bean ID, exit code, and the last lines of output (only stderr for foreground runs, since their stdout is the terminal). The panel appears when a run starts or fails; press `L` to toggle it and `O` to open the latest run's full output in `$EDITOR`. The log is kept for the TUI session only. Background runs still going when you quit keep running; their output files (`beans-launch-*.log` in your temp directory) are left behind for you to inspect.
 
 ### How It Works
 

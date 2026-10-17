@@ -32,9 +32,9 @@ func CreateLoggedExecCommand(l Launch) (*exec.Cmd, *os.File, error) {
 }
 
 // CreateBackgroundCommand is like CreateShellCommand, but for running without
-// the terminal: stdin is left unset (reads get EOF), stdout and stderr both go
-// to a temporary log file, and the command is detached from the TUI's process
-// group so a Ctrl-C there doesn't reach it. The caller must close the returned
+// the terminal: there's no terminal stdin (reads get EOF), stdout and stderr
+// both go to a temporary log file, and the command is detached from the TUI's
+// terminal and signals. The caller must close the returned
 // file after the command exits.
 func CreateBackgroundCommand(l Launch) (*exec.Cmd, *os.File, error) {
 	cmd := CreateShellCommand(l)

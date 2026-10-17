@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -82,6 +83,9 @@ func TestCreateBackgroundCommand(t *testing.T) {
 		t.Errorf("stdin should be nil, got %v", cmd.Stdin)
 	}
 
+	if cmd.SysProcAttr == nil && runtime.GOOS != "windows" {
+		t.Error("background command should be detached from the terminal")
+	}
 	if got := ExitCode(cmd.Run()); got != 4 {
 		t.Errorf("exit code = %d, want 4", got)
 	}

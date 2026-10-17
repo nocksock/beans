@@ -90,6 +90,36 @@ func TestLogPanelCapsEntries(t *testing.T) {
 	}
 }
 
+func TestLogPanelCapKeepsRunningEntries(t *testing.T) {
+	var m logPanelModel
+	runningPath := writeLog(t, "")
+	m.start("l", "beans-running", runningPath, time.Now())
+	for i := range maxLogEntries {
+		id := m.start("l", fmt.Sprintf("beans-%d", i), writeLog(t, "x\n"), time.Now())
+		m.finish(id, 0, nil, time.Now())
+	}
+
+	if m.entries[0].beanID != "beans-running" {
+		t.Errorf("oldest entry = %s, the running one should be kept", m.entries[0].beanID)
+	}
+	if len(m.entries) != maxLogEntries {
+		t.Errorf("len(entries) = %d, want %d", len(m.entries), maxLogEntries)
+	}
+	if _, err := os.Stat(runningPath); err != nil {
+		t.Errorf("running entry's log should be kept, stat err = %v", err)
+	}
+}
+
+func TestTailLinesReadsOnlyTheEnd(t *testing.T) {
+	path := writeLog(t, strings.Repeat("filler line\n", 10000)+"last one\nlast two\n")
+	if got := tailLines(path, 2); fmt.Sprint(got) != "[last one last two]" {
+		t.Errorf("tailLines = %q", got)
+	}
+	if got := tailLines(writeLog(t, strings.Repeat("y", tailReadBytes+10)+"\nend\n"), 3); fmt.Sprint(got) != "[end]" {
+		t.Errorf("partial first line should be dropped, got %q", got)
+	}
+}
+
 func TestLogPanelCleanupKeepsRunningLogs(t *testing.T) {
 	var m logPanelModel
 	donePath, runningPath := writeLog(t, "x\n"), writeLog(t, "y\n")

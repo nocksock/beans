@@ -1,8 +1,11 @@
 package tui
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,9 +15,10 @@ import (
 )
 
 const (
-	logPanelHeight = 6  // rows the panel takes below the list: a title rule plus content
-	maxLogEntries  = 50 // runs kept in memory; older ones are dropped
-	logTailLines   = 3  // output lines shown per run
+	logPanelHeight = 6        // rows the panel takes below the list: a title rule plus content
+	maxLogEntries  = 50       // runs kept in memory; older ones are dropped
+	logTailLines   = 3        // output lines shown per run
+	tailReadBytes  = 16 << 10 // only this much of the end of a run's output is read for its tail
 )
 
 // runState is the lifecycle state of a launcher run
@@ -64,11 +68,14 @@ func (m *logPanelModel) start(launcher, beanID, logPath string, now time.Time) i
 		state:    runRunning,
 		logPath:  logPath,
 	})
-	if over := len(m.entries) - maxLogEntries; over > 0 {
-		for _, e := range m.entries[:over] {
-			e.removeLog()
+	// Drop the oldest finished runs; running ones stay until they finish
+	for over := len(m.entries) - maxLogEntries; over > 0; over-- {
+		i := slices.IndexFunc(m.entries, func(e logEntry) bool { return e.state != runRunning })
+		if i < 0 {
+			break
 		}
-		m.entries = m.entries[over:]
+		m.entries[i].removeLog()
+		m.entries = slices.Delete(m.entries, i, i+1)
 	}
 	m.visible = true
 	return m.nextID
@@ -175,13 +182,32 @@ func (e logEntry) header() string {
 	return ui.Muted.Render(e.started.Format("15:04")) + " " + style.Render(text)
 }
 
-// tailLines returns the last n non-empty lines of the file at path. For lines
-// rewritten with carriage returns (progress bars), only the final text is kept.
+// tailLines returns the last n non-empty lines of the file at path, reading at
+// most its last tailReadBytes. For lines rewritten with carriage returns
+// (progress bars), only the final text is kept.
 func tailLines(path string, n int) []string {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil
 	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return nil
+	}
+	offset := max(info.Size()-tailReadBytes, 0)
+	data := make([]byte, info.Size()-offset)
+	if _, err := f.ReadAt(data, offset); err != nil && err != io.EOF {
+		return nil
+	}
+	if offset > 0 {
+		// Drop the partial first line
+		if i := bytes.IndexByte(data, '\n'); i >= 0 {
+			data = data[i+1:]
+		}
+	}
+
 	var lines []string
 	for _, l := range strings.Split(string(data), "\n") {
 		l = strings.TrimRight(l, "\r")

@@ -7,8 +7,9 @@ import (
 	"syscall"
 )
 
-// detach puts cmd into its own process group, so signals sent to the TUI's
-// group (e.g. Ctrl-C) don't reach it.
+// detach starts cmd in its own session without a controlling terminal, so
+// signals sent to the TUI (e.g. Ctrl-C) don't reach it, and programs that try
+// to prompt on /dev/tty fail right away instead of being stopped forever.
 func detach(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }
