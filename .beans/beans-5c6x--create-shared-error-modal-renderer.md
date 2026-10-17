@@ -8,8 +8,10 @@ tags:
     - technical-debt
     - refactoring
 created_at: 2025-12-15T12:48:53Z
-updated_at: 2025-12-15T12:50:36Z
+updated_at: 2026-10-17T12:08:03Z
 parent: beans-gl8t
+blocking:
+    - beans-mszj
 ---
 
 Two "no launchers" modals share 80% of the same rendering logic with only slight variations (title, message).

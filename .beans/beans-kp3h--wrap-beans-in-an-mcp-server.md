@@ -1,13 +1,13 @@
 ---
 # beans-kp3h
 title: Wrap beans in an MCP server
-status: todo
+status: scrapped
 type: feature
 priority: normal
 tags:
     - idea
 created_at: 2025-12-13T12:00:03Z
-updated_at: 2025-12-15T13:05:50Z
+updated_at: 2026-10-17T12:07:56Z
 ---
 
 Expose beans functionality through a Model Context Protocol (MCP) server, allowing AI assistants and other MCP-compatible clients to interact with beans programmatically.

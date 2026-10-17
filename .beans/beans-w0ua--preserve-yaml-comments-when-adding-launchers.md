@@ -3,8 +3,11 @@
 title: Preserve YAML comments when adding launchers
 status: todo
 type: feature
+priority: normal
 created_at: 2025-12-14T20:17:32Z
-updated_at: 2025-12-14T20:17:32Z
+updated_at: 2026-10-17T12:08:03Z
+blocking:
+    - beans-4wwa
 ---
 
 When adding default launchers to .beans.yml, the current implementation simply appends to the file. This works but doesn't preserve comments or formatting.

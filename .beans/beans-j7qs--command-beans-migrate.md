@@ -3,9 +3,9 @@
 title: 'command: beans migrate'
 status: draft
 type: task
-priority: normal
+priority: low
 created_at: 2026-10-17T11:07:15Z
-updated_at: 2026-10-17T11:17:51Z
+updated_at: 2026-10-17T12:08:03Z
 ---
 
 beans migrate --path <new-path>

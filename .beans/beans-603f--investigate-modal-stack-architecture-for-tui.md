@@ -8,8 +8,10 @@ tags:
     - research
     - architecture
 created_at: 2025-12-15T12:50:06Z
-updated_at: 2025-12-15T12:50:06Z
+updated_at: 2026-10-17T12:08:03Z
 parent: beans-gl8t
+blocking:
+    - beans-mszj
 ---
 
 Current flat enum of 17 view states doesn't reflect hierarchy (modals vs full-screen views).

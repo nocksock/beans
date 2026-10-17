@@ -3,12 +3,11 @@
 title: beans web - Web UI server
 status: draft
 type: feature
-priority: normal
+priority: deferred
 tags:
     - idea
 created_at: 2025-12-08T17:11:36Z
-updated_at: 2025-12-13T14:44:14Z
-parent: beans-f11p
+updated_at: 2026-10-17T12:07:56Z
 ---
 
 Add a `beans web` command that starts a webserver providing a Beans web UI.

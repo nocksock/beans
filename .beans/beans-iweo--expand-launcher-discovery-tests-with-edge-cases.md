@@ -7,8 +7,10 @@ priority: normal
 tags:
     - test
 created_at: 2025-12-15T12:49:30Z
-updated_at: 2025-12-15T12:49:30Z
+updated_at: 2026-10-17T12:08:03Z
 parent: beans-gl8t
+blocking:
+    - beans-yxao
 ---
 
 Expand existing `internal/tui/launcher_test.go` with missing edge cases.

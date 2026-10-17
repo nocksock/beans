@@ -5,7 +5,9 @@ status: todo
 type: task
 priority: normal
 created_at: 2026-10-17T10:51:33Z
-updated_at: 2026-10-17T10:54:43Z
+updated_at: 2026-10-17T12:08:03Z
+blocking:
+    - beans-07j8
 ---
 
 eg: beans settings get path

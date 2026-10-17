@@ -8,8 +8,10 @@ tags:
     - test
     - concurrency
 created_at: 2025-12-15T12:49:25Z
-updated_at: 2025-12-15T12:49:25Z
+updated_at: 2026-10-17T12:08:03Z
 parent: beans-gl8t
+blocking:
+    - beans-359x
 ---
 
 Create `internal/launcher/manager_test.go` with tests for parallel execution and concurrency.

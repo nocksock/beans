@@ -3,9 +3,9 @@
 title: frontmatter to detect beans
 status: draft
 type: task
-priority: normal
+priority: low
 created_at: 2026-10-17T10:07:44Z
-updated_at: 2026-10-17T10:17:45Z
+updated_at: 2026-10-17T12:08:03Z
 ---
 
 

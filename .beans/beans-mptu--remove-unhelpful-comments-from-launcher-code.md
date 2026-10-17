@@ -3,12 +3,12 @@
 title: Remove unhelpful comments from launcher code
 status: todo
 type: task
-priority: normal
+priority: low
 tags:
     - code-quality
     - quick-win
 created_at: 2025-12-15T12:48:31Z
-updated_at: 2025-12-15T12:48:31Z
+updated_at: 2026-10-17T12:08:03Z
 parent: beans-gl8t
 ---
 

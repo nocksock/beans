@@ -1,11 +1,11 @@
 ---
 # beans-um03
 title: beans link
-status: draft
+status: scrapped
 type: task
 priority: normal
 created_at: 2026-10-17T11:20:08Z
-updated_at: 2026-10-17T11:25:26Z
+updated_at: 2026-10-17T12:07:56Z
 ---
 
 to link a beans id to a pid/tmux. uri format.

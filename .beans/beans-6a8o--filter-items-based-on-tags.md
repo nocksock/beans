@@ -5,7 +5,9 @@ status: draft
 type: task
 priority: normal
 created_at: 2025-12-15T13:10:32Z
-updated_at: 2025-12-15T13:12:07Z
+updated_at: 2026-10-17T12:08:03Z
+blocking:
+    - beans-4sfw
 ---
 
 currently it only filters based on title.
