@@ -7,12 +7,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/config"
+	"github.com/hmans/beans/internal/launcher"
 )
 
 const (
@@ -115,7 +115,9 @@ func (p *Poller) checkSession(beanID string) SessionStatus {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", p.config.Check)
+	cmd.Dir = p.config.CheckDir
 	cmd.Env = []string{
+		fmt.Sprintf("BEANS_CONFIG_DIR=%s", p.config.CheckDir),
 		fmt.Sprintf("BEANS_ROOT=%s", p.beansRoot),
 		fmt.Sprintf("BEANS_DIR=%s", p.beansRoot),
 		fmt.Sprintf("BEANS_ID=%s", beanID),
@@ -186,26 +188,11 @@ func (p *Poller) HasActiveSessions() bool {
 	return false
 }
 
-func CreateExecCommand(execScript, beansDir, beanID, beanTitle string) (*exec.Cmd, error) {
-	projectRoot := strings.TrimSuffix(beansDir, "/.beans")
-	if projectRoot == beansDir {
-		projectRoot = beansDir
-		if idx := strings.LastIndex(projectRoot, "/.beans"); idx > 0 {
-			projectRoot = projectRoot[:idx]
-		}
-	}
-
-	cmd := exec.Command("sh", "-c", execScript)
-	// Preserve existing environment and add BEANS_* variables
-	env := os.Environ()
-	env = append(env,
-		fmt.Sprintf("BEANS_ROOT=%s", projectRoot),
-		fmt.Sprintf("BEANS_DIR=%s", beansDir),
-		fmt.Sprintf("BEANS_ID=%s", beanID),
-		fmt.Sprintf("BEANS_TASK=%s", beanTitle),
-	)
-	cmd.Env = env
-	cmd.Dir = projectRoot
+// CreateExecCommand creates a command that runs a session script via sh -c.
+func CreateExecCommand(l launcher.Launch) (*exec.Cmd, error) {
+	cmd := exec.Command("sh", "-c", l.Script)
+	cmd.Env = l.Env()
+	cmd.Dir = l.WorkDir()
 
 	return cmd, nil
 }
@@ -214,8 +201,8 @@ func CreateExecCommand(execScript, beansDir, beanID, beanTitle string) (*exec.Cm
 // command's stderr into a temporary log file. Stdin and stdout are left unset so
 // tea.ExecProcess attaches them to the terminal and interactive launchers keep
 // working. The caller must close the returned file after the command exits.
-func CreateLoggedExecCommand(execScript, beansDir, beanID, beanTitle string) (*exec.Cmd, *os.File, error) {
-	cmd, err := CreateExecCommand(execScript, beansDir, beanID, beanTitle)
+func CreateLoggedExecCommand(l launcher.Launch) (*exec.Cmd, *os.File, error) {
+	cmd, err := CreateExecCommand(l)
 	if err != nil {
 		return nil, nil, err
 	}

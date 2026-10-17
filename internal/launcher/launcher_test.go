@@ -14,17 +14,20 @@ func TestCreateExecCommand_EnvironmentVariables(t *testing.T) {
 	tests := []struct {
 		name        string
 		execScript  string
+		projectRoot string
+		configDir   string
 		beansDir    string
 		beanID      string
 		beanTitle   string
 		wantEnvVars map[string]string
 	}{
 		{
-			name:       "single-line script has all env vars",
-			execScript: "echo $BEANS_ROOT $BEANS_DIR $BEANS_ID $BEANS_TASK",
-			beansDir:   "/project/.beans",
-			beanID:     "beans-xyz",
-			beanTitle:  "Test Task",
+			name:        "single-line script has all env vars",
+			execScript:  "echo $BEANS_ROOT $BEANS_DIR $BEANS_ID $BEANS_TASK",
+			projectRoot: "/project",
+			beansDir:    "/project/.beans",
+			beanID:      "beans-xyz",
+			beanTitle:   "Test Task",
 			wantEnvVars: map[string]string{
 				"BEANS_ROOT": "/project",
 				"BEANS_DIR":  "/project/.beans",
@@ -33,11 +36,12 @@ func TestCreateExecCommand_EnvironmentVariables(t *testing.T) {
 			},
 		},
 		{
-			name:       "multi-line script has all env vars",
-			execScript: "#!/bin/bash\necho $BEANS_ROOT $BEANS_DIR $BEANS_ID $BEANS_TASK",
-			beansDir:   "/home/user/project/.beans",
-			beanID:     "beans-abc",
-			beanTitle:  "Another Task",
+			name:        "multi-line script has all env vars",
+			execScript:  "#!/bin/bash\necho $BEANS_ROOT $BEANS_DIR $BEANS_ID $BEANS_TASK",
+			projectRoot: "/home/user/project",
+			beansDir:    "/home/user/project/.beans",
+			beanID:      "beans-abc",
+			beanTitle:   "Another Task",
 			wantEnvVars: map[string]string{
 				"BEANS_ROOT": "/home/user/project",
 				"BEANS_DIR":  "/home/user/project/.beans",
@@ -46,23 +50,33 @@ func TestCreateExecCommand_EnvironmentVariables(t *testing.T) {
 			},
 		},
 		{
-			name:       "nested beansDir path",
-			execScript: "env",
-			beansDir:   "/home/user/workspace/.beans",
-			beanID:     "beans-123",
-			beanTitle:  "Task Title",
+			name:        "inherited launcher with beans dir in parent",
+			execScript:  "env",
+			projectRoot: "/home/user/workspace/pkg",
+			configDir:   "/home/user/workspace",
+			beansDir:    "/home/user/workspace/.beans",
+			beanID:      "beans-123",
+			beanTitle:   "Task Title",
 			wantEnvVars: map[string]string{
-				"BEANS_ROOT": "/home/user/workspace",
-				"BEANS_DIR":  "/home/user/workspace/.beans",
-				"BEANS_ID":   "beans-123",
-				"BEANS_TASK": "Task Title",
+				"BEANS_ROOT":       "/home/user/workspace/pkg",
+				"BEANS_CONFIG_DIR": "/home/user/workspace",
+				"BEANS_DIR":        "/home/user/workspace/.beans",
+				"BEANS_ID":         "beans-123",
+				"BEANS_TASK":       "Task Title",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, result, err := CreateExecCommand(tt.execScript, tt.beansDir, tt.beanID, tt.beanTitle)
+			cmd, result, err := CreateExecCommand(Launch{
+				Script:      tt.execScript,
+				ProjectRoot: tt.projectRoot,
+				ConfigDir:   tt.configDir,
+				BeansDir:    tt.beansDir,
+				BeanID:      tt.beanID,
+				BeanTitle:   tt.beanTitle,
+			})
 			if err != nil {
 				t.Fatalf("CreateExecCommand() error = %v", err)
 			}
@@ -89,7 +103,7 @@ func TestCreateExecCommand_EnvironmentVariables(t *testing.T) {
 }
 
 func TestCreateExecCommand_SingleLine(t *testing.T) {
-	cmd, result, err := CreateExecCommand("echo hello", "/project/.beans", "beans-123", "Test")
+	cmd, result, err := CreateExecCommand(Launch{Script: "echo hello", ProjectRoot: "/project", BeansDir: "/project/.beans", BeanID: "beans-123", BeanTitle: "Test"})
 	if err != nil {
 		t.Fatalf("CreateExecCommand() error = %v", err)
 	}
@@ -126,7 +140,7 @@ func TestCreateExecCommand_SingleLine(t *testing.T) {
 
 func TestCreateExecCommand_MultiLine(t *testing.T) {
 	script := "#!/bin/bash\necho hello\necho world"
-	cmd, result, err := CreateExecCommand(script, "/project/.beans", "beans-456", "Multi Test")
+	cmd, result, err := CreateExecCommand(Launch{Script: script, ProjectRoot: "/project", BeansDir: "/project/.beans", BeanID: "beans-456", BeanTitle: "Multi Test"})
 	if err != nil {
 		t.Fatalf("CreateExecCommand() error = %v", err)
 	}
@@ -149,7 +163,7 @@ func TestCreateExecCommand_MultiLine(t *testing.T) {
 
 func TestCreateExecCommand_MultiLineNoShebang(t *testing.T) {
 	script := "echo hello\necho world"
-	_, result, err := CreateExecCommand(script, "/project/.beans", "beans-789", "No Shebang")
+	_, result, err := CreateExecCommand(Launch{Script: script, ProjectRoot: "/project", BeansDir: "/project/.beans", BeanID: "beans-789", BeanTitle: "No Shebang"})
 	if result != nil {
 		defer result.Cleanup()
 	}
@@ -164,7 +178,7 @@ func TestCreateExecCommand_MultiLineNoShebang(t *testing.T) {
 
 func TestCreateExecCommand_InvalidShebang(t *testing.T) {
 	script := "#!\necho hello"
-	_, result, err := CreateExecCommand(script, "/project/.beans", "beans-999", "Invalid Shebang")
+	_, result, err := CreateExecCommand(Launch{Script: script, ProjectRoot: "/project", BeansDir: "/project/.beans", BeanID: "beans-999", BeanTitle: "Invalid Shebang"})
 	if result != nil {
 		defer result.Cleanup()
 	}
