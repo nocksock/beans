@@ -542,6 +542,41 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 		return a, nil
 
+	case openEditModalMsg:
+		a.previousState = a.state
+		a.createModal = newEditModalModel(a.config, a.width, a.height, msg.bean)
+		a.state = viewCreateModal
+		return a, a.createModal.Init()
+
+	case beanEditedMsg:
+		// Save only the changed fields; an unchanged form doesn't touch the bean
+		a.state = a.previousState
+		input := msg.input
+		if input.Title != nil || input.Body != nil || input.Type != nil || input.Status != nil || input.Priority != nil {
+			if _, err := a.resolver.Mutation().UpdateBean(context.Background(), msg.beanID, input); err != nil {
+				a.launcherError = newLauncherErrorModel("Edit Bean", err, a.width, a.height)
+				a.state = viewLauncherError
+				return a, nil
+			}
+		}
+		updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanID)
+		if updatedBean == nil {
+			return a, a.list.loadBeans
+		}
+		if a.state == viewDetail {
+			a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+		}
+		a.list.cursorTarget = updatedBean.ID
+		if !msg.openEditor {
+			return a, a.list.loadBeans
+		}
+		return a, tea.Batch(
+			a.list.loadBeans,
+			func() tea.Msg {
+				return openEditorMsg{beanID: updatedBean.ID, beanPath: updatedBean.Path}
+			},
+		)
+
 	case beanCreatedMsg:
 		// Create the bean via GraphQL mutation (draft status unless chosen otherwise)
 		input := model.CreateBeanInput{}
