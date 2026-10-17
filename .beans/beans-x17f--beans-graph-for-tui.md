@@ -41,12 +41,13 @@ A 2D graph turned out to be a project of its own (see beans-bcss, code on branch
 ### Steps
 - [x] Spike: mermaid-ascii vs hand-rolled 2D layout
   - mermaid-ascii: grid layout not by depth, muddled diamonds/cycles, no node positions. Hand-rolled: better but became its own project → beans-bcss.
-- [ ] Tree builder + tests
-- [ ] Navigator model/view, `D` binding in list + detail, keymap context
-- [ ] enter→detail→back, re-focus, `A` toggle
-- [ ] Help overlay + README
+- [x] Tree builder + tests
+- [x] Navigator model/view, `D` binding in list + detail, keymap context
+- [x] enter→detail→back, re-focus, `A` toggle
+- [x] Help overlay + README
 
 ## Work Log
 2026-10-17 14:00: Planned with user: blocking graph, focused+navigable, spike rendering engine first
 2026-10-17 14:30: Spike done; chose hand-rolled layout over mermaid-ascii
 2026-10-17 15:30: Hand-rolled layout too complex; parked on spike/graphlayout (beans-bcss); replanned as tree navigator
+2026-10-17 16:30: Navigator implemented (internal/tui/depnav.go), tests + manual tmux check pass
