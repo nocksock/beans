@@ -1208,3 +1208,40 @@ func TestResolveBeansPathExpandsHome(t *testing.T) {
 		t.Errorf("ResolveBeansPath() = %q, want %q", got, want)
 	}
 }
+
+func TestPromptExtra(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name:    "no prompt section",
+			content: "beans:\n  prefix: \"my-\"\n",
+			want:    "",
+		},
+		{
+			name:    "prompt extra set",
+			content: "beans:\n  prefix: \"my-\"\nprompt:\n  extra: |\n    Run mise test before committing.\n",
+			want:    "Run mise test before committing.\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), ConfigFileName)
+			if err := os.WriteFile(configPath, []byte(tt.content), 0644); err != nil {
+				t.Fatalf("WriteFile error = %v", err)
+			}
+
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+
+			if got := cfg.PromptExtra(); got != tt.want {
+				t.Errorf("PromptExtra() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

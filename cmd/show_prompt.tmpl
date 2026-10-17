@@ -1,0 +1,42 @@
+# Bean {{ .Bean.ID }}: {{ .Bean.Title }}
+
+You are working on the bean (issue) below. Beans are markdown files in the project's beans directory, managed with the `beans` CLI.
+
+- **ID:** {{ .Bean.ID }}
+- **Type:** {{ .Bean.Type }}
+- **Status:** {{ .Bean.Status }}
+{{- if .Bean.Priority }}
+- **Priority:** {{ .Bean.Priority }}
+{{- end }}
+{{- if .Bean.Tags }}
+- **Tags:** {{ join .Bean.Tags ", " }}
+{{- end }}
+{{- if trim .Bean.Body }}
+
+## Description
+
+{{ trim .Bean.Body }}
+{{- end }}
+{{- if .Related }}
+
+## Related beans
+
+{{ range .Related -}}
+- {{ .ID }}: ({{ .Relation }}) [{{ .Status }}] {{ .Title }}
+{{ end }}
+Use `beans show <id>` to see more about a related bean.
+{{- end }}
+
+## Tracking progress
+
+- Before starting, mark the bean as in progress: `beans update {{ .Bean.ID }} --status in-progress`
+- As you complete checklist items (`- [ ]`) in the description, tick them off (`- [x]`) by editing the bean file (`{{ .Bean.Path }}` in the beans directory).
+- If you discover follow-up work, create a new bean instead of expanding scope: `beans create "Title" -t task -d "..."`
+- When done, mark it completed: `beans update {{ .Bean.ID }} --status completed`
+- When committing, include the bean file alongside your code changes.
+{{- if .Extra }}
+
+## Additional instructions
+
+{{ .Extra }}
+{{- end }}
