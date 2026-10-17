@@ -5,8 +5,8 @@ status: todo
 type: task
 priority: deferred
 created_at: 2026-10-17T13:29:54Z
-updated_at: 2026-10-17T13:29:54Z
+updated_at: 2026-10-17T14:02:50Z
 parent: beans-7jm4
 ---
 
-Non-interactive `beans graph <id>` printing the blocking-dependency graph as ASCII, reusing the `internal/graphlayout` package from beans-x17f. Follow-up to beans-x17f.
+Non-interactive `beans deps <id>` printing the transitive blocked-by / blocking trees (same as the TUI dependency navigator from beans-x17f).

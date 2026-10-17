@@ -13,3 +13,7 @@ run review agents to review code for code quality. some beans will become obsole
 ## Work Log
 
 2026-10-17 15:51: Started; dispatching 4 parallel code-quality reviewers (tui, cmd+graph, core/config, launcher+ui)
+2026-10-17 15:55: cmd+graph review done (tag validation, partial-ID link, validation-in-CLI bugs; wzbt, z7jr look done)
+2026-10-17 15:55: launcher review done (manager.go dead; shebang bug; many gl8t beans obsolete/mergeable)
+2026-10-17 15:55: tui review done (nil-deref after config write error; modal-interface refactor proposal; w0nk, 6aax done)
+2026-10-17 15:56: core/config review done; consolidating
