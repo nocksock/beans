@@ -49,7 +49,20 @@ launchers:
       You are running in a tmux window. Before starting, rename it to `<bean-id>: <label>`, where <label> is a short summary of this bean of at most 20 characters:
       `tmux rename-window -t "$TMUX_PANE" '<bean-id>: <label>'`
       EOF
-      PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
+
+      # Unquoted heredoc: paths are baked in, \$TMUX_PANE must resolve in the new window
+      HUB="$(pwd)"
+      read -r -d '' CLEANUP_NOTE <<EOF || true
+      ## Cleanup when done
+
+      This bean runs in the worktree $WORKTREE_DIR on branch task/$BEANS_ID. Clean up only after the user has explicitly declared the work done AND task/$BEANS_ID has been merged into dev. Never on your own initiative, and never because the bean is marked completed. If in doubt, ask.
+
+      1. Confirm the merge: \`git -C "$HUB" merge-base --is-ancestor task/$BEANS_ID dev\` must succeed. If it fails, stop and tell the user.
+      2. Remove the worktree: \`git -C "$HUB" worktree remove "$WORKTREE_DIR"\`. Do not pass --force; if it refuses because of uncommitted changes, stop and tell the user.
+      3. Delete the branch from the dev worktree, so -d checks it against dev: \`git -C "$HUB/dev" branch -d task/$BEANS_ID\`
+      4. Close this tmux window as the very last step, since it ends this session: \`tmux kill-window -t "\$TMUX_PANE"\`
+      EOF
+      PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"$'\n\n'"$CLEANUP_NOTE"
 
       tmux new-window -c "$WORKTREE_DIR" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
         'claude "$BEANS_PROMPT"'
