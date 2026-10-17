@@ -30,7 +30,11 @@ launchers:
       read -r -d '' CLEANUP_NOTE <<EOF || true
       ## Cleanup when done
 
-      This bean runs in the worktree $WORKTREE_DIR on branch task/$BEANS_ID. Clean up only after the user has explicitly declared the work done AND task/$BEANS_ID has been merged into dev. Never on your own initiative, and never because the bean is marked completed. If in doubt, ask.
+      This bean runs in the worktree $WORKTREE_DIR on branch task/$BEANS_ID. Clean up only after the user has explicitly declared the work done. Never on your own initiative, and never because the bean is marked completed.
+
+      Once the user has declared the work done, ask them with your question tool, offering exactly these two options:
+      - "Merge into dev, cleanup": first commit any remaining work on task/$BEANS_ID, then merge it with \`git -C "$HUB/dev" merge --no-ff task/$BEANS_ID\`. If the merge conflicts or the dev worktree has uncommitted changes, stop and tell the user. Then run the steps below.
+      - "Merged, cleanup": the user has merged it already. Run the steps below.
 
       1. Confirm the merge: \`git -C "$HUB" merge-base --is-ancestor task/$BEANS_ID dev\` must succeed. If it fails, stop and tell the user.
       2. Mark the bean completed and commit that in the hub: \`beans update $BEANS_ID --status completed && git -C "$HUB" add .beans && git -C "$HUB" commit -m "chore: complete $BEANS_ID"\`
