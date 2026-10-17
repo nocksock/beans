@@ -530,7 +530,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openCreateModalMsg:
 		a.previousState = a.state
-		a.createModal = newCreateModalModel(a.width, a.height, msg.parentID, msg.parentTitle)
+		a.createModal = newCreateModalModel(a.config, a.width, a.height, msg.parentID, msg.parentTitle)
 		a.state = viewCreateModal
 		return a, a.createModal.Init()
 
@@ -539,26 +539,35 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case beanCreatedMsg:
-		// Create the bean via GraphQL mutation with draft status
-		draftStatus := "draft"
-		var parentPtr *string
-		if msg.parentID != "" {
-			parentPtr = &msg.parentID
+		// Create the bean via GraphQL mutation (draft status unless chosen otherwise)
+		input := model.CreateBeanInput{Title: msg.title}
+		status := createModalDefaultStatus
+		if msg.status != "" {
+			status = msg.status
 		}
-		createdBean, err := a.resolver.Mutation().CreateBean(context.Background(), model.CreateBeanInput{
-			Title:  msg.title,
-			Status: &draftStatus,
-			Parent: parentPtr,
-		})
+		input.Status = &status
+		if msg.beanType != "" {
+			input.Type = &msg.beanType
+		}
+		if msg.body != "" {
+			input.Body = &msg.body
+		}
+		if msg.parentID != "" {
+			input.Parent = &msg.parentID
+		}
+		createdBean, err := a.resolver.Mutation().CreateBean(context.Background(), input)
 		if err != nil {
 			// Show error to user
 			a.launcherError = newLauncherErrorModel("Create Bean", err, a.width, a.height)
 			a.state = viewLauncherError
 			return a, nil
 		}
-		// Return to list, move the cursor to the new bean, and open it in the editor
+		// Return to list, move the cursor to the new bean, and optionally open it in the editor
 		a.state = viewList
 		a.list.cursorTarget = createdBean.ID
+		if !msg.openEditor {
+			return a, a.list.loadBeans
+		}
 		return a, tea.Batch(
 			a.list.loadBeans,
 			func() tea.Msg {
