@@ -1,11 +1,11 @@
 ---
 # beans-082t
 title: text in keymap dialog not readable
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-17T13:20:06Z
-updated_at: 2026-10-17T13:23:24Z
+updated_at: 2026-10-17T13:27:24Z
 ---
 
 in light mode its white
