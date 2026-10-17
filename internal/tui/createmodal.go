@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -192,18 +193,19 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
+		k := keymap.CreateModal
+		switch {
+		case key.Matches(msg, k.Cancel):
 			return m, func() tea.Msg { return closeCreateModalMsg{} }
-		case "tab":
+		case key.Matches(msg, k.NextField):
 			return m, m.setFocus(m.focus + 1)
-		case "shift+tab":
+		case key.Matches(msg, k.PrevField):
 			return m, m.setFocus(m.focus - 1)
-		case "ctrl+s":
+		case key.Matches(msg, k.Submit):
 			return m, m.submit(false)
-		case "ctrl+e":
+		case key.Matches(msg, k.SubmitAndEdit):
 			return m, m.submit(true)
-		case "enter":
+		case key.Matches(msg, k.QuickSubmit):
 			// Enter inserts newlines in the description; elsewhere it submits
 			if m.focus != createFieldBody {
 				return m, m.submit(false)
@@ -211,12 +213,12 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 		}
 
 		if m.isSelectorFocused() {
-			switch msg.String() {
-			case "left", "h", "up", "k":
+			switch {
+			case key.Matches(msg, k.CyclePrev):
 				m.cycle(-1)
-			case "right", "l", "down", "j", " ":
+			case key.Matches(msg, k.CycleNext):
 				m.cycle(1)
-			case "e":
+			case key.Matches(msg, k.QuickSubmitAndEdit):
 				return m, m.submit(true)
 			}
 			return m, nil
@@ -300,22 +302,22 @@ func (m createModalModel) View() string {
 	)
 
 	// Help text depends on the focused field
+	k := keymap.CreateModal
 	var help string
 	switch m.focus {
 	case createFieldBody:
-		help = helpKeyStyle.Render("ctrl+s") + " " + helpStyle.Render("create") + "  "
+		help = hint(k.Submit, "")
 	case createFieldTitle:
-		help = helpKeyStyle.Render("enter") + " " + helpStyle.Render("create") + "  "
+		help = hint(k.QuickSubmit, "")
 	default:
-		help = helpKeyStyle.Render("←/→") + " " + helpStyle.Render("change") + "  " +
-			helpKeyStyle.Render("enter") + " " + helpStyle.Render("create") + "  " +
-			helpKeyStyle.Render("e") + " " + helpStyle.Render("create & edit") + "  "
+		help = groupHint("change", k.CyclePrev, k.CycleNext) +
+			hint(k.QuickSubmit, "") +
+			hint(k.QuickSubmitAndEdit, "")
 	}
 	if !m.isSelectorFocused() {
-		help += helpKeyStyle.Render("ctrl+e") + " " + helpStyle.Render("create & edit") + "  "
+		help += hint(k.SubmitAndEdit, "")
 	}
-	help += helpKeyStyle.Render("tab") + " " + helpStyle.Render("next") + "  " +
-		helpKeyStyle.Render("esc") + " " + helpStyle.Render("cancel")
+	help = hints(help, hint(k.NextField, ""), hint(k.Cancel, ""))
 
 	// Assemble content
 	content := header + "\n\n" +

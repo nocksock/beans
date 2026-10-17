@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -121,8 +122,8 @@ type App struct {
 	height             int
 	program            *tea.Program // reference to program for sending messages from watcher
 
-	// Key chord state - tracks partial key sequences like "g" waiting for "t"
-	pendingKey string
+	// Key chord state - the keys typed so far of a chord like "g t"
+	pendingKeys string
 
 	// Modal state - tracks view behind modal pickers
 	previousState viewState
@@ -136,29 +137,48 @@ type App struct {
 
 	// noticeSeq identifies the latest footer notice, so stale clears are ignored
 	noticeSeq int
+
+	// keyWarnings are the key binding conflicts found at startup
+	keyWarnings []string
 }
 
-// New creates a new TUI application
+// New creates a new TUI application. It uses the key bindings from cfg, or
+// the defaults if they are invalid (Run reports that error).
 func New(core *beancore.Core, cfg *config.Config) *App {
 	resolver := &graph.Resolver{Core: core}
+	warnings, err := applyKeymap(cfg)
+	if err != nil {
+		keymap = DefaultKeyMap()
+	}
 	return &App{
-		state:    viewList,
-		core:     core,
-		resolver: resolver,
-		config:   cfg,
-		list:     newListModel(resolver, cfg),
-		preview:  newPreviewModel(cfg),
+		state:       viewList,
+		core:        core,
+		resolver:    resolver,
+		config:      cfg,
+		list:        newListModel(resolver, cfg),
+		preview:     newPreviewModel(cfg),
+		keyWarnings: warnings,
 	}
 }
 
 // Init initializes the application
 func (a *App) Init() tea.Cmd {
+	if len(a.keyWarnings) > 0 {
+		return tea.Batch(a.list.Init(), a.showNotice(keyWarningNotice(a.keyWarnings), true))
+	}
 	return a.list.Init()
 }
 
 // Update handles messages
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		var pending bool
+		if msg, pending = a.resolveChord(keyMsg); pending {
+			return a, nil
+		}
+	}
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -171,35 +191,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
-		// Handle key chord sequences
-		if a.state == viewList && a.list.list.FilterState() != 1 {
-			if a.pendingKey == "g" {
-				a.pendingKey = ""
-				switch msg.String() {
-				case "t":
-					// "g t" - go to tags
-					return a, func() tea.Msg { return openTagPickerMsg{} }
-				default:
-					// Invalid second key, ignore the chord
-				}
-				// Don't forward this key since it was part of a chord attempt
-				return a, nil
-			}
-
-			// Start of potential chord
-			if msg.String() == "g" {
-				a.pendingKey = "g"
-				return a, nil
-			}
-		}
-
-		// Clear pending key on any other key press
-		a.pendingKey = ""
-
-		switch msg.String() {
-		case "ctrl+c":
+		switch {
+		case key.Matches(msg, keymap.Global.ForceQuit):
 			return a, tea.Quit
-		case "?":
+		case key.Matches(msg, keymap.Global.Help):
 			// Open help overlay if not already showing it (and not in a picker/modal)
 			if a.state == viewList || a.state == viewDetail {
 				a.previousState = a.state
@@ -207,12 +202,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.state = viewHelpOverlay
 				return a, a.helpOverlay.Init()
 			}
-		case "q":
-			if a.canQuitWithQ() {
+		case key.Matches(msg, keymap.Global.Quit):
+			if a.canQuit() {
 				return a, tea.Quit
 			}
-		case "R":
-			if (a.state == viewList || a.state == viewDetail) && a.canQuitWithQ() {
+		case key.Matches(msg, keymap.Global.ReloadConfig):
+			if (a.state == viewList || a.state == viewDetail) && a.canQuit() {
 				return a, func() tea.Msg { return reloadConfigMsg{} }
 			}
 		}
@@ -907,9 +902,70 @@ func (a *App) listView() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, left, right) + "\n" + a.list.Footer()
 }
 
-// canQuitWithQ returns true if "q" should quit the app in the current state.
+// resolveChord tracks chord keys (see KeyMap). It returns pending=true while a
+// chord is incomplete; otherwise the message to handle: the key itself, or a
+// chordMsg once a chord is complete. An unknown chord is handled as a chordMsg
+// too, which matches no binding.
+func (a *App) resolveChord(msg tea.KeyMsg) (_ tea.Msg, pending bool) {
+	bindings := a.chordBindings()
+	seq := msg.String()
+	if a.pendingKeys != "" {
+		seq = a.pendingKeys + chordSep + seq
+	}
+	if isChordPrefix(seq, bindings) {
+		a.pendingKeys = seq
+		return nil, true
+	}
+	wasPending := a.pendingKeys != ""
+	a.pendingKeys = ""
+	if wasPending {
+		return chordMsg(seq), false
+	}
+	return msg, false
+}
+
+// chordBindings returns the bindings whose chords can be typed in the current
+// state. Chords are off while typing text (filters, text inputs).
+func (a *App) chordBindings() []key.Binding {
+	if a.typingText() {
+		return nil
+	}
+
+	switch a.state {
+	case viewList:
+		return append(allBindings(keymap.Global), allBindings(keymap.List)...)
+	case viewDetail:
+		return append(allBindings(keymap.Global), allBindings(keymap.Detail)...)
+	case viewHelpOverlay:
+		return allBindings(keymap.Help)
+	case viewTagPicker, viewParentPicker, viewStatusPicker, viewTypePicker, viewBlockingPicker, viewPriorityPicker, viewLauncherPicker:
+		return allBindings(keymap.Picker)
+	case viewArchiveConfirm:
+		return allBindings(keymap.ArchiveConfirm)
+	case viewLauncherResult:
+		return allBindings(keymap.LauncherResult)
+	case viewConfigureLaunchers:
+		return allBindings(keymap.ConfigureLaunchers)
+	}
+	return nil
+}
+
+// typingText reports whether keys currently go to a text input.
+func (a *App) typingText() bool {
+	switch a.state {
+	case viewCreateModal, viewTagEditor:
+		return true
+	case viewLauncherPicker:
+		return a.launcherPicker.list.FilterState() == list.Filtering
+	case viewArchiveConfirm, viewLauncherResult, viewConfigureLaunchers:
+		return false
+	}
+	return !a.canQuit()
+}
+
+// canQuit returns true if the quit key should quit the app in the current state.
 // It must not quit while the user is typing text (filters, text inputs).
-func (a *App) canQuitWithQ() bool {
+func (a *App) canQuit() bool {
 	switch a.state {
 	case viewList:
 		return a.list.list.FilterState() != list.Filtering
@@ -1079,6 +1135,9 @@ func getEditor() string {
 
 // Run starts the TUI application with file watching
 func Run(core *beancore.Core, cfg *config.Config) error {
+	if _, _, err := NewKeyMap(cfg.Keybinding); err != nil {
+		return fmt.Errorf("keybinding: %w", err)
+	}
 	app := New(core, cfg)
 	p := tea.NewProgram(app, tea.WithAltScreen())
 

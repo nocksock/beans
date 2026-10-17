@@ -98,6 +98,44 @@ Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans`
 - **Merging**: the closest config wins. Nested settings merge key by key; lists of named items (like `launchers`) merge by `name` (same name replaces, new names are added); other lists are replaced.
 - **Paths**: relative paths resolve against the config file that declared them. Set `beans.path` in a subdirectory config to give it its own beans directory. If no config sets it, `.beans` next to the nearest config is used.
 
+### User Config
+
+Settings that should apply to all your projects go in `~/.config/beans/config.yml` (or `$XDG_CONFIG_HOME/beans/config.yml`). It uses the same format as `.beans.yml` and is the base layer below every project config, which can override it. `beans.path` can't be set there, and `cascade` has no effect.
+
+### Custom Key Bindings
+
+Every TUI key can be rebound in the `keybinding` section of the user config or a `.beans.yml`, much like lazygit's:
+
+```yaml
+keybinding:
+  global:
+    quit: ctrl+q
+  list:
+    changeStatus: [x, "g s"]  # a key or a list of keys; "g s" is a chord
+    archive: <disabled>       # unbind (an empty list works too)
+  picker:
+    cancel: [esc, q]
+```
+
+- Bindings are grouped by context; the names mirror the TUI's Go key maps in lowerCamel (`ListKeyMap.ChangeStatus` → `list.changeStatus`). Unknown names are an error.
+- An override replaces all default keys of that action. Keys use bubbletea's names (`ctrl+c`, `enter`, `esc`, `shift+tab`, `pgdown`, …); use `space` for the space bar.
+- Keys bound to several actions of one context (`global` counts as part of `list` and `detail`) are reported as a warning in the footer.
+- The tag editor and the create dialog have text inputs: printable keys bound there can't be typed anymore.
+- Footers and the help overlay show your bindings. Key bindings are reloaded with the rest of the config (`R`, or automatically when a config file changes).
+
+| Context | Actions (default keys) |
+|---------|------------------------|
+| `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`) |
+| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
+| `detail` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `scrollLeft` (`left`), `scrollRight` (`right`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `filterLinks` (`/`), `back` (`esc` `backspace`), `prevBean` (`h`), `nextBean` (`l`), `toggleFocus` (`tab`), `followLink` (`enter`), `edit` (`e`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
+| `help` | `close` (`?` `esc`) |
+| `picker` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `h` `pgup` `b` `u`), `nextPage` (`right` `l` `pgdown` `f` `d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `confirm` (`enter`), `cancel` (`esc` `backspace`), `toggle` (`space`, blocking picker) |
+| `tagEditor` | `up` (`up` `ctrl+p`), `down` (`down` `ctrl+n`), `toggle` (`space` `tab`), `apply` (`enter`), `cancel` (`esc`) |
+| `createModal` | `cancel` (`esc`), `nextField` (`tab`), `prevField` (`shift+tab`), `submit` (`ctrl+s`), `submitAndEdit` (`ctrl+e`), `quickSubmit` (`enter`, not in the description), `cyclePrev` (`left` `h` `up` `k`), `cycleNext` (`right` `l` `down` `j` `space`), `quickSubmitAndEdit` (`e`); the last three only on type/status/priority |
+| `archiveConfirm` | `confirm` (`y` `Y`), `cancel` (`n` `N` `esc` `backspace`) |
+| `launcherResult` | `close` (`enter` `esc` `q`), `openLog` (`e`) |
+| `configureLaunchers` | `up` (`up` `k`), `down` (`down` `j`), `toggle` (`space` `enter`), `confirm` (`y`), `cancel` (`esc` `q`) |
+
 ## Agent Configuration
 
 We'll need to teach your coding agent that it should use Beans to track tasks, and how to do so. The exact steps will depend on which agent you're using.

@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -152,6 +153,12 @@ type listModel struct {
 	childCounts map[string]int
 }
 
+// mainListKeyMap returns the bubbles list key map for the bean list.
+func mainListKeyMap() list.KeyMap {
+	k := keymap.List
+	return listKeyMap(k.Up, k.Down, k.PrevPage, k.NextPage, k.GoToStart, k.GoToEnd, k.Filter)
+}
+
 func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	selectedBeans := make(map[string]bool)
 	collapsedBeans := make(map[string]bool)
@@ -166,6 +173,7 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+	l.KeyMap = mainListKeyMap()
 	l.Styles.Title = listTitleStyle
 	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 1, 1)
 	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.ColorPrimary)
@@ -405,22 +413,23 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.list.FilterState() != list.Filtering {
-			switch msg.String() {
-			case "h":
+			k := keymap.List
+			switch {
+			case key.Matches(msg, k.Collapse):
 				// Collapse current item if it has children
 				if item, ok := m.list.SelectedItem().(beanItem); ok && item.hasChildren {
 					m.collapsedBeans[item.bean.ID] = true
 					return m, m.loadBeans
 				}
 				return m, nil
-			case "l":
+			case key.Matches(msg, k.Expand):
 				// Expand current item if it has children
 				if item, ok := m.list.SelectedItem().(beanItem); ok && item.hasChildren {
 					delete(m.collapsedBeans, item.bean.ID)
 					return m, m.loadBeans
 				}
 				return m, nil
-			case "z":
+			case key.Matches(msg, k.ToggleCollapse):
 				// Toggle collapse/expand for current item
 				if item, ok := m.list.SelectedItem().(beanItem); ok && item.hasChildren {
 					if m.collapsedBeans[item.bean.ID] {
@@ -431,7 +440,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, m.loadBeans
 				}
 				return m, nil
-			case "Z":
+			case key.Matches(msg, k.CollapseAll):
 				// Collapse all items with children
 				for _, item := range m.list.Items() {
 					if bi, ok := item.(beanItem); ok && bi.hasChildren {
@@ -439,7 +448,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					}
 				}
 				return m, m.loadBeans
-			case " ":
+			case key.Matches(msg, k.ToggleSelect):
 				// Toggle selection for multi-select
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					if m.selectedBeans[item.bean.ID] {
@@ -449,7 +458,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					}
 				}
 				return m, nil
-			case "enter":
+			case key.Matches(msg, k.Open):
 				// Drill into beans with children, open leaf beans
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					if item.hasChildren {
@@ -460,14 +469,14 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						return selectBeanMsg{bean: item.bean}
 					}
 				}
-			case "v":
+			case key.Matches(msg, k.View):
 				// Open full detail view
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
 						return selectBeanMsg{bean: item.bean}
 					}
 				}
-			case "p":
+			case key.Matches(msg, k.ChangeParent):
 				// Open parent picker for selected bean(s)
 				if len(m.selectedBeans) > 0 {
 					// Multi-select mode
@@ -500,7 +509,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "s":
+			case key.Matches(msg, k.ChangeStatus):
 				// Open status picker for selected bean(s)
 				if len(m.selectedBeans) > 0 {
 					// Multi-select mode
@@ -523,7 +532,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "t":
+			case key.Matches(msg, k.ChangeType):
 				// Open type picker for selected bean(s)
 				if len(m.selectedBeans) > 0 {
 					// Multi-select mode
@@ -546,7 +555,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "T":
+			case key.Matches(msg, k.EditTags):
 				// Open tag editor for selected bean(s)
 				if len(m.selectedBeans) > 0 {
 					// Multi-select mode
@@ -568,7 +577,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "P":
+			case key.Matches(msg, k.ChangePriority):
 				// Open priority picker for selected bean(s)
 				if len(m.selectedBeans) > 0 {
 					// Multi-select mode
@@ -591,14 +600,15 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case ">", "<":
-				// Raise/lower priority one step for selected bean(s)
-				delta := 1
-				if msg.String() == "<" {
-					delta = -1
-				}
-				return m, m.shiftPriority(delta)
-			case "b":
+			case key.Matches(msg, k.RaisePriority):
+				// Raise priority one step for selected bean(s)
+				return m, m.shiftPriority(-1)
+			case key.Matches(msg, k.LowerPriority):
+				// Lower priority one step for selected bean(s)
+				return m, m.shiftPriority(1)
+			case key.Matches(msg, k.FilterByTag):
+				return m, func() tea.Msg { return openTagPickerMsg{} }
+			case key.Matches(msg, k.ManageBlocking):
 				// Open blocking picker for selected bean
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
@@ -609,7 +619,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "B":
+			case key.Matches(msg, k.ManageBlockedBy):
 				// Open blocked-by picker for selected bean
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
@@ -621,12 +631,12 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "c":
+			case key.Matches(msg, k.Create):
 				// Open create modal
 				return m, func() tea.Msg {
 					return openCreateModalMsg{}
 				}
-			case "C":
+			case key.Matches(msg, k.CreateChild):
 				// Open create modal with selected bean(s) as parent (create child)
 				var parentID, parentTitle string
 				if len(m.selectedBeans) > 0 {
@@ -660,7 +670,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "e":
+			case key.Matches(msg, k.Edit):
 				// Open editor for selected bean
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
@@ -670,7 +680,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "!":
+			case key.Matches(msg, k.Launch):
 				// Open launcher picker for selected bean(s)
 				if len(m.selectedBeans) > 0 {
 					// Multi-select: collect all IDs
@@ -706,12 +716,12 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case "Y":
+			case key.Matches(msg, k.Archive):
 				// Archive all completed beans (asks for confirmation)
 				return m, func() tea.Msg {
 					return archiveCompletedMsg{}
 				}
-			case "esc", "backspace":
+			case key.Matches(msg, k.Back):
 				// First clear selection if any beans are selected
 				if len(m.selectedBeans) > 0 {
 					clear(m.selectedBeans)
@@ -731,6 +741,8 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						return clearFilterMsg{}
 					}
 				}
+				// Nothing left to back out of
+				return m, tea.Quit
 			}
 		}
 	}
@@ -810,10 +822,12 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 func (m listModel) Footer() string {
 	var help string
 
+	g, k := keymap.Global, keymap.List
+
 	// esc goes up a level when drilled in
 	var backHelp string
 	if len(m.rootStack) > 0 {
-		backHelp = helpKeyStyle.Render("esc") + " " + helpStyle.Render("up") + "  "
+		backHelp = hint(k.Back, "up")
 	}
 
 	// Show selection count if any beans are selected
@@ -825,55 +839,61 @@ func (m listModel) Footer() string {
 
 	if len(m.selectedBeans) > 0 {
 		// When beans are selected, show esc to clear selection
-		help = helpKeyStyle.Render("space") + " " + helpStyle.Render("toggle") + "  " +
-			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
-			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
-			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
-			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
-			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
-			helpKeyStyle.Render("esc") + " " + helpStyle.Render("clear selection") + "  " +
-			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
-			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
+		help = hints(
+			hint(k.ToggleSelect, "toggle"),
+			hint(k.ChangeStatus, ""),
+			hint(k.ChangeType, ""),
+			hint(k.ChangePriority, ""),
+			hint(k.Launch, ""),
+			hint(k.EditTags, ""),
+			hint(k.Back, "clear selection"),
+			hint(g.Help, ""),
+			hint(g.Quit, ""),
+		)
 	} else if m.hasActiveFilter() {
-		help = backHelp +
-			helpKeyStyle.Render("space") + " " + helpStyle.Render("select") + "  " +
-			helpKeyStyle.Render("enter") + " " + helpStyle.Render("open") + "  " +
-			helpKeyStyle.Render("v") + " " + helpStyle.Render("view") + "  " +
-			helpKeyStyle.Render("c") + " " + helpStyle.Render("create") + "  " +
-			helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
-			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
-			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
-			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
-			helpKeyStyle.Render("</>") + " " + helpStyle.Render("prio +/-") + "  " +
-			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
-			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
-			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
-			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
-			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
-			helpKeyStyle.Render("esc") + " " + helpStyle.Render("clear filter") + "  " +
-			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
-			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
+		help = hints(
+			backHelp,
+			hint(k.ToggleSelect, ""),
+			hint(k.Open, ""),
+			hint(k.View, ""),
+			hint(k.Create, ""),
+			hint(k.Edit, ""),
+			hint(k.ChangeStatus, ""),
+			hint(k.ChangeType, ""),
+			hint(k.ChangePriority, ""),
+			groupHint("prio +/-", k.RaisePriority, k.LowerPriority),
+			hint(k.EditTags, ""),
+			hint(k.ChangeParent, ""),
+			hint(k.ManageBlocking, ""),
+			hint(k.ManageBlockedBy, ""),
+			hint(k.Launch, ""),
+			hint(k.Back, "clear filter"),
+			hint(g.Help, ""),
+			hint(g.Quit, ""),
+		)
 	} else {
-		help = backHelp +
-			helpKeyStyle.Render("space") + " " + helpStyle.Render("select") + "  " +
-			helpKeyStyle.Render("enter") + " " + helpStyle.Render("open") + "  " +
-			helpKeyStyle.Render("v") + " " + helpStyle.Render("view") + "  " +
-			helpKeyStyle.Render("c") + " " + helpStyle.Render("create") + "  " +
-			helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
-			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
-			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
-			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
-			helpKeyStyle.Render("</>") + " " + helpStyle.Render("prio +/-") + "  " +
-			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
-			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
-			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
-			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
-			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
-			helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
-			helpKeyStyle.Render("h/l/z") + " " + helpStyle.Render("fold") + "  " +
-			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
-			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
-			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
+		help = hints(
+			backHelp,
+			hint(k.ToggleSelect, ""),
+			hint(k.Open, ""),
+			hint(k.View, ""),
+			hint(k.Create, ""),
+			hint(k.Edit, ""),
+			hint(k.ChangeStatus, ""),
+			hint(k.ChangeType, ""),
+			hint(k.ChangePriority, ""),
+			groupHint("prio +/-", k.RaisePriority, k.LowerPriority),
+			hint(k.EditTags, ""),
+			hint(k.ChangeParent, ""),
+			hint(k.ManageBlocking, ""),
+			hint(k.ManageBlockedBy, ""),
+			hint(k.Launch, ""),
+			hint(k.Archive, ""),
+			groupHint("fold", k.Collapse, k.Expand, k.ToggleCollapse),
+			hint(k.Filter, ""),
+			hint(g.Help, ""),
+			hint(g.Quit, ""),
+		)
 	}
 
 	var noticePrefix string
