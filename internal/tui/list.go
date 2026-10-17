@@ -669,6 +669,10 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
+			case key.Matches(msg, k.Dependencies):
+				if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg { return openDepNavMsg{bean: item.bean} }
+				}
 			case key.Matches(msg, k.Create):
 				// Open create modal
 				return m, func() tea.Msg {
@@ -926,6 +930,7 @@ func (m listModel) Footer() string {
 			hint(k.ChangeParent, ""),
 			hint(k.ManageBlocking, ""),
 			hint(k.ManageBlockedBy, ""),
+			hint(k.Dependencies, ""),
 			hint(k.Launch, ""),
 			hint(k.ToggleLog, ""),
 			hint(k.Back, "clear filter"),
@@ -950,6 +955,7 @@ func (m listModel) Footer() string {
 			hint(k.ChangeParent, ""),
 			hint(k.ManageBlocking, ""),
 			hint(k.ManageBlockedBy, ""),
+			hint(k.Dependencies, ""),
 			hint(k.Launch, ""),
 			hint(k.ToggleLog, ""),
 			hint(k.Archive, ""),

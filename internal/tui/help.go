@@ -104,6 +104,7 @@ func (m helpOverlayModel) View() string {
 		{l.ChangeParent.Keys(), "Set parent"},
 		{l.ManageBlocking.Keys(), "Manage blocking"},
 		{l.ManageBlockedBy.Keys(), "Manage blocked by"},
+		{l.Dependencies.Keys(), "Dependency chains"},
 		{l.Archive.Keys(), "Archive (all completed in list)"},
 		{l.ToggleArchived.Keys(), "Show / hide archived"},
 		{l.Filter.Keys(), "Filter"},
