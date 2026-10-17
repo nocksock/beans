@@ -73,6 +73,51 @@ func (b *Bean) HasParent() bool {
 	return b.Parent != ""
 }
 
+// maxBodySnippetRunes caps the body snippet used in place of a missing title.
+const maxBodySnippetRunes = 120
+
+// snippetMarkerPattern matches leading markdown heading, quote, list and checkbox markers.
+var snippetMarkerPattern = regexp.MustCompile(`^(?:#{1,6}(?:\s+|$)|>\s*|[-*+]\s+)*(?:\[[ xX]\]\s*)?`)
+
+// snippetRulePattern matches lines that are only a horizontal rule or fence.
+var snippetRulePattern = regexp.MustCompile("^(?:[-*_=]{3,}|`{3,}.*|~{3,}.*)$")
+
+// untitledPlaceholder is shown when a bean has neither a title nor a body.
+const untitledPlaceholder = "(untitled)"
+
+// HasTitle returns true if the bean has a non-blank title.
+func (b *Bean) HasTitle() bool {
+	return strings.TrimSpace(b.Title) != ""
+}
+
+// DisplayTitle returns the title, or a snippet of the body when the bean is untitled.
+func (b *Bean) DisplayTitle() string {
+	if b.HasTitle() {
+		return b.Title
+	}
+	if snippet := BodySnippet(b.Body); snippet != "" {
+		return snippet
+	}
+	return untitledPlaceholder
+}
+
+// BodySnippet returns the first non-empty line of a markdown body, stripped of
+// heading, list, quote and checkbox markers and capped at maxBodySnippetRunes.
+func BodySnippet(body string) string {
+	for _, line := range strings.Split(body, "\n") {
+		line = snippetMarkerPattern.ReplaceAllString(strings.TrimSpace(line), "")
+		line = strings.Join(strings.Fields(line), " ")
+		if line == "" || snippetRulePattern.MatchString(line) {
+			continue
+		}
+		if runes := []rune(line); len(runes) > maxBodySnippetRunes {
+			return string(runes[:maxBodySnippetRunes-3]) + "..."
+		}
+		return line
+	}
+	return ""
+}
+
 // IsBlocking returns true if this bean is blocking the given bean ID.
 func (b *Bean) IsBlocking(id string) bool {
 	for _, target := range b.Blocking {
@@ -162,7 +207,7 @@ type Bean struct {
 
 // frontMatter is the subset of Bean that gets serialized to YAML front matter.
 type frontMatter struct {
-	Title     string     `yaml:"title"`
+	Title     string     `yaml:"title,omitempty"`
 	Status    string     `yaml:"status"`
 	Type      string     `yaml:"type,omitempty"`
 	Priority  string     `yaml:"priority,omitempty"`
@@ -199,7 +244,7 @@ func Parse(r io.Reader) (*Bean, error) {
 
 // renderFrontMatter is used for YAML output with yaml.v3 (supports custom marshalers).
 type renderFrontMatter struct {
-	Title     string     `yaml:"title"`
+	Title     string     `yaml:"title,omitempty"`
 	Status    string     `yaml:"status"`
 	Type      string     `yaml:"type,omitempty"`
 	Priority  string     `yaml:"priority,omitempty"`

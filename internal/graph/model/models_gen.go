@@ -52,8 +52,8 @@ type BeanFilter struct {
 
 // Input for creating a new bean
 type CreateBeanInput struct {
-	// Bean title (required)
-	Title string `json:"title"`
+	// Bean title (optional when a body is given)
+	Title *string `json:"title,omitempty"`
 	// Bean type (defaults to 'task')
 	Type *string `json:"type,omitempty"`
 	// Status (defaults to 'todo')

@@ -41,9 +41,9 @@ type blockingItem struct {
 	cfg  *config.Config
 }
 
-func (i blockingItem) Title() string       { return i.bean.Title }
+func (i blockingItem) Title() string       { return i.bean.DisplayTitle() }
 func (i blockingItem) Description() string { return i.bean.ID }
-func (i blockingItem) FilterValue() string { return i.bean.Title + " " + i.bean.ID }
+func (i blockingItem) FilterValue() string { return i.bean.DisplayTitle() + " " + i.bean.ID }
 
 // blockingItemDelegate handles rendering of blocking picker items
 type blockingItemDelegate struct {
@@ -82,8 +82,8 @@ func (d blockingItemDelegate) Render(w io.Writer, m list.Model, index int, listI
 
 	// Format: [indicator] [type] title (id)
 	typeBadge := ui.RenderTypeText(item.bean.Type, colors.TypeColor)
-	title := item.bean.Title
-	if colors.IsArchive {
+	title := item.bean.DisplayTitle()
+	if colors.IsArchive || !item.bean.HasTitle() {
 		title = ui.Muted.Render(title)
 	}
 	id := ui.Muted.Render(" (" + item.bean.ID + ")")
@@ -135,7 +135,7 @@ func newBlockingPickerModel(beanID, beanTitle string, blockedBy bool, currentIDs
 		if ti != tj {
 			return ti < tj
 		}
-		return strings.ToLower(eligibleBeans[i].Title) < strings.ToLower(eligibleBeans[j].Title)
+		return strings.ToLower(eligibleBeans[i].DisplayTitle()) < strings.ToLower(eligibleBeans[j].DisplayTitle())
 	})
 
 	// Build items list

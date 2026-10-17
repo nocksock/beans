@@ -556,7 +556,7 @@ func TestMutationCreateBean(t *testing.T) {
 	t.Run("create with required fields only", func(t *testing.T) {
 		mr := resolver.Mutation()
 		input := model.CreateBeanInput{
-			Title: "New Bean",
+			Title: strPtr("New Bean"),
 		}
 		got, err := mr.CreateBean(ctx, input)
 		if err != nil {
@@ -574,6 +574,41 @@ func TestMutationCreateBean(t *testing.T) {
 		}
 		if got.ID == "" {
 			t.Error("CreateBean().ID is empty")
+		}
+	})
+
+	t.Run("create without title uses body", func(t *testing.T) {
+		mr := resolver.Mutation()
+		got, err := mr.CreateBean(ctx, model.CreateBeanInput{Body: strPtr("Fix the flaky test\nmore details")})
+		if err != nil {
+			t.Fatalf("CreateBean() error = %v", err)
+		}
+		if got.Title != "" {
+			t.Errorf("CreateBean().Title = %q, want empty", got.Title)
+		}
+		if got.Slug != "fix-the-flaky-test" {
+			t.Errorf("CreateBean().Slug = %q, want %q", got.Slug, "fix-the-flaky-test")
+		}
+		if got.DisplayTitle() != "Fix the flaky test" {
+			t.Errorf("DisplayTitle() = %q, want %q", got.DisplayTitle(), "Fix the flaky test")
+		}
+	})
+
+	t.Run("create with unsluggable title falls back to untitled slug", func(t *testing.T) {
+		mr := resolver.Mutation()
+		got, err := mr.CreateBean(ctx, model.CreateBeanInput{Title: strPtr("!!!")})
+		if err != nil {
+			t.Fatalf("CreateBean() error = %v", err)
+		}
+		if got.Slug != "untitled" {
+			t.Errorf("CreateBean().Slug = %q, want %q", got.Slug, "untitled")
+		}
+	})
+
+	t.Run("create without title or body fails", func(t *testing.T) {
+		mr := resolver.Mutation()
+		if _, err := mr.CreateBean(ctx, model.CreateBeanInput{Title: strPtr("  ")}); err == nil {
+			t.Error("CreateBean() expected error for empty title and body")
 		}
 	})
 
@@ -601,7 +636,7 @@ func TestMutationCreateBean(t *testing.T) {
 		body := "Test body content"
 		parent := "some-parent"
 		input := model.CreateBeanInput{
-			Title:    "Full Bean",
+			Title:    strPtr("Full Bean"),
 			Type:     &beanType,
 			Status:   &status,
 			Priority: &priority,
@@ -1202,7 +1237,7 @@ func TestMutationCreateBeanWithBlockedBy(t *testing.T) {
 	createTestBean(t, core, "blocker-1", "Blocker", "todo")
 
 	got, err := resolver.Mutation().CreateBean(ctx, model.CreateBeanInput{
-		Title:     "Blocked",
+		Title:     strPtr("Blocked"),
 		BlockedBy: []string{"blocker-1"},
 	})
 	if err != nil {
@@ -1212,3 +1247,5 @@ func TestMutationCreateBeanWithBlockedBy(t *testing.T) {
 		t.Errorf("CreateBean().BlockedBy = %v, want [blocker-1]", got.BlockedBy)
 	}
 }
+
+func strPtr(s string) *string { return &s }

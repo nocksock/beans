@@ -335,6 +335,7 @@ type BeanRowConfig struct {
 	MaxTags       int      // Max tags to show (0 = default of 1)
 	TreePrefix    string   // Tree prefix (e.g., "├─" or "  └─") to prepend to ID
 	Dimmed        bool     // Render row dimmed (for unmatched ancestor beans in tree)
+	TitleMuted    bool     // Render the title muted (e.g. a body snippet shown for an untitled bean)
 	IDColWidth    int      // Width of ID column (0 = default of ColWidthID)
 	HasChildren   bool     // Whether this bean has children (for caret indicator)
 	IsCollapsed   bool     // Whether this bean's children are collapsed
@@ -553,7 +554,7 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 			titleStyled = lipgloss.NewStyle().Bold(true).Foreground(ColorPrimary).Render(displayTitle)
 		} else {
 			cursor = " "
-			if cfg.Dimmed {
+			if cfg.Dimmed || cfg.TitleMuted {
 				titleStyled = Muted.Render(displayTitle)
 			} else {
 				titleStyled = displayTitle
@@ -561,7 +562,7 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 		}
 	} else {
 		cursor = ""
-		if cfg.Dimmed {
+		if cfg.Dimmed || cfg.TitleMuted {
 			titleStyled = Muted.Render(displayTitle)
 		} else {
 			titleStyled = displayTitle

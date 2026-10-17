@@ -128,7 +128,7 @@ func (m *LaunchManager) startLaunch(launch *BeanLaunch, projectRoot, beansDir st
 		ConfigDir:   m.launcher.Dir,
 		BeansDir:    beansDir,
 		BeanID:      launch.Bean.ID,
-		BeanTitle:   launch.Bean.Title,
+		BeanTitle:   launch.Bean.DisplayTitle(),
 	})
 	if err != nil {
 		launch.Status = LaunchFailed

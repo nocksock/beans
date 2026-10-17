@@ -60,8 +60,8 @@ type Mutation {
 Input for creating a new bean
 """
 input CreateBeanInput {
-  "Bean title (required)"
-  title: String!
+  "Bean title (optional when a body is given)"
+  title: String
   "Bean type (defaults to 'task')"
   type: String
   "Status (defaults to 'todo')"

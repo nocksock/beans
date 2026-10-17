@@ -69,11 +69,20 @@ func TestCreateModalSubmit(t *testing.T) {
 			wantTitle: "Hello", wantType: "task", wantStatus: "draft", wantPrio: "normal",
 		},
 		{
-			name: "empty title closes",
+			name: "empty title and description closes",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
 				return pressCreate(m, keyMsg("enter"))
 			},
 			wantClose: true,
+		},
+		{
+			name: "empty title with description creates untitled bean",
+			build: func(m createModalModel) (createModalModel, tea.Cmd) {
+				m, _ = pressCreate(m, shiftTab)
+				m = typeIntoCreate(m, "just a body")
+				return pressCreate(m, ctrlS)
+			},
+			wantType: "task", wantStatus: "draft", wantPrio: "normal", wantBody: "just a body",
 		},
 		{
 			name: "selectors cycle type, status and priority",

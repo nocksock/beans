@@ -101,7 +101,7 @@ func (m *previewModel) renderBean(width int) string {
 
 	var parts []string
 	parts = append(parts, ui.ID.Render(b.ID))
-	parts = append(parts, detailTitleStyle.Render(b.Title))
+	parts = append(parts, renderDetailTitle(b))
 	parts = append(parts, "")
 
 	// Status, type, priority
@@ -120,7 +120,7 @@ func (m *previewModel) renderBean(width int) string {
 	// Relationships
 	var rels []string
 	if m.ctx.parent != nil {
-		rels = append(rels, label.Render("Parent:   ")+ui.ID.Render(m.ctx.parent.ID)+" "+m.ctx.parent.Title)
+		rels = append(rels, label.Render("Parent:   ")+ui.ID.Render(m.ctx.parent.ID)+" "+m.ctx.parent.DisplayTitle())
 	} else if b.Parent != "" {
 		rels = append(rels, label.Render("Parent:   ")+ui.ID.Render(b.Parent))
 	}

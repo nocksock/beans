@@ -281,7 +281,7 @@ func renderNode(sb *strings.Builder, node *TreeNode, depth int, isLast bool, anc
 	colors := cfg.GetBeanColors(b.Status, b.Type, b.Priority)
 
 	// Use shared RenderBeanRow function with responsive columns
-	row := RenderBeanRow(b.ID, b.Status, b.Type, b.Title, BeanRowConfig{
+	row := RenderBeanRow(b.ID, b.Status, b.Type, b.DisplayTitle(), BeanRowConfig{
 		StatusColor:   colors.StatusColor,
 		TypeColor:     colors.TypeColor,
 		PriorityColor: colors.PriorityColor,
@@ -295,6 +295,7 @@ func renderNode(sb *strings.Builder, node *TreeNode, depth int, isLast bool, anc
 		MaxTags:       renderCfg.cols.MaxTags,
 		TreePrefix:    prefix,
 		Dimmed:        !node.Matched,
+		TitleMuted:    !b.HasTitle(),
 		IDColWidth:    renderCfg.treeColWidth,
 	})
 

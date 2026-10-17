@@ -179,7 +179,7 @@ func renderGraphDOT(g beanGraph, colorFor func(status string) string) string {
 	sb.WriteString("digraph beans {\n")
 	sb.WriteString("  node [shape=box];\n")
 	for _, n := range g.Nodes {
-		attrs := []string{"label=" + strconv.Quote(n.ID+"\n"+n.Title)}
+		attrs := []string{"label=" + strconv.Quote(n.ID+"\n"+n.DisplayTitle())}
 		if c := colorFor(n.Status); c != "" {
 			attrs = append(attrs, "color="+strconv.Quote(c))
 		}

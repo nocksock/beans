@@ -69,7 +69,7 @@ type createModalModel struct {
 
 func newCreateModalModel(cfg *config.Config, width, height int, parentID, parentTitle string) createModalModel {
 	ti := textinput.New()
-	ti.Placeholder = "Enter bean title..."
+	ti.Placeholder = "Enter bean title (optional)..."
 	ti.CharLimit = 200
 	ti.Focus()
 	ti.PromptStyle = lipgloss.NewStyle().Foreground(ui.ColorPrimary)
@@ -145,10 +145,12 @@ func (m *createModalModel) setFocus(f createField) tea.Cmd {
 	return nil
 }
 
-// submit returns a command that creates the bean, or closes the modal if the title is empty
+// submit returns a command that creates the bean, or closes the modal if both
+// title and description are empty (the title is optional when a description is given)
 func (m createModalModel) submit(openEditor bool) tea.Cmd {
 	title := strings.TrimSpace(m.textInput.Value())
-	if title == "" {
+	body := strings.TrimSpace(m.body.Value())
+	if title == "" && body == "" {
 		return func() tea.Msg { return closeCreateModalMsg{} }
 	}
 	msg := beanCreatedMsg{
@@ -156,7 +158,7 @@ func (m createModalModel) submit(openEditor bool) tea.Cmd {
 		beanType:   m.types[m.typeIdx].Name,
 		status:     m.statuses[m.statusIdx].Name,
 		priority:   m.priorities[m.priorityIdx].Name,
-		body:       strings.TrimSpace(m.body.Value()),
+		body:       body,
 		parentID:   m.parentID,
 		openEditor: openEditor,
 	}

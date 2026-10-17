@@ -1283,3 +1283,47 @@ func TestBlockedByMethods(t *testing.T) {
 		t.Errorf("RemoveBlockedBy left %v", b.BlockedBy)
 	}
 }
+
+func TestDisplayTitle(t *testing.T) {
+	long := strings.Repeat("a", 200)
+	tests := []struct {
+		name      string
+		title     string
+		body      string
+		want      string
+		wantTitle bool
+	}{
+		{name: "title wins", title: "Real title", body: "body text", want: "Real title", wantTitle: true},
+		{name: "blank title uses first body line", title: "  ", body: "\n\nFirst line\nsecond line", want: "First line"},
+		{name: "strips heading marker", body: "## Fix   the   thing\nmore", want: "Fix the thing"},
+		{name: "strips list and checkbox markers", body: "- [ ] write tests", want: "write tests"},
+		{name: "strips quote marker", body: "> quoted idea", want: "quoted idea"},
+		{name: "skips marker-only lines", body: "---\n#\n```go\nactual content", want: "actual content"},
+		{name: "keeps leading dash without space", body: "-5 degrees outside", want: "-5 degrees outside"},
+		{name: "caps long body", body: long, want: strings.Repeat("a", maxBodySnippetRunes-3) + "..."},
+		{name: "no title and no body", want: untitledPlaceholder},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &Bean{Title: tt.title, Body: tt.body}
+			if got := b.DisplayTitle(); got != tt.want {
+				t.Errorf("DisplayTitle() = %q, want %q", got, tt.want)
+			}
+			if got := b.HasTitle(); got != tt.wantTitle {
+				t.Errorf("HasTitle() = %v, want %v", got, tt.wantTitle)
+			}
+		})
+	}
+}
+
+func TestRenderUntitledOmitsTitle(t *testing.T) {
+	b := &Bean{Status: "todo", Body: "just a body"}
+	out, err := b.Render()
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if strings.Contains(string(out), "title:") {
+		t.Errorf("Render() output contains title key:\n%s", out)
+	}
+}

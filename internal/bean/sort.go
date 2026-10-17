@@ -72,6 +72,6 @@ func SortByStatusPriorityAndType(beans []*Bean, statusNames, priorityNames, type
 			return ti < tj
 		}
 		// Quaternary: title (case-insensitive) for stable, user-friendly ordering
-		return strings.ToLower(beans[i].Title) < strings.ToLower(beans[j].Title)
+		return strings.ToLower(beans[i].DisplayTitle()) < strings.ToLower(beans[j].DisplayTitle())
 	})
 }

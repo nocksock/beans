@@ -105,7 +105,7 @@ var showCmd = &cobra.Command{
 			header.WriteString(ui.Muted.Render(strings.Join(b.Tags, ", ")))
 		}
 		header.WriteString("\n")
-		header.WriteString(ui.Title.Render(b.Title))
+		header.WriteString(ui.Title.Render(b.DisplayTitle()))
 
 		// Display relationships
 		if b.Parent != "" || len(b.Blocking) > 0 || len(b.BlockedBy) > 0 {
@@ -219,7 +219,7 @@ func collectRelatedBeans(b *bean.Bean) ([]relatedBean, error) {
 	add := func(relation string, beans ...*bean.Bean) {
 		for _, r := range beans {
 			if r != nil {
-				related = append(related, relatedBean{ID: r.ID, Relation: relation, Status: r.Status, Title: r.Title})
+				related = append(related, relatedBean{ID: r.ID, Relation: relation, Status: r.Status, Title: r.DisplayTitle()})
 			}
 		}
 	}

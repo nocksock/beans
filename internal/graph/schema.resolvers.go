@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
@@ -69,9 +70,27 @@ func (r *beanResolver) Children(ctx context.Context, obj *bean.Bean, filter *mod
 
 // CreateBean is the resolver for the createBean field.
 func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBeanInput) (*bean.Bean, error) {
+	var title string
+	if input.Title != nil {
+		title = strings.TrimSpace(*input.Title)
+	}
+	if title == "" && (input.Body == nil || strings.TrimSpace(*input.Body) == "") {
+		return nil, fmt.Errorf("a title or a body is required")
+	}
+
+	// Untitled beans take their slug from the body. An ID-only filename would be
+	// misparsed by the legacy "id-slug" fallback when the ID prefix contains a dash.
+	slug := bean.Slugify(title)
+	if slug == "" && input.Body != nil {
+		slug = bean.Slugify(bean.BodySnippet(*input.Body))
+	}
+	if slug == "" {
+		slug = "untitled"
+	}
+
 	b := &bean.Bean{
-		Slug:      bean.Slugify(input.Title),
-		Title:     input.Title,
+		Slug:      slug,
+		Title:     title,
 		Type:      "task", // default
 		Blocking:  []string{},
 		BlockedBy: []string{},

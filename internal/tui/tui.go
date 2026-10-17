@@ -528,7 +528,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case beanCreatedMsg:
 		// Create the bean via GraphQL mutation (draft status unless chosen otherwise)
-		input := model.CreateBeanInput{Title: msg.title}
+		input := model.CreateBeanInput{}
+		if msg.title != "" {
+			input.Title = &msg.title
+		}
 		status := createModalDefaultStatus
 		if msg.status != "" {
 			status = msg.status
@@ -697,7 +700,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		beanTitle := msg.beanTitle
 		if b != nil {
-			beanTitle = b.Title
+			beanTitle = b.DisplayTitle()
 		}
 
 		return a, a.runLauncher(msg.launcher.name, a.newLaunch(msg.launcher.exec, msg.launcher.dir, msg.beanIDs[0], beanTitle))

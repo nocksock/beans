@@ -32,9 +32,9 @@ type parentItem struct {
 	cfg  *config.Config
 }
 
-func (i parentItem) Title() string       { return i.bean.Title }
+func (i parentItem) Title() string       { return i.bean.DisplayTitle() }
 func (i parentItem) Description() string { return i.bean.ID }
-func (i parentItem) FilterValue() string { return i.bean.Title + " " + i.bean.ID }
+func (i parentItem) FilterValue() string { return i.bean.DisplayTitle() + " " + i.bean.ID }
 
 // clearParentItem is a special item to clear the parent
 type clearParentItem struct{}
@@ -71,8 +71,8 @@ func (d parentItemDelegate) Render(w io.Writer, m list.Model, index int, listIte
 
 		// Format: [type] title (id)
 		typeBadge := ui.RenderTypeText(item.bean.Type, colors.TypeColor)
-		title := item.bean.Title
-		if colors.IsArchive {
+		title := item.bean.DisplayTitle()
+		if colors.IsArchive || !item.bean.HasTitle() {
 			title = ui.Muted.Render(title)
 		}
 		id := ui.Muted.Render(" (" + item.bean.ID + ")")
@@ -163,7 +163,7 @@ func newParentPickerModel(beanIDs []string, beanTitle string, beanTypes []string
 			return ti < tj
 		}
 		// Secondary: title (case-insensitive)
-		return strings.ToLower(eligibleBeans[i].Title) < strings.ToLower(eligibleBeans[j].Title)
+		return strings.ToLower(eligibleBeans[i].DisplayTitle()) < strings.ToLower(eligibleBeans[j].DisplayTitle())
 	})
 
 	delegate := parentItemDelegate{cfg: cfg}

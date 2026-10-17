@@ -30,12 +30,12 @@ var createCmd = &cobra.Command{
 	Use:     "create [title]",
 	Aliases: []string{"c", "new"},
 	Short:   "Create a new bean",
-	Long:    `Creates a new bean (issue) with a generated ID and optional title.`,
+	Long:    `Creates a new bean (issue) with a generated ID and optional title.
+
+The title may be omitted when a body is given; untitled beans are displayed
+using the first line of their body.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		title := strings.Join(args, " ")
-		if title == "" {
-			title = "Untitled"
-		}
+		title := strings.TrimSpace(strings.Join(args, " "))
 
 		// Validate inputs
 		if createStatus != "" && !cfg.IsValidStatus(createStatus) {
@@ -52,9 +52,15 @@ var createCmd = &cobra.Command{
 		if err != nil {
 			return cmdError(createJSON, output.ErrFileError, "%s", err)
 		}
+		if title == "" && strings.TrimSpace(body) == "" {
+			return cmdError(createJSON, output.ErrValidation, "a title or a body is required")
+		}
 
 		// Build GraphQL input
-		input := model.CreateBeanInput{Title: title}
+		input := model.CreateBeanInput{}
+		if title != "" {
+			input.Title = &title
+		}
 		if createStatus != "" {
 			input.Status = &createStatus
 		} else {

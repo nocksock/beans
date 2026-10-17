@@ -35,7 +35,7 @@ func (e *AmbiguousIDError) Error() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("ID '%s' is ambiguous. Did you mean:\n", e.Prefix))
 	for _, b := range e.Matches {
-		sb.WriteString(fmt.Sprintf("  • %s (%s)\n", b.ID, b.Title))
+		sb.WriteString(fmt.Sprintf("  • %s (%s)\n", b.ID, b.DisplayTitle()))
 	}
 	return strings.TrimRight(sb.String(), "\n")
 }

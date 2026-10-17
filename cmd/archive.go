@@ -72,7 +72,7 @@ warned and those references will be removed. Use -f to skip all warnings.`,
 				fmt.Printf("Warning: %d bean(s) link to beans being archived:\n", len(externalLinks))
 				for _, link := range externalLinks {
 					fmt.Printf("  - %s (%s) links to %s via %s\n",
-						link.FromBean.ID, link.FromBean.Title,
+						link.FromBean.ID, link.FromBean.DisplayTitle(),
 						link.LinkType, link.LinkType)
 				}
 				fmt.Println()
@@ -161,7 +161,7 @@ func printBeanList(beans []*bean.Bean) {
 	// Print each bean
 	for _, b := range beans {
 		colors := cfg.GetBeanColors(b.Status, b.Type, b.Priority)
-		row := ui.RenderBeanRow(b.ID, b.Status, b.Type, b.Title, ui.BeanRowConfig{
+		row := ui.RenderBeanRow(b.ID, b.Status, b.Type, b.DisplayTitle(), ui.BeanRowConfig{
 			StatusColor:   colors.StatusColor,
 			TypeColor:     colors.TypeColor,
 			PriorityColor: colors.PriorityColor,

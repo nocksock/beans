@@ -25,9 +25,9 @@ type beanItem struct {
 	hasChildren bool   // true if this bean has children in the tree
 }
 
-func (i beanItem) Title() string       { return i.bean.Title }
+func (i beanItem) Title() string       { return i.bean.DisplayTitle() }
 func (i beanItem) Description() string { return i.bean.ID + " · " + i.bean.Status }
-func (i beanItem) FilterValue() string { return i.bean.Title + " " + i.bean.ID }
+func (i beanItem) FilterValue() string { return i.bean.DisplayTitle() + " " + i.bean.ID }
 
 // itemDelegate handles rendering of list items
 type itemDelegate struct {
@@ -84,8 +84,9 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		item.bean.ID,
 		item.bean.Status,
 		item.bean.Type,
-		item.bean.Title,
+		item.bean.DisplayTitle(),
 		ui.BeanRowConfig{
+			TitleMuted:    !item.bean.HasTitle(),
 			StatusColor:   colors.StatusColor,
 			TypeColor:     colors.TypeColor,
 			PriorityColor: colors.PriorityColor,
@@ -489,7 +490,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openParentPickerMsg{
 							beanIDs:       []string{item.bean.ID},
-							beanTitle:     item.bean.Title,
+							beanTitle:     item.bean.DisplayTitle(),
 							beanTypes:     []string{item.bean.Type},
 							currentParent: item.bean.Parent,
 						}
@@ -513,7 +514,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openStatusPickerMsg{
 							beanIDs:       []string{item.bean.ID},
-							beanTitle:     item.bean.Title,
+							beanTitle:     item.bean.DisplayTitle(),
 							currentStatus: item.bean.Status,
 						}
 					}
@@ -536,7 +537,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openTypePickerMsg{
 							beanIDs:     []string{item.bean.ID},
-							beanTitle:   item.bean.Title,
+							beanTitle:   item.bean.DisplayTitle(),
 							currentType: item.bean.Type,
 						}
 					}
@@ -559,7 +560,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openTagEditorMsg{
 							beanIDs:   []string{item.bean.ID},
-							beanTitle: item.bean.Title,
+							beanTitle: item.bean.DisplayTitle(),
 						}
 					}
 				}
@@ -581,7 +582,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openPriorityPickerMsg{
 							beanIDs:         []string{item.bean.ID},
-							beanTitle:       item.bean.Title,
+							beanTitle:       item.bean.DisplayTitle(),
 							currentPriority: item.bean.Priority,
 						}
 					}
@@ -599,7 +600,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openBlockingPickerMsg{
 							beanID:     item.bean.ID,
-							beanTitle:  item.bean.Title,
+							beanTitle:  item.bean.DisplayTitle(),
 							currentIDs: item.bean.Blocking,
 						}
 					}
@@ -610,7 +611,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openBlockingPickerMsg{
 							beanID:     item.bean.ID,
-							beanTitle:  item.bean.Title,
+							beanTitle:  item.bean.DisplayTitle(),
 							blockedBy:  true,
 							currentIDs: item.bean.BlockedBy,
 						}
@@ -632,7 +633,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						// Find the bean to get its title
 						for _, item := range m.list.Items() {
 							if bi, ok := item.(beanItem); ok && bi.bean.ID == id {
-								parentTitle = bi.bean.Title
+								parentTitle = bi.bean.DisplayTitle()
 								break
 							}
 						}
@@ -644,7 +645,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				} else if item, ok := m.list.SelectedItem().(beanItem); ok {
 					// No multi-select: use cursor position
 					parentID = item.bean.ID
-					parentTitle = item.bean.Title
+					parentTitle = item.bean.DisplayTitle()
 				}
 
 				if parentID != "" {
@@ -684,7 +685,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openLauncherPickerMsg{
 							beanIDs:   []string{item.bean.ID},
-							beanTitle: item.bean.Title,
+							beanTitle: item.bean.DisplayTitle(),
 						}
 					}
 				} else {
@@ -695,7 +696,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 							return m, func() tea.Msg {
 								return openLauncherPickerMsg{
 									beanIDs:   []string{item.bean.ID},
-									beanTitle: item.bean.Title,
+									beanTitle: item.bean.DisplayTitle(),
 								}
 							}
 						}
@@ -787,7 +788,7 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 	crumbs := make([]string, 0, len(m.rootBeans)+1)
 	crumbs = append(crumbs, "Beans")
 	for _, b := range m.rootBeans {
-		crumbs = append(crumbs, b.Title)
+		crumbs = append(crumbs, b.DisplayTitle())
 	}
 
 	title := strings.Join(crumbs, sep) + suffix

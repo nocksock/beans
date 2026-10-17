@@ -77,13 +77,13 @@ and those references will be removed after confirmation. Use -f to skip all warn
 // confirmDelete prompts the user to confirm deletion, returning true if confirmed.
 func confirmDelete(b *bean.Bean, incomingLinks []beancore.IncomingLink) bool {
 	if len(incomingLinks) > 0 {
-		fmt.Printf("Warning: %d bean(s) link to '%s':\n", len(incomingLinks), b.Title)
+		fmt.Printf("Warning: %d bean(s) link to '%s':\n", len(incomingLinks), b.DisplayTitle())
 		for _, link := range incomingLinks {
-			fmt.Printf("  - %s (%s) via %s\n", link.FromBean.ID, link.FromBean.Title, link.LinkType)
+			fmt.Printf("  - %s (%s) via %s\n", link.FromBean.ID, link.FromBean.DisplayTitle(), link.LinkType)
 		}
 		fmt.Print("Delete anyway and remove references? [y/N] ")
 	} else {
-		fmt.Printf("Delete '%s' (%s)? [y/N] ", b.Title, b.Path)
+		fmt.Printf("Delete '%s' (%s)? [y/N] ", b.DisplayTitle(), b.Path)
 	}
 
 	reader := bufio.NewReader(os.Stdin)

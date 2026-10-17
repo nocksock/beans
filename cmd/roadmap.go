@@ -170,7 +170,7 @@ func buildRoadmap(allBeans []*bean.Bean, includeDone bool, statusFilter, noStatu
 
 	// Sort unscheduled epics by title
 	sort.Slice(unscheduledEpics, func(i, j int) bool {
-		return unscheduledEpics[i].Epic.Title < unscheduledEpics[j].Epic.Title
+		return unscheduledEpics[i].Epic.DisplayTitle() < unscheduledEpics[j].Epic.DisplayTitle()
 	})
 
 	// Find orphan items (not milestone, not epic, no parent or parent is not milestone/epic)
@@ -253,7 +253,7 @@ func buildMilestoneGroup(m *bean.Bean, children map[string][]*bean.Bean, include
 
 	// Sort epics by their epic's title
 	sort.Slice(group.Epics, func(i, j int) bool {
-		return group.Epics[i].Epic.Title < group.Epics[j].Epic.Title
+		return group.Epics[i].Epic.DisplayTitle() < group.Epics[j].Epic.DisplayTitle()
 	})
 
 	// Sort other items

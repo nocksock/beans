@@ -57,10 +57,10 @@ type linkItem struct {
 	label string // pre-computed label like "Blocks:" or "Blocked by:"
 }
 
-func (i linkItem) Title() string       { return i.link.bean.Title }
+func (i linkItem) Title() string       { return i.link.bean.DisplayTitle() }
 func (i linkItem) Description() string { return i.link.bean.ID }
 func (i linkItem) FilterValue() string {
-	return i.link.bean.Title + " " + i.link.bean.ID + " " + i.label
+	return i.link.bean.DisplayTitle() + " " + i.link.bean.ID + " " + i.label
 }
 
 // linkDelegate handles rendering of link list items
@@ -106,8 +106,9 @@ func (d linkDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		link.bean.ID,
 		link.bean.Status,
 		link.bean.Type,
-		link.bean.Title,
+		link.bean.DisplayTitle(),
 		ui.BeanRowConfig{
+			TitleMuted:    !link.bean.HasTitle(),
 			StatusColor:   colors.StatusColor,
 			TypeColor:     colors.TypeColor,
 			PriorityColor: colors.PriorityColor,
@@ -325,7 +326,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return openParentPickerMsg{
 					beanIDs:       []string{m.bean.ID},
-					beanTitle:     m.bean.Title,
+					beanTitle:     m.bean.DisplayTitle(),
 					beanTypes:     []string{m.bean.Type},
 					currentParent: m.bean.Parent,
 				}
@@ -336,7 +337,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return openStatusPickerMsg{
 					beanIDs:       []string{m.bean.ID},
-					beanTitle:     m.bean.Title,
+					beanTitle:     m.bean.DisplayTitle(),
 					currentStatus: m.bean.Status,
 				}
 			}
@@ -346,7 +347,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return openTypePickerMsg{
 					beanIDs:     []string{m.bean.ID},
-					beanTitle:   m.bean.Title,
+					beanTitle:   m.bean.DisplayTitle(),
 					currentType: m.bean.Type,
 				}
 			}
@@ -356,7 +357,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return openTagEditorMsg{
 					beanIDs:   []string{m.bean.ID},
-					beanTitle: m.bean.Title,
+					beanTitle: m.bean.DisplayTitle(),
 				}
 			}
 
@@ -365,7 +366,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return openPriorityPickerMsg{
 					beanIDs:         []string{m.bean.ID},
-					beanTitle:       m.bean.Title,
+					beanTitle:       m.bean.DisplayTitle(),
 					currentPriority: m.bean.Priority,
 				}
 			}
@@ -375,7 +376,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return openBlockingPickerMsg{
 					beanID:     m.bean.ID,
-					beanTitle:  m.bean.Title,
+					beanTitle:  m.bean.DisplayTitle(),
 					currentIDs: m.bean.Blocking,
 				}
 			}
@@ -385,7 +386,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return openBlockingPickerMsg{
 					beanID:     m.bean.ID,
-					beanTitle:  m.bean.Title,
+					beanTitle:  m.bean.DisplayTitle(),
 					blockedBy:  true,
 					currentIDs: m.bean.BlockedBy,
 				}
@@ -405,7 +406,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, func() tea.Msg {
 				return openLauncherPickerMsg{
 					beanIDs:   []string{m.bean.ID},
-					beanTitle: m.bean.Title,
+					beanTitle: m.bean.DisplayTitle(),
 				}
 			}
 
@@ -518,7 +519,7 @@ func (m detailModel) calculateHeaderHeight() int {
 
 func (m detailModel) renderHeader() string {
 	// Title
-	title := detailTitleStyle.Render(m.bean.Title)
+	title := renderDetailTitle(m.bean)
 
 	// ID
 	id := ui.ID.Render(m.bean.ID)
@@ -688,7 +689,7 @@ func compareBeansByStatusPriorityAndType(a, b *bean.Bean, statusNames, priorityN
 		return ti < tj
 	}
 	// Quaternary: title (case-insensitive)
-	return strings.ToLower(a.Title) < strings.ToLower(b.Title)
+	return strings.ToLower(a.DisplayTitle()) < strings.ToLower(b.DisplayTitle())
 }
 
 func (m detailModel) renderBody(_ int) string {
