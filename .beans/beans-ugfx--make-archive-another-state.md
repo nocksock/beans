@@ -1,11 +1,11 @@
 ---
 # beans-ugfx
 title: make archive another state
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-17T12:39:16Z
-updated_at: 2026-10-17T12:53:04Z
+updated_at: 2026-10-17T13:17:40Z
 ---
 
 Archiving currently **deletes** completed/scrapped beans (and strips incoming links). Instead, keep them and move them to a new `archived` status that is hidden in list views by default.
