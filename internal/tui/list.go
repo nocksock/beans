@@ -858,6 +858,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
+			helpKeyStyle.Render("L") + " " + helpStyle.Render("log") + "  " +
 			helpKeyStyle.Render("esc") + " " + helpStyle.Render("clear filter") + "  " +
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
 			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
@@ -878,6 +879,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
 			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
+			helpKeyStyle.Render("L") + " " + helpStyle.Render("log") + "  " +
 			helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
 			helpKeyStyle.Render("h/l/z") + " " + helpStyle.Render("fold") + "  " +
 			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +

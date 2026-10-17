@@ -31,6 +31,25 @@ func CreateLoggedExecCommand(l Launch) (*exec.Cmd, *os.File, error) {
 	return cmd, logFile, nil
 }
 
+// CreateBackgroundCommand is like CreateShellCommand, but for running without
+// the terminal: stdin is left unset (reads get EOF), stdout and stderr both go
+// to a temporary log file, and the command is detached from the TUI's process
+// group so a Ctrl-C there doesn't reach it. The caller must close the returned
+// file after the command exits.
+func CreateBackgroundCommand(l Launch) (*exec.Cmd, *os.File, error) {
+	cmd := CreateShellCommand(l)
+
+	logFile, err := os.CreateTemp("", "beans-launch-*.log")
+	if err != nil {
+		return nil, nil, err
+	}
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	detach(cmd)
+
+	return cmd, logFile, nil
+}
+
 // ExitCode extracts the process exit code from the error returned by running a
 // command. It returns 0 for a nil error and -1 if the command could not be run.
 func ExitCode(err error) int {

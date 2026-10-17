@@ -281,6 +281,22 @@ launchers:
 - **Multiple beans selected** → Only `multiple: true` launchers shown
 - **No `multiple: true` launchers available** → Error message displayed
 
+### Background Launchers
+
+By default a launcher takes over the terminal until it exits, which interactive tools like `claude` or `opencode` need. Launchers that only start something elsewhere (a tmux window, a kitty window, a script) can run in the background instead, so the TUI stays usable:
+
+```yaml
+launchers:
+  - name: worktree-tmux
+    background: true  # ← Runs without the terminal
+    multiple: true    # ← Runs for every selected bean in parallel
+    exec: ...
+```
+
+Background launchers get no stdin; their stdout and stderr are captured. With `multiple: true` and several beans selected, one run per bean starts in parallel.
+
+Every run, foreground or background, shows up in the **log panel** below the bean list: time, ⟳/✓/✗, launcher, bean ID, exit code, and the last lines of output (only stderr for foreground runs, since their stdout is the terminal). The panel appears when a run starts or fails; press `L` to toggle it and `O` to open the latest run's full output in `$EDITOR`. The log is kept for the TUI session only. Background runs still going when you quit keep running.
+
 ### How It Works
 
 - **Single-line exec**: Runs via `sh -c`, just like a shell command. Use for simple commands.

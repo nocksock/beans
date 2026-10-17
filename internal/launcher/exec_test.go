@@ -70,3 +70,28 @@ func TestCreateShellCommandRunsInConfigDir(t *testing.T) {
 		t.Errorf("output = %q, want %q", out, want)
 	}
 }
+
+func TestCreateBackgroundCommand(t *testing.T) {
+	cmd, logFile, err := CreateBackgroundCommand(Launch{Script: `echo "out $BEANS_ID"; echo err >&2; exit 4`, ProjectRoot: t.TempDir(), BeanID: "beans-x", BeanTitle: "X"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(logFile.Name())
+
+	if cmd.Stdin != nil {
+		t.Errorf("stdin should be nil, got %v", cmd.Stdin)
+	}
+
+	if got := ExitCode(cmd.Run()); got != 4 {
+		t.Errorf("exit code = %d, want 4", got)
+	}
+	logFile.Close()
+
+	data, err := os.ReadFile(logFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(data), "out beans-x\nerr\n"; got != want {
+		t.Errorf("log = %q, want stdout and stderr %q", got, want)
+	}
+}
