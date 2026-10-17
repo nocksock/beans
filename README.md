@@ -346,7 +346,7 @@ Every run, foreground or background, shows up in the **log panel** below the bea
 ### How It Works
 
 - **Single-line exec**: Runs via `sh -c`, just like a shell command. Use for simple commands.
-- **Multi-line exec**: Passed to the interpreter via stdin. **Must start with a shebang** (`#!/bin/bash`, `#!/usr/bin/env python3`, etc.). The shebang determines which interpreter executes your script.
+- **Multi-line exec**: Must start with a shebang (`#!/bin/bash`, etc.). Note that for now multi-line scripts also run via `sh -c`, so the shebang line is treated as a comment and the script must be valid `sh`.
 - **Environment variables**: All launchers receive `$BEANS_ROOT`, `$BEANS_CONFIG_DIR`, `$BEANS_DIR`, `$BEANS_ID`, `$BEANS_TASK`
 - **Working directory**: Set to the directory of the `.beans.yml` that declared the launcher (`$BEANS_CONFIG_DIR`). For a launcher defined in your project's own config, that's the project root (`$BEANS_ROOT`)
 - **Unix/Linux/macOS only**: Shebang mechanism is Unix-specific
@@ -359,38 +359,23 @@ In the TUI, you can launch for multiple beans simultaneously using launchers mar
 2. **Press `!`** to open the launcher picker (only shows `multiple: true` launchers)
 3. **Choose a launcher** - it will run in parallel for all selected beans
 
-**Features:**
-- **Parallel execution**: All launchers start simultaneously (perfect for creating multiple tmux panes or worktrees)
-- **Real-time progress**: See status for each bean as it runs
-- **Stop on failure**: If any bean fails, all others are immediately stopped
-- **Confirmation prompt**: For 5+ beans, you'll be asked to confirm (can be disabled in config)
-- **Selection management**: Selection is cleared on success, kept on failure (so you can retry)
+All runs start simultaneously (perfect for creating multiple tmux panes or worktrees), and each one shows up in the log panel with its own status and exit code.
 
 **Use cases:**
 - Create git worktrees for multiple tasks at once
 - Open multiple beans in separate tmux panes/kitty windows
 - Batch process related beans
 
-### TUI Configuration
-
-You can customize TUI behavior in `.beans.yml`:
-
-```yaml
-tui:
-  # Disable confirmation prompt when launching for 5+ beans
-  disable_launcher_warning: false
-```
-
 ### Examples
 
 ```yaml
 # Simple tool invocation
 - name: cursor
-  exec: cursor "$BEANS_TASK"
+  exec: cursor "$BEANS_ROOT"
 
 # Shell command with pipes
 - name: show-bean
-  exec: cat "$BEANS_TASK" | less
+  exec: beans show "$BEANS_ID" | less
 
 # Multi-step bash script
 - name: test-and-open
@@ -399,14 +384,7 @@ tui:
     set -e
     cd "$BEANS_ROOT"
     npm test -- "$BEANS_ID" || true
-    code "$BEANS_TASK"
-
-# Ruby script
-- name: ruby-tool
-  exec: |
-    #!/usr/bin/env ruby
-    bean_id = ENV['BEANS_ID']
-    puts "Processing #{bean_id}"
+    code "$BEANS_ROOT"
 ```
 
 ### Environment Variables
@@ -417,39 +395,26 @@ Launchers receive these environment variables:
 - `BEANS_CONFIG_DIR`: Directory of the `.beans.yml` that declared the launcher (the working directory; differs from `BEANS_ROOT` for [inherited launchers](#monorepos-cascading-configuration))
 - `BEANS_DIR`: Beans directory (e.g., `/path/to/project/.beans`)
 - `BEANS_ID`: Bean ID (e.g., `beans-abc123`)
-- `BEANS_TASK`: Full path to bean file (e.g., `/path/to/project/.beans/beans-abc123.md`)
+- `BEANS_TASK`: Bean title (e.g., `Fix login redirect`)
 
 ### CLI Usage
 
-Launch beans from the command line:
+Run a launcher for a bean from the command line with `beans launch`:
 
 ```bash
-# List all configured launchers with availability status
-beans launch -l
+# Launch by full or partial (unique) bean ID
+beans launch beans-abc123 --launcher opencode
+beans launch beans-abc -l opencode
 
-# Example output:
-# NAME            AVAILABLE  DESCRIPTION
-# opencode        ✓          Open task in OpenCode
-# worktree-tmux   ✓          Create git worktree and open in new tmux pane
-# test-echo       ✓          Simple test launcher
+# Read the bean ID from the first line of stdin
+echo beans-abc123 | beans launch --launcher worktree-tmux
 
-# Launch a specific launcher for a bean
-beans launch opencode beans-abc123    # Full ID
-beans launch opencode beans-abc       # Partial ID (if unique)
-
-# Launch worktree launchers
-beans launch worktree-tmux beans-def456
-beans launch worktree-kitty beans-ghi789
-
-# JSON output for scripting
-beans launch -l --json
+# List the configured launchers (add --json for scripting)
+beans launch --list
+beans launch --list --json
 ```
 
-**CLI launcher features:**
-- Supports partial bean ID matching (like other commands)
-- Executes launchers interactively (you see output in your terminal)
-- Shows availability status with `-l` (✓ if command/interpreter found, ✗ if not)
-- Returns non-zero exit code on failure
+The launcher runs attached to your terminal, also when the bean ID came from stdin, so interactive tools keep working. `beans launch` waits for it and exits with its exit code. `background` and `multiple` only affect the TUI.
 
 ## Contributing
 
