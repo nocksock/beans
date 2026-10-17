@@ -292,3 +292,50 @@ func TestBreadcrumbTitle(t *testing.T) {
 		})
 	}
 }
+
+func TestDetailBrowsePrevNext(t *testing.T) {
+	app, _, _ := newHierarchyApp(t, 160)
+	ids := listedIDs(app)
+
+	// browse sends a key in the detail view and feeds the browse request back
+	browse := func(key string) {
+		t.Helper()
+		msg := press(app, key)
+		if _, ok := msg.(browseBeanMsg); !ok {
+			t.Fatalf("%s should request browsing, got %#v", key, msg)
+		}
+		app.Update(msg)
+	}
+
+	selectID(t, app, ids[0])
+	app.Update(selectBeanMsg{bean: app.list.list.SelectedItem().(beanItem).bean})
+
+	tests := []struct {
+		key  string
+		want string
+	}{
+		{"h", ids[0]}, // stays at the start
+		{"l", ids[1]},
+		{"l", ids[2]},
+		{"h", ids[1]},
+		{"l", ids[2]},
+		{"l", ids[3]},
+		{"l", ids[3]}, // stays at the end
+	}
+	for i, tt := range tests {
+		browse(tt.key)
+		if got := app.detail.bean.ID; got != tt.want {
+			t.Errorf("step %d (%s): detail shows %s, want %s", i, tt.key, got, tt.want)
+		}
+		if got := selectedID(app); got != tt.want {
+			t.Errorf("step %d (%s): list cursor on %s, want %s", i, tt.key, got, tt.want)
+		}
+	}
+
+	// Browsing doesn't build up history: esc goes straight back to the list
+	press(app, "esc")
+	app.Update(backToListMsg{})
+	if app.state != viewList {
+		t.Errorf("esc after browsing should return to the list, state = %v", app.state)
+	}
+}

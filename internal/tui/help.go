@@ -99,6 +99,7 @@ func (m helpOverlayModel) View() string {
 	content.WriteString(shortcut("g t", "Filter by tag") + "\n")
 	content.WriteString(shortcut("h", "Collapse item") + "\n")
 	content.WriteString(shortcut("l", "Expand item") + "\n")
+	content.WriteString(shortcut("h/l", "Prev / next bean (details)") + "\n")
 	content.WriteString(shortcut("z", "Toggle collapse") + "\n")
 	content.WriteString(shortcut("Z", "Collapse all") + "\n")
 	content.WriteString(shortcut("q", "Quit") + "\n")
