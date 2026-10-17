@@ -1,11 +1,11 @@
 ---
 # beans-4hsk
 title: e to edit in new popup E to edit in editor
-status: todo
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-17T12:45:01Z
-updated_at: 2026-10-17T12:47:28Z
+updated_at: 2026-10-17T12:55:25Z
 ---
 
 Rebind the TUI edit keys: `e` opens an in-TUI edit popup (based on the create modal), and `E` opens `$EDITOR` (what `e` does today).
@@ -36,3 +36,4 @@ Rebind the TUI edit keys: `e` opens an in-TUI edit popup (based on the create mo
 
 ## Work Log
 2026-10-17: Planned with user (reuse create modal, cursor bean only, grow body, ctrl+e save & edit)
+2026-10-17 12:57: Implemented edit popup + E for $EDITOR, tests added, manually verified
