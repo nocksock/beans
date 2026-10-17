@@ -98,6 +98,25 @@ Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans`
 - **Merging**: the closest config wins. Nested settings merge key by key; lists of named items (like `launchers`) merge by `name` (same name replaces, new names are added); other lists are replaced.
 - **Paths**: relative paths resolve against the config file that declared them. Set `beans.path` in a subdirectory config to give it its own beans directory. If no config sets it, `.beans` next to the nearest config is used.
 
+### Custom Statuses
+
+The builtin statuses (`in-progress`, `todo`, `draft`, `completed`, `scrapped`) are always available. You can add your own statuses in `.beans.yml`, grouped below the builtin status they are a kind of:
+
+```yaml
+statuses:
+  in-progress:
+    - name: review
+      color: purple          # optional, defaults to the builtin's color
+      description: Waiting for code review
+  completed:
+    - name: merged
+```
+
+- **Order**: custom statuses sort right after their builtin status.
+- **Filtering**: filtering by a builtin status also matches its custom statuses (`beans list -s in-progress` shows `review` beans too); filtering by a custom status matches only that status. The same applies to `status` and `excludeStatus` in GraphQL.
+- **Behaviour**: custom statuses inherit the builtin's archive behaviour, so `merged` beans are hidden from `beans list` by default, are removed by `beans archive`, and no longer block other beans. `beans list --include completed` shows `completed` and `merged` beans; `--include merged` shows only `merged` ones.
+- **GraphQL**: a bean's `statusCategory` field holds the builtin status its status belongs to.
+
 ## Agent Configuration
 
 We'll need to teach your coding agent that it should use Beans to track tasks, and how to do so. The exact steps will depend on which agent you're using.
