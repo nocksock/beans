@@ -1,11 +1,11 @@
 ---
 # beans-dx97
 title: custom keymap via .beans.yml
-status: in-progress
+status: completed
 type: task
 priority: deferred
 created_at: 2026-10-17T10:18:56Z
-updated_at: 2026-10-17T12:56:55Z
+updated_at: 2026-10-17T13:19:31Z
 parent: beans-7jm4
 ---
 
