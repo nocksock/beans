@@ -143,6 +143,10 @@ type listModel struct {
 	// cursorTarget is a bean ID to move the cursor to after the next load
 	cursorTarget string
 
+	// notice is a transient message shown at the start of the footer
+	notice      string
+	noticeIsErr bool
+
 	// Relationship info across all beans (for the preview pane)
 	beansByID   map[string]*bean.Bean
 	childCounts map[string]int
@@ -872,7 +876,16 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
 	}
 
-	return selectionPrefix + help
+	var noticePrefix string
+	if m.notice != "" {
+		color := ui.ColorSuccess
+		if m.noticeIsErr {
+			color = ui.ColorDanger
+		}
+		noticePrefix = lipgloss.NewStyle().Foreground(color).Bold(true).Render(m.notice) + "  "
+	}
+
+	return noticePrefix + selectionPrefix + help
 }
 
 // shiftPriority moves the priority of the marked beans (or the bean under the

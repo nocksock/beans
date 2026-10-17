@@ -537,3 +537,22 @@ func (c *Config) PriorityList() string {
 	}
 	return strings.Join(names, ", ")
 }
+
+// Reload re-reads the config from disk: from the file it was loaded from, or,
+// when it wasn't loaded from a file, by searching upward from its directory
+// again (picking up a config file created since).
+func (c *Config) Reload() (*Config, error) {
+	if c.configPath == "" {
+		return LoadFromDirectory(c.configDir)
+	}
+
+	cfg, err := Load(c.configPath)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.configDir == "" {
+		// The file is gone; stay anchored where we were
+		cfg.configDir = c.configDir
+	}
+	return cfg, nil
+}
