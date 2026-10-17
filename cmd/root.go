@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -90,6 +91,19 @@ func init() {
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		var exitErr *exitCodeError
+		if errors.As(err, &exitErr) {
+			os.Exit(exitErr.code)
+		}
 		os.Exit(1)
 	}
 }
+
+// exitCodeError makes the process exit with code instead of 1.
+type exitCodeError struct {
+	code int
+	err  error
+}
+
+func (e *exitCodeError) Error() string { return e.err.Error() }
+func (e *exitCodeError) Unwrap() error { return e.err }
