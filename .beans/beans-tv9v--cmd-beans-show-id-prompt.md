@@ -1,11 +1,11 @@
 ---
 # beans-tv9v
 title: 'cmd: beans show <id> --prompt'
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-17T10:57:31Z
-updated_at: 2026-10-17T11:06:06Z
+updated_at: 2026-10-17T11:07:38Z
 ---
 
 Will include a prompt with the beans content. intended to start working on beans for agentic coding.

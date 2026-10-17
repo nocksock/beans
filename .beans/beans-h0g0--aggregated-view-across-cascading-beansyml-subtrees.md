@@ -1,10 +1,11 @@
 ---
 # beans-h0g0
 title: Aggregated view across cascading .beans.yml subtrees
-status: draft
+status: todo
 type: feature
+priority: normal
 created_at: 2026-10-17T10:41:37Z
-updated_at: 2026-10-17T10:41:37Z
+updated_at: 2026-10-17T11:36:12Z
 ---
 
 Phase 2 of beans-jzty. Running beans at a root also discovers descendant .beans.yml files; each subtree's beans are loaded with that subtree's merged (cascaded) config (prefix, path).

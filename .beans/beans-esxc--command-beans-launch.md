@@ -3,8 +3,9 @@
 title: 'command: beans launch'
 status: todo
 type: task
+priority: normal
 created_at: 2026-10-17T11:04:07Z
-updated_at: 2026-10-17T11:04:07Z
+updated_at: 2026-10-17T11:07:07Z
 ---
 
 beans launch <id> --launcher <launcher-key>

@@ -45,3 +45,24 @@ ABSOLUTELY CRITICAL: We're aiming to parallelize multiple agents. To this end, p
 
 - Use `go run .` instead of building the executable first.
 - When testing read-only functionality, feel free to use this project's own `.beans/` directory. But for anything that modifies data, create a separate test project directory. All commands support the `--beans-path` flag to specify a custom path.
+
+
+## CRUCIAL
+
+CRITICAL: *always* update the bean task you're working on. After every notable step, append a one-line progress update with timestamp in the format:
+
+    ## Work Log
+    <date> <time>: <message>
+
+Example for an entry
+
+    2026-03-26 09:28: Added functions a,b,c to module d
+
+Keep them as small as possible
+
+## Bug Reports
+
+This is super important: Whenever the user reports a bug or as something not working, create a beans task with the related feature as parent if that feature is still in progress.
+Update that bug-task with all the information you find during debug analysis.
+
+    :!sh
