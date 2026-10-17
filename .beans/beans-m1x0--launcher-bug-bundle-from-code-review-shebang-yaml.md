@@ -21,3 +21,6 @@ From review beans-9pxj (`docs/reviews/2026-10-17-code-quality-review.md` in hub)
 ## Sequencing (review beans-9pxj)
 
 Step 3 of 5: after beans-bufq; unblocks deleting launcher.go in beans-re37.
+
+## Note from beans-esxc
+README now says multi-line scripts run via `sh -c` (shebang ignored) and the Ruby example was removed. When B13 is fixed, restore the README "How It Works" shebang description and add a non-sh example back.
