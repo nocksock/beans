@@ -285,7 +285,7 @@ func filterByNotBlocked(beans []*bean.Bean, core *beancore.Core) []*bean.Bean {
 
 // hasActiveBlocker reports whether any bean blocking targetID (via blocking or
 // blocked_by) is still active.
-// Blockers with an archive status (e.g. completed, scrapped) no longer block.
+// Blockers with an archive status (e.g. completed, scrapped, archived) no longer block.
 func hasActiveBlocker(targetID string, core *beancore.Core) bool {
 	cfg := core.Config()
 	for _, blocker := range core.FindBlockers(targetID) {

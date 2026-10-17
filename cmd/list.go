@@ -44,7 +44,7 @@ var (
 
 // hiddenByDefaultStatuses are statuses excluded from `beans list` unless
 // explicitly requested via --include or --status.
-var hiddenByDefaultStatuses = []string{"completed", "scrapped"}
+var hiddenByDefaultStatuses = []string{"completed", "scrapped", config.StatusArchived}
 
 // defaultExcludedStatuses returns the exclude-status list for `beans list`,
 // adding the hidden-by-default statuses unless they were explicitly included
@@ -83,12 +83,12 @@ var listCmd = &cobra.Command{
 	Short:   "List all beans",
 	Long: `Lists all beans in the .beans directory.
 
-Completed and scrapped beans are hidden by default. Use --include to show them:
+Completed, scrapped and archived beans are hidden by default. Use --include to show them:
 
   beans list --include completed,scrapped
-  beans list --include completed --include scrapped
+  beans list --include completed --include archived
 
-Explicitly filtering by status (e.g. --status completed) also shows them.
+Explicitly filtering by status (e.g. --status archived) also shows them.
 
 Search Syntax (--search/-S):
   The search flag supports Bleve query string syntax:
@@ -325,7 +325,7 @@ func init() {
 	listCmd.Flags().BoolVar(&listJSON, "json", false, "Output as JSON")
 	listCmd.Flags().StringVarP(&listSearch, "search", "S", "", "Full-text search in title and body")
 	listCmd.Flags().StringArrayVarP(&listStatus, "status", "s", nil, "Filter by status (can be repeated)")
-	listCmd.Flags().StringSliceVar(&listInclude, "include", nil, "Include statuses hidden by default: completed, scrapped (comma-separated or repeated)")
+	listCmd.Flags().StringSliceVar(&listInclude, "include", nil, "Include statuses hidden by default: completed, scrapped, archived (comma-separated or repeated)")
 	listCmd.Flags().StringArrayVar(&listNoStatus, "no-status", nil, "Exclude by status (can be repeated)")
 	listCmd.Flags().StringArrayVarP(&listType, "type", "t", nil, "Filter by type (can be repeated)")
 	listCmd.Flags().StringArrayVar(&listNoType, "no-type", nil, "Exclude by type (can be repeated)")

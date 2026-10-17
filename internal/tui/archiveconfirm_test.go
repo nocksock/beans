@@ -54,10 +54,13 @@ func newArchiveTestApp(t *testing.T) (*App, map[string]*bean.Bean) {
 	return app, beans
 }
 
-func remaining(a *App) map[string]bool {
+// unarchived returns the IDs of beans not in the archived status.
+func unarchived(a *App) map[string]bool {
 	ids := map[string]bool{}
 	for _, b := range a.core.All() {
-		ids[b.ID] = true
+		if b.Status != config.StatusArchived {
+			ids[b.ID] = true
+		}
 	}
 	return ids
 }
@@ -128,9 +131,12 @@ func TestArchive(t *testing.T) {
 				pump(app, keyMsg(k))
 			}
 
-			got := remaining(app)
+			if n := len(app.core.All()); n != len(beans) {
+				t.Errorf("bean count = %d, want %d (archiving must not delete)", n, len(beans))
+			}
+			got := unarchived(app)
 			if len(got) != len(tt.wantKept) {
-				t.Errorf("remaining beans = %v, want %v", got, tt.wantKept)
+				t.Errorf("unarchived beans = %v, want %v", got, tt.wantKept)
 			}
 			for _, name := range tt.wantKept {
 				if !got[beans[name].ID] {
@@ -149,5 +155,58 @@ func TestArchiveLowercaseYIgnored(t *testing.T) {
 	pump(app, keyMsg("y"))
 	if app.state != viewList {
 		t.Errorf("state = %v, want list (lowercase y must not archive)", app.state)
+	}
+}
+
+func TestArchivedHiddenInList(t *testing.T) {
+	app, beans := newArchiveTestApp(t)
+	pump(app, keyMsg("Y"))
+	pump(app, keyMsg("Y"))
+
+	listed := func() map[string]bool {
+		ids := map[string]bool{}
+		for _, id := range listedIDs(app) {
+			ids[id] = true
+		}
+		return ids
+	}
+
+	got := listed()
+	if !got[beans["todo"].ID] || got[beans["completed"].ID] || got[beans["scrapped"].ID] {
+		t.Errorf("listed = %v, want only todo bean (archived hidden)", got)
+	}
+
+	// A shows archived beans
+	pump(app, keyMsg("A"))
+	got = listed()
+	if !got[beans["completed"].ID] || !got[beans["scrapped"].ID] {
+		t.Errorf("after A: listed = %v, want archived beans shown", got)
+	}
+
+	// A again hides them
+	pump(app, keyMsg("A"))
+	if got = listed(); got[beans["completed"].ID] {
+		t.Errorf("after AA: listed = %v, want archived beans hidden", got)
+	}
+}
+
+func TestArchiveSkipsArchivedBeans(t *testing.T) {
+	app, beans := newArchiveTestApp(t)
+	pump(app, keyMsg("Y"))
+	pump(app, keyMsg("Y"))
+
+	// Nothing left to archive: Y does not prompt
+	pump(app, keyMsg("Y"))
+	if app.state != viewList {
+		t.Errorf("state = %v, want list (no archivable beans)", app.state)
+	}
+
+	// Y on an archived bean in the detail view is a no-op
+	pump(app, keyMsg("A"))
+	b, _ := app.core.Get(beans["completed"].ID)
+	pump(app, selectBeanMsg{bean: b})
+	pump(app, keyMsg("Y"))
+	if app.state != viewDetail {
+		t.Errorf("state = %v, want detail (already archived)", app.state)
 	}
 }

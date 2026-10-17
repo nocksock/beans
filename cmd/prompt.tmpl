@@ -31,10 +31,10 @@ If you identify something that should be changed or fixed after completing the u
 
 ## Finding work
 
-Use GraphQL to query for actionable beans (not completed, not draft, not blocked):
+Use GraphQL to query for actionable beans (not done, not draft, not blocked):
 
 ```bash
-beans query '{ beans(filter: { excludeStatus: ["completed", "scrapped", "draft"], isBlocked: false }) { id title status type priority } }'
+beans query '{ beans(filter: { excludeStatus: ["completed", "scrapped", "archived", "draft"], isBlocked: false }) { id title status type priority } }'
 ```
 
 Other useful queries:
@@ -96,10 +96,10 @@ Both directions are equivalent: "A blocked_by B" and "B blocking A" express the 
 beans query '{ bean(id: "abc") { title parent { id title } children { id title status } blockedBy { title } blocking { title } } }'
 
 # Filter children by status (e.g., only incomplete children of a milestone)
-beans query '{ bean(id: "abc") { title children(filter: { excludeStatus: ["completed", "scrapped"] }) { id title status } } }'
+beans query '{ bean(id: "abc") { title children(filter: { excludeStatus: ["completed", "scrapped", "archived"] }) { id title status } } }'
 
-# Find active blockers (exclude completed ones)
-beans query '{ bean(id: "abc") { blockedBy(filter: { excludeStatus: ["completed"] }) { id title } } }'
+# Find active blockers (exclude done ones)
+beans query '{ bean(id: "abc") { blockedBy(filter: { excludeStatus: ["completed", "scrapped", "archived"] }) { id title } } }'
 
 # Find beans blocked by something
 beans query '{ beans(filter: { isBlocked: true }) { id title blockedBy { title } } }'
@@ -120,7 +120,7 @@ beans query '{ beans(filter: { noParent: true }) { id title type } }'
 
 ## Cleaning up beans
 
-- `beans archive` will archive (delete) beans marked as completed or scrapped. ONLY run this when I explicitly tell you to.
+- `beans archive` moves beans marked as completed or scrapped to the `archived` status. Archived beans are kept but hidden from `beans list` by default (`--include archived` shows them). ONLY run this when I explicitly tell you to.
 
 ## GraphQL Reference
 

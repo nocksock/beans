@@ -110,7 +110,7 @@ type Bean {
   path: String!
   "Bean title"
   title: String!
-  "Current status (draft, todo, in-progress, completed, scrapped)"
+  "Current status (draft, todo, in-progress, completed, scrapped, archived)"
   status: String!
   "Bean type (milestone, epic, bug, feature, task)"
   type: String!
@@ -188,7 +188,7 @@ input BeanFilter {
   hasBlocking: Boolean
   "Include only beans that are blocking this specific bean ID"
   blockingId: String
-  "Include only beans blocked by an active blocker (true), or only beans without one (false). Blockers with an archive status (completed, scrapped) are ignored."
+  "Include only beans blocked by an active blocker (true), or only beans without one (false). Blockers with an archive status (completed, scrapped, archived) are ignored."
   isBlocked: Boolean
   "Exclude beans that have a parent"
   noParent: Boolean

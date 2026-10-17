@@ -149,34 +149,39 @@ func TestDefaultExcludedStatuses(t *testing.T) {
 		wantErr       bool
 	}{
 		{
-			name: "hides completed and scrapped by default",
-			want: []string{"completed", "scrapped"},
+			name: "hides completed, scrapped and archived by default",
+			want: []string{"completed", "scrapped", "archived"},
 		},
 		{
 			name:    "include completed",
 			include: []string{"completed"},
-			want:    []string{"scrapped"},
+			want:    []string{"scrapped", "archived"},
 		},
 		{
-			name:    "include both",
-			include: []string{"completed", "scrapped"},
+			name:    "include all",
+			include: []string{"completed", "scrapped", "archived"},
 			want:    []string{},
+		},
+		{
+			name:    "include archived",
+			include: []string{"archived"},
+			want:    []string{"completed", "scrapped"},
 		},
 		{
 			name:   "explicit status filter shows hidden status",
 			status: []string{"completed"},
-			want:   []string{"scrapped"},
+			want:   []string{"scrapped", "archived"},
 		},
 		{
 			name:          "keeps user exclusions without duplicates",
 			excludeStatus: []string{"draft", "completed"},
-			want:          []string{"draft", "completed", "scrapped"},
+			want:          []string{"draft", "completed", "scrapped", "archived"},
 		},
 		{
 			name:          "explicit exclusion wins over include",
 			excludeStatus: []string{"completed"},
 			include:       []string{"completed"},
-			want:          []string{"completed", "scrapped"},
+			want:          []string{"completed", "scrapped", "archived"},
 		},
 		{
 			name:    "invalid include value",

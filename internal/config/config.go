@@ -18,6 +18,9 @@ const (
 	LegacyConfigFile = "config.yaml"
 )
 
+// StatusArchived is the status beans are moved to by `beans archive`.
+const StatusArchived = "archived"
+
 // DefaultStatuses defines the hardcoded status configuration.
 // Statuses are not configurable - they are hardcoded like types.
 // Order determines sort priority: in-progress first (active work), then todo, draft, and done states last.
@@ -27,6 +30,7 @@ var DefaultStatuses = []StatusConfig{
 	{Name: "draft", Color: "blue", Description: "Needs refinement before it can be worked on"},
 	{Name: "completed", Color: "gray", Archive: true, Description: "Finished successfully"},
 	{Name: "scrapped", Color: "gray", Archive: true, Description: "Will not be done"},
+	{Name: StatusArchived, Color: "gray", Archive: true, Description: "Done and put away; hidden from lists by default"},
 }
 
 // DefaultTypes defines the default type configuration.
@@ -421,6 +425,12 @@ func (c *Config) IsArchiveStatus(name string) bool {
 		return s.Archive
 	}
 	return false
+}
+
+// IsArchivable returns true if a bean with the given status should be moved
+// to the archived status by a bulk archive (done, but not yet archived).
+func (c *Config) IsArchivable(name string) bool {
+	return name != StatusArchived && c.IsArchiveStatus(name)
 }
 
 // GetType returns the TypeConfig for a given type name, or nil if not found.

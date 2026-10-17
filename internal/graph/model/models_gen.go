@@ -42,7 +42,7 @@ type BeanFilter struct {
 	HasBlocking *bool `json:"hasBlocking,omitempty"`
 	// Include only beans that are blocking this specific bean ID
 	BlockingID *string `json:"blockingId,omitempty"`
-	// Include only beans blocked by an active blocker (true), or only beans without one (false). Blockers with an archive status (completed, scrapped) are ignored.
+	// Include only beans blocked by an active blocker (true), or only beans without one (false). Blockers with an archive status (completed, scrapped, archived) are ignored.
 	IsBlocked *bool `json:"isBlocked,omitempty"`
 	// Exclude beans that have a parent
 	NoParent *bool `json:"noParent,omitempty"`
