@@ -85,7 +85,7 @@ func newLauncherPickerModel(launchers []launcher, beanIDs []string, beanTitle st
 	}
 
 	// Calculate modal dimensions
-	modalWidth := max(40, min(60, width*50/100))
+	modalWidth := calculateModalWidth(width, 50, 40, 60)
 	modalHeight := max(10, min(20, height*50/100))
 	listWidth := modalWidth - 6
 	listHeight := modalHeight - 7
@@ -121,7 +121,7 @@ func (m launcherPickerModel) Update(msg tea.Msg) (launcherPickerModel, tea.Cmd) 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		modalWidth := max(40, min(60, msg.Width*50/100))
+		modalWidth := calculateModalWidth(msg.Width, 50, 40, 60)
 		modalHeight := max(10, min(20, msg.Height*50/100))
 		listWidth := modalWidth - 6
 		listHeight := modalHeight - 7
@@ -187,7 +187,7 @@ func newNoLaunchersModel(width, height int) noLaunchersModel {
 }
 
 func (m noLaunchersModel) View() string {
-	modalWidth := max(40, min(60, m.width*50/100))
+	modalWidth := calculateModalWidth(m.width, 50, 40, 60)
 
 	title := lipgloss.NewStyle().
 		Bold(true).
@@ -233,7 +233,7 @@ func newLauncherErrorModel(launcherName string, err error, width, height int) la
 }
 
 func (m launcherErrorModel) View() string {
-	modalWidth := max(40, min(60, m.width*50/100))
+	modalWidth := calculateModalWidth(m.width, 50, 40, 60)
 
 	title := lipgloss.NewStyle().
 		Bold(true).

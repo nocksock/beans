@@ -58,3 +58,65 @@ func TestAnsiStrip(t *testing.T) {
 		})
 	}
 }
+
+func TestCalculateModalWidth(t *testing.T) {
+	tests := []struct {
+		name         string
+		screenWidth  int
+		percentWidth int
+		minWidth     int
+		maxWidth     int
+		expected     int
+	}{
+		{
+			name:         "normal case - 50% of 100 screen width",
+			screenWidth:  100,
+			percentWidth: 50,
+			minWidth:     40,
+			maxWidth:     60,
+			expected:     50,
+		},
+		{
+			name:         "hits minimum - screen too small",
+			screenWidth:  50,
+			percentWidth: 50,
+			minWidth:     40,
+			maxWidth:     60,
+			expected:     40,
+		},
+		{
+			name:         "hits maximum - screen too large",
+			screenWidth:  200,
+			percentWidth: 50,
+			minWidth:     40,
+			maxWidth:     60,
+			expected:     60,
+		},
+		{
+			name:         "exactly at minimum",
+			screenWidth:  80,
+			percentWidth: 50,
+			minWidth:     40,
+			maxWidth:     60,
+			expected:     40,
+		},
+		{
+			name:         "exactly at maximum",
+			screenWidth:  120,
+			percentWidth: 50,
+			minWidth:     40,
+			maxWidth:     60,
+			expected:     60,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := calculateModalWidth(tt.screenWidth, tt.percentWidth, tt.minWidth, tt.maxWidth)
+			if result != tt.expected {
+				t.Errorf("calculateModalWidth(%d, %d, %d, %d) = %d, want %d",
+					tt.screenWidth, tt.percentWidth, tt.minWidth, tt.maxWidth, result, tt.expected)
+			}
+		})
+	}
+}

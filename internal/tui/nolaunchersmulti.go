@@ -16,7 +16,7 @@ func newNoLaunchersMultiModel(width, height int) noLaunchersMultiModel {
 }
 
 func (m noLaunchersMultiModel) View() string {
-	modalWidth := max(40, min(60, m.width*50/100))
+	modalWidth := calculateModalWidth(m.width, 50, 40, 60)
 
 	title := lipgloss.NewStyle().
 		Bold(true).
