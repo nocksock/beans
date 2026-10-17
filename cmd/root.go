@@ -51,6 +51,11 @@ a full view of your project.`,
 			}
 		}
 
+		// Settings commands only need the config
+		if isSettingsCmd(cmd) {
+			return nil
+		}
+
 		// Determine beans directory
 		var root string
 		if beansPath != "" {

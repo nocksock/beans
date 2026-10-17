@@ -71,6 +71,19 @@ beans help
 
 But more importantly, you'll want to get your coding agent set up to use it. Let's dive in!
 
+### Reading and Changing Settings
+
+Settings are addressed by dotted keys:
+
+```bash
+beans settings get beans.prefix          # effective value, after defaults and inherited configs
+beans settings get launchers.claude.exec # list items by name or index
+beans settings get                       # the whole effective config
+beans settings set beans.id_length 6     # change it in the nearest .beans.yml
+```
+
+`set` keeps the rest of the file, including comments, intact. Values are parsed as YAML, so `6` is a number, `true` a boolean and `[a, b]` a list. Config files that take part in cascading (see below) can't be changed with `set` yet.
+
 ### Monorepos: Cascading Configuration
 
 beans uses the nearest `.beans.yml` found by walking up from the current directory. A config can pass its settings down to configs in subdirectories with `cascade: true`:
