@@ -1,3 +1,4 @@
 # every subfolder is a worktree
 */
 !.beans/
+!scripts/
