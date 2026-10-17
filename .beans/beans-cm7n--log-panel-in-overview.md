@@ -1,11 +1,11 @@
 ---
 # beans-cm7n
 title: log panel in overview
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-17T13:08:21Z
-updated_at: 2026-10-17T13:16:43Z
+updated_at: 2026-10-17T13:49:26Z
 ---
 
 similar to what lazygit has: a log of commands that are run in the background, eg from launcher.
@@ -44,3 +44,4 @@ Replace the launcher result modal with a lazygit-style log panel at the bottom o
 2026-10-17 15:24: Implemented exec helper, config flag, log panel, App wiring; removed result modal
 2026-10-17 15:25: Manually tested in scratch project via tmux (multi-bean bg, failure, L, O); filed beans-z7jr for README conflict markers
 2026-10-17 15:27: Code review fixes: Setsid, bounded tail read, eviction keeps running entries
+2026-10-17 15:40: Merged dev into branch (keys moved to configurable keymap), merged into dev
