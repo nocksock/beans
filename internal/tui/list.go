@@ -222,14 +222,22 @@ func (m listModel) loadBeans() tea.Msg {
 		return errMsg{err}
 	}
 
+	// beansByID keeps archived beans so relationships still resolve; the tree
+	// and child counts only use visible beans, so archived parents stay hidden
 	beansByID := make(map[string]*bean.Bean, len(allBeans))
 	childCounts := make(map[string]int)
+	visibleBeans := allBeans[:0:0]
 	for _, b := range allBeans {
 		beansByID[b.ID] = b
+		if !m.showArchived && b.Status == config.StatusArchived {
+			continue
+		}
+		visibleBeans = append(visibleBeans, b)
 		if b.Parent != "" {
 			childCounts[b.Parent]++
 		}
 	}
+	allBeans = visibleBeans
 
 	// Resolve drill-down roots; stop at the first one that no longer exists
 	var rootBeans []*bean.Bean
@@ -830,6 +838,11 @@ func (m listModel) Footer() string {
 		selectionPrefix = selectionStyle.Render(fmt.Sprintf("(%d selected) ", len(m.selectedBeans)))
 	}
 
+	archivedHelp := "show archived"
+	if m.showArchived {
+		archivedHelp = "hide archived"
+	}
+
 	if len(m.selectedBeans) > 0 {
 		// When beans are selected, show esc to clear selection
 		help = helpKeyStyle.Render("space") + " " + helpStyle.Render("toggle") + "  " +
@@ -877,7 +890,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
 			helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
 			helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
-			helpKeyStyle.Render("A") + " " + helpStyle.Render("show archived") + "  " +
+			helpKeyStyle.Render("A") + " " + helpStyle.Render(archivedHelp) + "  " +
 			helpKeyStyle.Render("h/l/z") + " " + helpStyle.Render("fold") + "  " +
 			helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
 			helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +

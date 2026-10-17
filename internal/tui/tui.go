@@ -517,9 +517,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.list.loadBeans
 			}
 		}
-		// Archived beans are put away, so return to the list where they are hidden
+		// Archiving from the detail view stays there, showing the new status
+		fromDetail := a.state == viewDetail || (a.state == viewArchiveConfirm && a.previousState == viewDetail)
+		if fromDetail && len(msg.beanIDs) == 1 {
+			if updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0]); updatedBean != nil {
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+				a.state = viewDetail
+				return a, a.list.loadBeans
+			}
+		}
 		a.state = viewList
-		a.history = nil
 		return a, a.list.loadBeans
 
 	case openCreateModalMsg:

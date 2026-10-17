@@ -96,7 +96,7 @@ func TestArchive(t *testing.T) {
 			openBean:  "completed",
 			keys:      []string{"Y"},
 			wantKept:  []string{"todo", "scrapped"},
-			wantState: viewList,
+			wantState: viewDetail,
 		},
 		{
 			name:      "detail Y prompts for unfinished bean",
@@ -110,7 +110,7 @@ func TestArchive(t *testing.T) {
 			openBean:  "todo",
 			keys:      []string{"Y", "Y"},
 			wantKept:  []string{"completed", "scrapped"},
-			wantState: viewList,
+			wantState: viewDetail,
 		},
 		{
 			name:      "detail Y esc cancels",
@@ -208,5 +208,68 @@ func TestArchiveSkipsArchivedBeans(t *testing.T) {
 	pump(app, keyMsg("Y"))
 	if app.state != viewDetail {
 		t.Errorf("state = %v, want detail (already archived)", app.state)
+	}
+}
+
+func TestArchiveFromDetailShowsNewStatus(t *testing.T) {
+	app, beans := newArchiveTestApp(t)
+	pump(app, selectBeanMsg{bean: beans["completed"]})
+	pump(app, keyMsg("Y"))
+	if app.state != viewDetail {
+		t.Fatalf("state = %v, want detail", app.state)
+	}
+	if got := app.detail.bean.Status; got != config.StatusArchived {
+		t.Errorf("detail status = %q, want %q", got, config.StatusArchived)
+	}
+}
+
+func TestArchivedParentHidden(t *testing.T) {
+	app, beans := newArchiveTestApp(t)
+	child := &bean.Bean{Title: "Child", Status: "todo", Type: "task", Parent: beans["completed"].ID}
+	if err := app.core.Create(child); err != nil {
+		t.Fatal(err)
+	}
+	pump(app, keyMsg("Y"))
+	pump(app, keyMsg("Y"))
+
+	ids := listedIDs(app)
+	for _, id := range ids {
+		if id == beans["completed"].ID {
+			t.Errorf("archived parent listed: %v", ids)
+		}
+	}
+	found := false
+	for _, id := range ids {
+		found = found || id == child.ID
+	}
+	if !found {
+		t.Errorf("child of archived parent not listed: %v", ids)
+	}
+	if n := app.list.childCounts[beans["completed"].ID]; n != 1 {
+		t.Errorf("childCounts[archived parent] = %d, want 1", n)
+	}
+
+	// With archived shown, the parent is back
+	pump(app, keyMsg("A"))
+	found = false
+	for _, id := range listedIDs(app) {
+		found = found || id == beans["completed"].ID
+	}
+	if !found {
+		t.Error("archived parent not listed after A")
+	}
+}
+
+func TestArchivedChildNotCounted(t *testing.T) {
+	app, beans := newArchiveTestApp(t)
+	for _, st := range []string{"todo", "archived"} {
+		c := &bean.Bean{Title: "Child " + st, Status: st, Type: "task", Parent: beans["todo"].ID}
+		if err := app.core.Create(c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	app.Update(app.list.loadBeans())
+	if n := app.list.childCounts[beans["todo"].ID]; n != 1 {
+		t.Errorf("childCounts = %d, want 1 (archived child hidden)", n)
 	}
 }
