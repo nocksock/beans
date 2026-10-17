@@ -7,41 +7,6 @@ beans:
     default_type: task
 
 launchers:
-  - name: opencode
-    exec: cd dev && opencode --prompt "Work on task $BEANS_ID"
-    description: "Open task in OpenCode"
-  - name: claude
-    exec: cd dev && claude "Work on task $BEANS_ID"
-    description: "Open task in Claude Code"
-  - name: tmux
-    exec: ./scripts/tmux-session-run
-    description: "Open task in tmux"
-  - name: tmux+claude
-    description: "Open task in Claude Code in a new tmux window"
-    exec: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-      # Claude renames the window itself once it knows what the bean is about
-      read -r -d '' RENAME_NOTE <<'EOF' || true
-      ## tmux window
-
-      You are running in a tmux window. Before starting, rename it to `<bean-id>: <label>`, where <label> is a short summary of this bean of at most 20 characters:
-      `tmux rename-window -t "$TMUX_PANE" '<bean-id>: <label>'`
-      EOF
-      PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
-
-      # Draft beans get planned before any implementation
-      read -r -d '' DRAFT_NOTE <<EOF || true
-      ## Draft: plan first
-
-      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to todo with \`beans update $BEANS_ID --status todo\` and commit the bean change in the hub.
-      EOF
-      if [[ "$(beans show --json "$BEANS_ID" | jq -r .status)" == draft ]]; then
-        PROMPT+=$'\n\n'"$DRAFT_NOTE"
-      fi
-
-      tmux new-window -c "${BEANS_ROOT:-.}/dev" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
-        'claude "$BEANS_PROMPT"'
   - name: worktree-tmux+claude
     multiple: true
     description: "Create git worktree and open Claude Code in a new tmux window"
@@ -87,6 +52,41 @@ launchers:
 
       tmux new-window -c "$WORKTREE_DIR" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
         'claude "$BEANS_PROMPT"'
+  - name: opencode
+    exec: cd dev && opencode --prompt "Work on task $BEANS_ID"
+    description: "Open task in OpenCode"
+  - name: claude
+    exec: cd dev && claude "Work on task $BEANS_ID"
+    description: "Open task in Claude Code"
+  - name: tmux
+    exec: ./scripts/tmux-session-run
+    description: "Open task in tmux"
+  - name: tmux+claude
+    description: "Open task in Claude Code in a new tmux window"
+    exec: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      # Claude renames the window itself once it knows what the bean is about
+      read -r -d '' RENAME_NOTE <<'EOF' || true
+      ## tmux window
+
+      You are running in a tmux window. Before starting, rename it to `<bean-id>: <label>`, where <label> is a short summary of this bean of at most 20 characters:
+      `tmux rename-window -t "$TMUX_PANE" '<bean-id>: <label>'`
+      EOF
+      PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
+
+      # Draft beans get planned before any implementation
+      read -r -d '' DRAFT_NOTE <<EOF || true
+      ## Draft: plan first
+
+      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to todo with \`beans update $BEANS_ID --status todo\` and commit the bean change in the hub.
+      EOF
+      if [[ "$(beans show --json "$BEANS_ID" | jq -r .status)" == draft ]]; then
+        PROMPT+=$'\n\n'"$DRAFT_NOTE"
+      fi
+
+      tmux new-window -c "${BEANS_ROOT:-.}/dev" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
+        'claude "$BEANS_PROMPT"'
   - name: crush
     exec: cd dev && crush run "Work on task $BEANS_ID"
     description: "Open task in Crush"
@@ -103,4 +103,3 @@ launchers:
       # Open in new kitty window
       kitty @ launch --type=window --cwd="$WORKTREE_DIR" \
         opencode -p "Work on task $BEANS_ID"
-
