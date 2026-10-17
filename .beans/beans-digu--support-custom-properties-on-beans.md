@@ -5,8 +5,11 @@ status: todo
 type: feature
 priority: normal
 created_at: 2025-12-13T00:52:24Z
-updated_at: 2026-10-17T12:13:39Z
+updated_at: 2026-10-17T14:02:53Z
 parent: beans-c8p4
+blocked_by:
+    - beans-bufq
+    - beans-ole9
 ---
 
 Allow users to attach custom key-value properties to beans. Custom properties should live under a dedicated `properties` key in the frontmatter to keep them separate from built-in fields.

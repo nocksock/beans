@@ -1,14 +1,14 @@
 ---
 # beans-znuf
 title: Consolidate ModalView implementations
-status: todo
+status: scrapped
 type: task
 priority: normal
 tags:
     - technical-debt
     - refactoring
 created_at: 2025-12-15T12:48:57Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T14:02:53Z
 parent: beans-gl8t
 blocking:
     - beans-mszj
@@ -28,3 +28,6 @@ func renderModalOverlay(view string, bgView string, fullWidth, fullHeight int) s
     return overlayModal(bgView, view, fullWidth, fullHeight)
 }
 ```
+## Code review 2026-10-17 (beans-9pxj)
+
+Scrapped: folded into beans-603f (modal interface removes the 15 identical ModalView wrappers).

@@ -1,6 +1,6 @@
 ---
 # beans-5c6x
-title: Create shared error modal renderer
+title: Shared message modal for info/error dialogs
 status: todo
 type: task
 priority: normal
@@ -8,7 +8,7 @@ tags:
     - technical-debt
     - refactoring
 created_at: 2025-12-15T12:48:53Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T14:02:53Z
 parent: beans-gl8t
 blocking:
     - beans-mszj
@@ -34,3 +34,6 @@ func renderErrorModal(cfg errorModalConfig) string
 - internal/tui/launcherpicker.go (noLaunchersModel.View)
 - internal/tui/nolaunchersmulti.go (noLaunchersMultiModel.View)
 - internal/tui/modal.go (add shared function)
+## Code review 2026-10-17 (beans-9pxj)
+
+Reshaped (R2): one `messageModal{title, msg, color}` replacing 4 copies: noLaunchersModel, noLaunchersMultiModel (nolaunchersmulti.go), launcherErrorModel (launcherpicker.go:220-264), configWriteErrorModel (configurelaunchersdialog.go:225-267). Absorbs beans-mszj (collapse the 4 view states, tui.go:38-42) and beans-x3um remainder. Fixes wrong 'Launcher Failed' title for archive/edit/create errors (tui.go:534,573,622). Use theme colors instead of #ff0000 / #555.

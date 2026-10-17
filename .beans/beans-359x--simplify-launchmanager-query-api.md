@@ -1,14 +1,14 @@
 ---
 # beans-359x
 title: Simplify LaunchManager query API
-status: todo
+status: scrapped
 type: task
 priority: low
 tags:
     - enhancement
     - architecture
 created_at: 2025-12-15T12:49:59Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T14:02:52Z
 parent: beans-gl8t
 blocking:
     - beans-psqq
@@ -47,3 +47,6 @@ func (m *LaunchManager) GetSummary() LaunchSummary
 
 ## Implementation
 Compute all values under single lock, return snapshot.
+## Code review 2026-10-17 (beans-9pxj)
+
+Scrapped: GetSummary() implemented, but LaunchManager is dead code; removal in beans-re37.

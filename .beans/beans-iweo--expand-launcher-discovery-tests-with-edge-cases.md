@@ -1,13 +1,13 @@
 ---
 # beans-iweo
 title: Expand launcher discovery tests with edge cases
-status: todo
+status: scrapped
 type: task
 priority: normal
 tags:
     - test
 created_at: 2025-12-15T12:49:30Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T14:02:53Z
 parent: beans-gl8t
 blocking:
     - beans-yxao
@@ -31,3 +31,6 @@ Expand existing `internal/tui/launcher_test.go` with missing edge cases.
   - Append preserves existing config content
   - Append with multiline exec scripts
   - Error when config file doesn't exist
+## Code review 2026-10-17 (beans-9pxj)
+
+Scrapped: merged into beans-yxao.

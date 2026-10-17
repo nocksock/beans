@@ -41,3 +41,6 @@ discoverLaunchersForMultiple(cfg, beansRoot) {
     })
 }
 ```
+## Code review 2026-10-17 (beans-9pxj)
+
+Still valid. Add `multiple bool` to launcher struct to drop name re-lookup (tui/launcher.go:47-61, O(n·m), wrong with duplicate names); remove unused beansRoot param. Absorbs beans-iweo (test discoverLaunchersForMultiple). Also fix: foreground `multiple:true` launcher runs only beanIDs[0] silently (tui.go:762-765) — require background or notify.

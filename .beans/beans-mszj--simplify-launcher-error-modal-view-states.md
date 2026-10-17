@@ -1,14 +1,14 @@
 ---
 # beans-mszj
 title: Simplify launcher error modal view states
-status: todo
+status: scrapped
 type: task
 priority: low
 tags:
     - enhancement
     - architecture
 created_at: 2025-12-15T12:49:54Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T14:02:52Z
 parent: beans-gl8t
 ---
 
@@ -42,3 +42,6 @@ type genericModal struct {
 ```
 
 Replace all 4 states with single `viewModal` state, store modal config in app struct.
+## Code review 2026-10-17 (beans-9pxj)
+
+Scrapped: merged into beans-5c6x (shared message modal collapses these view states).

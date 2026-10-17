@@ -1,14 +1,14 @@
 ---
 # beans-fx99
 title: Create comprehensive launcher manager tests
-status: todo
+status: scrapped
 type: task
 priority: high
 tags:
     - test
     - concurrency
 created_at: 2025-12-15T12:49:25Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T14:02:52Z
 parent: beans-gl8t
 blocking:
     - beans-359x
@@ -35,3 +35,6 @@ Create `internal/launcher/manager_test.go` with tests for parallel execution and
 - Concurrency correctness
 - Resource cleanup
 - Error handling and stderr capture
+## Code review 2026-10-17 (beans-9pxj)
+
+Scrapped: tests would target dead LaunchManager; it gets deleted in beans-re37.

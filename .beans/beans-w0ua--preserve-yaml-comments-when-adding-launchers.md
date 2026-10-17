@@ -28,3 +28,7 @@ Improve the appendLaunchersToConfig function to preserve existing comments and f
 
 ## Note from beans-4wwa
 `config.SetSetting` (internal/config/settings.go) already edits .beans.yml via yaml.v3 nodes and keeps comments; its `setNode`/`mappingValue` helpers could be reused for appending launchers.
+
+## Code review 2026-10-17 (beans-9pxj)
+
+Note: config Save marshals struct; consider reusing beans-4wwa's yaml.Node approach. Related: beans-m1x0 B16 (string-built launcher YAML).
