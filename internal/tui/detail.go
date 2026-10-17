@@ -408,7 +408,13 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			}
 
 		case "e":
-			// Open editor for this bean
+			// Open the edit form for this bean
+			return m, func() tea.Msg {
+				return openEditModalMsg{bean: m.bean}
+			}
+
+		case "E":
+			// Open $EDITOR for this bean
 			return m, func() tea.Msg {
 				return openEditorMsg{
 					beanID:   m.bean.ID,
@@ -500,6 +506,7 @@ func (m detailModel) View() string {
 	}
 	footer += helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
 		helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
+		helpKeyStyle.Render("E") + " " + helpStyle.Render("$EDITOR") + "  " +
 		helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 		helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 		helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +

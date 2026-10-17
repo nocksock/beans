@@ -661,7 +661,14 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					}
 				}
 			case "e":
-				// Open editor for selected bean
+				// Open the edit form for the bean under the cursor
+				if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg {
+						return openEditModalMsg{bean: item.bean}
+					}
+				}
+			case "E":
+				// Open $EDITOR for the bean under the cursor
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
 						return openEditorMsg{
@@ -841,6 +848,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("v") + " " + helpStyle.Render("view") + "  " +
 			helpKeyStyle.Render("c") + " " + helpStyle.Render("create") + "  " +
 			helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
+			helpKeyStyle.Render("E") + " " + helpStyle.Render("$EDITOR") + "  " +
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
@@ -860,6 +868,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("v") + " " + helpStyle.Render("view") + "  " +
 			helpKeyStyle.Render("c") + " " + helpStyle.Render("create") + "  " +
 			helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
+			helpKeyStyle.Render("E") + " " + helpStyle.Render("$EDITOR") + "  " +
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
