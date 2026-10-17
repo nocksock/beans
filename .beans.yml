@@ -58,9 +58,10 @@ launchers:
       This bean runs in the worktree $WORKTREE_DIR on branch task/$BEANS_ID. Clean up only after the user has explicitly declared the work done AND task/$BEANS_ID has been merged into dev. Never on your own initiative, and never because the bean is marked completed. If in doubt, ask.
 
       1. Confirm the merge: \`git -C "$HUB" merge-base --is-ancestor task/$BEANS_ID dev\` must succeed. If it fails, stop and tell the user.
-      2. Remove the worktree: \`git -C "$HUB" worktree remove "$WORKTREE_DIR"\`. Do not pass --force; if it refuses because of uncommitted changes, stop and tell the user.
-      3. Delete the branch from the dev worktree, so -d checks it against dev: \`git -C "$HUB/dev" branch -d task/$BEANS_ID\`
-      4. Close this tmux window as the very last step, since it ends this session: \`tmux kill-window -t "\$TMUX_PANE"\`
+      2. Mark the bean completed and commit that in the hub: \`beans update $BEANS_ID --status completed && git -C "$HUB" add .beans && git -C "$HUB" commit -m "chore: complete $BEANS_ID"\`
+      3. Remove the worktree: \`git -C "$HUB" worktree remove "$WORKTREE_DIR"\`. Do not pass --force; if it refuses because of uncommitted changes, stop and tell the user.
+      4. Delete the branch from the dev worktree, so -d checks it against dev: \`git -C "$HUB/dev" branch -d task/$BEANS_ID\`
+      5. Close this tmux window as the very last step, since it ends this session: \`tmux kill-window -t "\$TMUX_PANE"\`
       EOF
       PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"$'\n\n'"$CLEANUP_NOTE"
 
