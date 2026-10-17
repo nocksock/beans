@@ -78,6 +78,12 @@ type SessionConfig struct {
 	Launch         string `yaml:"launch"`           // Command to launch/start a new session
 	PollIntervalMs int    `yaml:"poll_interval_ms"` // Polling interval in ms (default: 200)
 	CheckTimeoutMs int    `yaml:"check_timeout_ms"` // Timeout for check command in ms (default: 500)
+
+	// Directories of the config files that declared each command (not serialized).
+	// Commands run from there so relative script paths in inherited configs keep working.
+	CheckDir  string `yaml:"-"`
+	AttachDir string `yaml:"-"`
+	LaunchDir string `yaml:"-"`
 }
 
 // Launcher defines a configured launcher command.
@@ -86,6 +92,10 @@ type Launcher struct {
 	Exec        string `yaml:"exec"`
 	Description string `yaml:"description,omitempty"`
 	Multiple    bool   `yaml:"multiple,omitempty"` // Supports launching for multiple beans in parallel
+
+	// Dir is the directory of the config file that declared this launcher (not serialized).
+	// The launcher runs from there so relative script paths in inherited configs keep working.
+	Dir string `yaml:"-"`
 }
 
 // TUIConfig holds TUI-specific configuration.
@@ -108,6 +118,10 @@ type Config struct {
 
 	// configPath is the path to the config file it was loaded from (not serialized)
 	configPath string `yaml:"-"`
+
+	// beansPathDir is the directory of the config file that declared Beans.Path (not serialized).
+	// Empty means Beans.Path resolves against configDir.
+	beansPathDir string `yaml:"-"`
 }
 
 // BeansConfig defines settings for bean creation.
@@ -163,10 +177,11 @@ func FindConfig(startDir string) (string, error) {
 	}
 }
 
-// Load reads configuration from the given config file path.
+// Load reads configuration from the given config file path, merged with the
+// settings of cascading ancestor configs (see findChain).
 // Returns default config if the file doesn't exist.
 func Load(configPath string) (*Config, error) {
-	data, err := os.ReadFile(configPath)
+	layers, err := findChain(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Default(), nil
@@ -174,38 +189,96 @@ func Load(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	return fromLayers(configPath, layers)
+}
+
+// fromLayers builds the config for configPath from its layers (root-first).
+func fromLayers(configPath string, layers []layer) (*Config, error) {
+	cfg, err := decode(mergeLayers(layers))
+	if err != nil {
 		return nil, err
 	}
 
-	// Store the config location for resolving relative paths
 	cfg.configDir = filepath.Dir(configPath)
 	cfg.configPath = configPath
+	cfg.recordOrigins(layers)
+	cfg.applyDefaults()
 
-	// Apply defaults for missing values
-	if cfg.Beans.Path == "" {
-		cfg.Beans.Path = DefaultBeansPath
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
-	if cfg.Beans.IDLength == 0 {
-		cfg.Beans.IDLength = 4
+	return cfg, nil
+}
+
+// mergeLayers merges all layers root-first. The cascade setting is per-file
+// and is dropped from the result.
+func mergeLayers(layers []layer) map[string]any {
+	merged := map[string]any{}
+	for _, l := range layers {
+		merged = mergeData(merged, l.data)
 	}
-	if cfg.Beans.DefaultStatus == "" {
-		cfg.Beans.DefaultStatus = "todo"
+	delete(merged, cascadeKey)
+	return merged
+}
+
+// decode turns merged settings into a Config.
+func decode(data map[string]any) (*Config, error) {
+	raw, err := yaml.Marshal(data)
+	if err != nil {
+		return nil, err
 	}
-	if cfg.Beans.DefaultType == "" {
-		cfg.Beans.DefaultType = DefaultTypes[0].Name
+	var cfg Config
+	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// recordOrigins remembers which config file declared path-dependent settings,
+// so they resolve against the file that wrote them.
+func (c *Config) recordOrigins(layers []layer) {
+	c.beansPathDir = originDir(layers, "beans", "path")
+
+	for i := range c.Launchers {
+		dir := originDirOfNamed(layers, "launchers", c.Launchers[i].Name)
+		if dir == "" {
+			dir = originDir(layers, "launchers")
+		}
+		c.Launchers[i].Dir = dir
 	}
 
-	// Validate launchers
-	for _, launcher := range cfg.Launchers {
+	if c.Session != nil {
+		c.Session.CheckDir = originDir(layers, "session", "check")
+		c.Session.AttachDir = originDir(layers, "session", "attach")
+		c.Session.LaunchDir = originDir(layers, "session", "launch")
+	}
+}
+
+// applyDefaults fills in missing values.
+func (c *Config) applyDefaults() {
+	if c.Beans.Path == "" {
+		c.Beans.Path = DefaultBeansPath
+	}
+	if c.Beans.IDLength == 0 {
+		c.Beans.IDLength = 4
+	}
+	if c.Beans.DefaultStatus == "" {
+		c.Beans.DefaultStatus = "todo"
+	}
+	if c.Beans.DefaultType == "" {
+		c.Beans.DefaultType = DefaultTypes[0].Name
+	}
+}
+
+// validate checks the merged config for errors.
+func (c *Config) validate() error {
+	for _, launcher := range c.Launchers {
 		// Multi-line exec must have shebang
 		if strings.Contains(launcher.Exec, "\n") && !strings.HasPrefix(launcher.Exec, "#!") {
-			return nil, fmt.Errorf("launcher '%s' has multi-line exec but no shebang (#!). Multi-line scripts must start with a shebang (e.g., #!/bin/bash)", launcher.Name)
+			return fmt.Errorf("launcher '%s' has multi-line exec but no shebang (#!). Multi-line scripts must start with a shebang (e.g., #!/bin/bash)", launcher.Name)
 		}
 	}
-
-	return &cfg, nil
+	return nil
 }
 
 // LoadFromDirectory finds and loads the config file by searching upward from the given directory.
@@ -245,6 +318,9 @@ func (c *Config) ResolveBeansPath() string {
 	if filepath.IsAbs(path) {
 		return path
 	}
+	if c.beansPathDir != "" {
+		return filepath.Join(c.beansPathDir, path)
+	}
 	if c.configDir == "" {
 		// Fallback: use current directory
 		cwd, _ := os.Getwd()
@@ -274,6 +350,8 @@ func (c *Config) SetConfigDir(dir string) {
 }
 
 // Save writes the configuration to the config file.
+// It must not be called on a config loaded with cascading ancestors: it would
+// write all inherited settings into the leaf file.
 // If configDir is set, saves to that directory; otherwise saves to the given directory.
 func (c *Config) Save(dir string) error {
 	targetDir := c.configDir
