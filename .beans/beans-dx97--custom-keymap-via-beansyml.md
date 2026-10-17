@@ -30,8 +30,8 @@ very similar to the format that lazygit has
 - Defaults: overriding an action replaces its keys (no append). Unknown context/action names fail validation at load. Duplicate keys within one context produce a warning, not an error. The keymap reloads with `R` like the rest of the config.
 
 ### Steps
-- [ ] config: add a user-global layer at the bottom of `findChain`, with tests (XDG/HOME, missing file, override order, rejected `beans.path`)
-- [ ] config: `Keybinding` section (string-or-list unmarshal, `<disabled>`), validation against the known action table
+- [x] config: add a user-global layer at the bottom of `findChain`, with tests (XDG/HOME, missing file, override order, rejected `beans.path`)
+- [x] config: `Keybinding` section (string-or-list unmarshal, `<disabled>`), validation against the known action table
 - [ ] tui: central keymap registry per context (`key.Binding` with keys + help text), defaults equal to today's hardcoded keys
 - [ ] tui: replace every `msg.String()` switch with `key.Matches` lookups: tui.go, list.go, detail.go, help.go, then each picker/modal. Text-input modals only bind non-printable keys so typing still works.
 - [ ] tui: chord support (`g t`) through the registry
@@ -42,3 +42,4 @@ very similar to the format that lazygit has
 
 ## Work Log
 2026-10-17 14:57: Planned with user, plan written, set in-progress
+2026-10-17 15:04: Config: user-global layer + keybinding section done (tui validates names)
