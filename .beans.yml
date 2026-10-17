@@ -9,6 +9,7 @@ beans:
 launchers:
   - name: worktree-tmux+claude
     multiple: true
+    background: true
     description: "Create git worktree and open Claude Code in a new tmux window"
     exec: |
       #!/usr/bin/env bash
