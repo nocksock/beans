@@ -21,6 +21,40 @@ launchers:
   - name: tmux
     exec: ./scripts/tmux-session-run
     description: "Open task in tmux"
+  - name: tmux+claude
+    description: "Open task in Claude Code in a new tmux window"
+    exec: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      tmux new-window -c "${BEANS_ROOT:-.}" -n "$BEANS_ID" \
+        "claude \"\$(beans show --raw $BEANS_ID)\""
+  - name: worktree-tmux+claude
+    multiple: true
+    description: "Create git worktree and open Claude Code in a new tmux window"
+    exec: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      cd "${BEANS_ROOT:-.}"
+      WORKTREE_DIR=".worktrees/$BEANS_ID"
+
+      # Create worktree if it doesn't exist
+      if [ ! -d "$WORKTREE_DIR" ]; then
+        git worktree prune
+
+        if git show-ref --verify --quiet "refs/heads/task/$BEANS_ID"; then
+          git worktree add --no-checkout "$WORKTREE_DIR" "task/$BEANS_ID"
+        else
+          git worktree add --no-checkout "$WORKTREE_DIR" -b "task/$BEANS_ID"
+        fi
+
+        # Keep beans data in the main worktree only
+        git -C "$WORKTREE_DIR" sparse-checkout set --no-cone '/*' '!/.beans' '!/.beans.yml'
+        git -C "$WORKTREE_DIR" checkout
+      fi
+
+      tmux new-window -c "$PWD/$WORKTREE_DIR" -n "$BEANS_ID" \
+        "claude \"\$(beans show --raw $BEANS_ID)\""
   - name: crush
     exec: crush run "Work on task $BEANS_ID"
     description: "Open task in Crush"
