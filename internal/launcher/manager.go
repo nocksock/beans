@@ -122,7 +122,6 @@ func (m *LaunchManager) Start(beansRoot string) error {
 
 // startLaunch starts a single bean launch (must be called with lock held)
 func (m *LaunchManager) startLaunch(launch *BeanLaunch, beansRoot string) error {
-	// Create the command
 	cmd, result, err := CreateExecCommand(m.launcher.Exec, beansRoot, launch.Bean.ID, launch.Bean.Title)
 	if err != nil {
 		launch.Status = LaunchFailed
@@ -137,7 +136,6 @@ func (m *LaunchManager) startLaunch(launch *BeanLaunch, beansRoot string) error 
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf
 
-	// Start the command in background
 	if err := cmd.Start(); err != nil {
 		result.Cleanup()
 		launch.Status = LaunchFailed
@@ -148,7 +146,6 @@ func (m *LaunchManager) startLaunch(launch *BeanLaunch, beansRoot string) error 
 	launch.Status = LaunchRunning
 	launch.started = time.Now()
 
-	// Monitor completion in background
 	go m.monitorLaunch(launch, &stderrBuf)
 
 	return nil
@@ -177,7 +174,6 @@ func (m *LaunchManager) monitorLaunch(launch *BeanLaunch, stderrBuf *bytes.Buffe
 		launch.Status = LaunchSuccess
 	}
 
-	// Cleanup temp files
 	if launch.result != nil {
 		launch.result.Cleanup()
 	}
@@ -193,10 +189,8 @@ func (m *LaunchManager) Stop() {
 
 		for _, launch := range m.launches {
 			if launch.Status == LaunchRunning && launch.cmd != nil && launch.cmd.Process != nil {
-				// Kill the process
 				_ = launch.cmd.Process.Kill()
 
-				// Cleanup temp files
 				if launch.result != nil {
 					launch.result.Cleanup()
 				}
