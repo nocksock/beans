@@ -1114,6 +1114,9 @@ func getEditor() string {
 
 // Run starts the TUI application with file watching
 func Run(core *beancore.Core, cfg *config.Config) error {
+	// Must happen before the program takes over the terminal
+	detectMarkdownStyle()
+
 	app := New(core, cfg)
 	p := tea.NewProgram(app, tea.WithAltScreen())
 

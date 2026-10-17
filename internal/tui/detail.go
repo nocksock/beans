@@ -28,9 +28,9 @@ var (
 func getGlamourRenderer() *glamour.TermRenderer {
 	glamourRendererOnce.Do(func() {
 		var err error
-		// Use DarkStyle instead of WithAutoStyle() to avoid slow terminal detection
-		// that can cause multi-second delays in some terminals
-		glamourRenderer, err = glamour.NewTermRenderer(glamour.WithStylePath("dark"))
+		// markdownStyle is detected once at startup instead of using WithAutoStyle(),
+		// which re-queries the terminal and can cause multi-second delays
+		glamourRenderer, err = glamour.NewTermRenderer(glamour.WithStylePath(markdownStyle))
 		if err != nil {
 			glamourRenderer = nil
 		}
