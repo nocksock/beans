@@ -49,7 +49,7 @@ func (i blockingItem) FilterValue() string { return i.bean.DisplayTitle() + " " 
 // blockingItemDelegate handles rendering of blocking picker items
 type blockingItemDelegate struct {
 	cfg             *config.Config
-	pendingBlocking *map[string]bool // pointer to pending state for live updates
+	pendingBlocking map[string]bool // pending state, shared with the picker for live updates
 }
 
 func (d blockingItemDelegate) Height() int                             { return 1 }
@@ -70,7 +70,7 @@ func (d blockingItemDelegate) Render(w io.Writer, m list.Model, index int, listI
 	}
 
 	// Show blocking indicator - read from pending state for live updates
-	isBlocking := (*d.pendingBlocking)[item.bean.ID]
+	isBlocking := d.pendingBlocking[item.bean.ID]
 	var blockingIndicator string
 	if isBlocking {
 		blockingIndicator = lipgloss.NewStyle().Foreground(ui.ColorDanger).Bold(true).Render("● ") // Red dot for blocking
@@ -156,7 +156,7 @@ func newBlockingPickerModel(beanID, beanTitle string, blockedBy bool, currentIDs
 	listHeight := modalHeight - 9
 
 	// Create delegate with pointer to pending state (so it can read live updates)
-	delegate := blockingItemDelegate{cfg: cfg, pendingBlocking: &pendingBlocking}
+	delegate := blockingItemDelegate{cfg: cfg, pendingBlocking: pendingBlocking}
 
 	l := list.New(items, delegate, listWidth, listHeight)
 	l.Title = blockingPickerTitle(blockedBy)

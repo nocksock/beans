@@ -370,16 +370,6 @@ In the TUI, you can launch for multiple beans simultaneously using launchers mar
 - Open multiple beans in separate tmux panes/kitty windows
 - Batch process related beans
 
-### TUI Configuration
-
-You can customize TUI behavior in `.beans.yml`:
-
-```yaml
-tui:
-  # Disable confirmation prompt when launching for 5+ beans
-  disable_launcher_warning: false
-```
-
 ### Examples
 
 ```yaml

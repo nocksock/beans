@@ -32,7 +32,6 @@ func TestDiscoverLaunchers(t *testing.T) {
 	tests := []struct {
 		name      string
 		cfg       *config.Config
-		beansRoot string
 		wantCount int
 		wantNames []string
 	}{
@@ -41,7 +40,6 @@ func TestDiscoverLaunchers(t *testing.T) {
 			cfg: &config.Config{
 				Launchers: []config.Launcher{},
 			},
-			beansRoot: tmpDir,
 			wantCount: 0,
 			wantNames: []string{},
 		},
@@ -52,7 +50,6 @@ func TestDiscoverLaunchers(t *testing.T) {
 					{Name: "ls-tool", Exec: "ls", Description: "List files"},
 				},
 			},
-			beansRoot: tmpDir,
 			wantCount: 1,
 			wantNames: []string{"ls-tool"},
 		},
@@ -63,7 +60,6 @@ func TestDiscoverLaunchers(t *testing.T) {
 					{Name: "my-tool", Exec: "echo hello", Description: "My tool"},
 				},
 			},
-			beansRoot: tmpDir,
 			wantCount: 1,
 			wantNames: []string{"my-tool"},
 		},
@@ -74,7 +70,6 @@ func TestDiscoverLaunchers(t *testing.T) {
 					{Name: "script", Exec: "#!/bin/bash\necho hello", Description: "Script"},
 				},
 			},
-			beansRoot: tmpDir,
 			wantCount: 1,
 			wantNames: []string{"script"},
 		},
@@ -85,7 +80,6 @@ func TestDiscoverLaunchers(t *testing.T) {
 					{Name: "missing", Exec: "", Description: "Missing"},
 				},
 			},
-			beansRoot: tmpDir,
 			wantCount: 0,
 			wantNames: []string{},
 		},
@@ -98,7 +92,6 @@ func TestDiscoverLaunchers(t *testing.T) {
 					{Name: "script", Exec: "#!/bin/bash\necho world", Description: "Script"},
 				},
 			},
-			beansRoot: tmpDir,
 			wantCount: 3,
 			wantNames: []string{"ls-tool", "my-tool", "script"},
 		},
@@ -106,7 +99,7 @@ func TestDiscoverLaunchers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			launchers := discoverLaunchers(tt.cfg, tt.beansRoot)
+			launchers := discoverLaunchers(tt.cfg)
 
 			if len(launchers) != tt.wantCount {
 				t.Errorf("discoverLaunchers() returned %d launchers, want %d", len(launchers), tt.wantCount)
@@ -371,7 +364,7 @@ func TestDiscoverLaunchersKeepsConfigDir(t *testing.T) {
 		},
 	}
 
-	launchers := discoverLaunchers(cfg, "/repo/.beans")
+	launchers := discoverLaunchers(cfg)
 	if len(launchers) != 2 {
 		t.Fatalf("got %d launchers, want 2", len(launchers))
 	}

@@ -259,7 +259,7 @@ func setNode(m *yaml.Node, keys []string, val *yaml.Node) error {
 			replaceNode(existing, val)
 		case existing != nil:
 			if existing.Tag == "!!null" {
-				// An empty section like "tui:" becomes a map
+				// An empty section like "prompt:" becomes a map
 				replaceNode(existing, &yaml.Node{Kind: yaml.MappingNode})
 			}
 			m = existing

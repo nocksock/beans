@@ -17,7 +17,7 @@ func TestFormatSetting(t *testing.T) {
 		{name: "int", value: 4, want: "4\n"},
 		{name: "bool", value: true, want: "true\n"},
 		{name: "list", value: config.KeyList{"s", "S"}, want: "- s\n- S\n"},
-		{name: "struct", value: config.TUIConfig{DisableLauncherWarning: true}, want: "disable_launcher_warning: true\n"},
+		{name: "struct", value: config.PromptConfig{Extra: "be nice"}, want: "extra: be nice\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

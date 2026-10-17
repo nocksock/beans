@@ -10,12 +10,10 @@ import (
 
 // Error codes for JSON responses
 const (
-	ErrNotFound       = "NOT_FOUND"
-	ErrAmbiguousID    = "AMBIGUOUS_ID"
-	ErrNoBeansDir     = "NO_BEANS_DIR"
-	ErrInvalidStatus  = "INVALID_STATUS"
-	ErrFileError      = "FILE_ERROR"
-	ErrValidation     = "VALIDATION_ERROR"
+	ErrNotFound      = "NOT_FOUND"
+	ErrInvalidStatus = "INVALID_STATUS"
+	ErrFileError     = "FILE_ERROR"
+	ErrValidation    = "VALIDATION_ERROR"
 )
 
 // Response is the standard JSON response envelope.
@@ -44,16 +42,6 @@ func Success(b *bean.Bean, message string) error {
 		Success: true,
 		Bean:    b,
 		Message: message,
-	})
-}
-
-// SuccessWithWarnings outputs a successful single-bean response with warnings.
-func SuccessWithWarnings(b *bean.Bean, message string, warnings []string) error {
-	return JSON(Response{
-		Success:  true,
-		Bean:     b,
-		Message:  message,
-		Warnings: warnings,
 	})
 }
 

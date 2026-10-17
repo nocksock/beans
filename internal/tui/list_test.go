@@ -37,7 +37,7 @@ func TestSortBeans(t *testing.T) {
 			{ID: "1", Status: "todo", Type: "task", Priority: "low", Title: "A"},
 			{ID: "2", Status: "todo", Type: "task", Priority: "critical", Title: "B"},
 			{ID: "3", Status: "todo", Type: "task", Priority: "high", Title: "C"},
-			{ID: "4", Status: "todo", Type: "task", Priority: "", Title: "D"},       // empty = normal
+			{ID: "4", Status: "todo", Type: "task", Priority: "", Title: "D"}, // empty = normal
 			{ID: "5", Status: "todo", Type: "task", Priority: "deferred", Title: "E"},
 		}
 

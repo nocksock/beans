@@ -262,22 +262,7 @@ func renderNodes(sb *strings.Builder, nodes []*TreeNode, depth int, ancestry []b
 func renderNode(sb *strings.Builder, node *TreeNode, depth int, isLast bool, ancestry []bool, cfg *config.Config, renderCfg treeRenderConfig) {
 	b := node.Bean
 
-	// Build tree prefix from ancestry
-	var prefix string
-	if depth > 0 {
-		for _, wasLast := range ancestry {
-			if wasLast {
-				prefix += treeSpace
-			} else {
-				prefix += treePipe
-			}
-		}
-		if isLast {
-			prefix += treeLastBranch
-		} else {
-			prefix += treeBranch
-		}
-	}
+	prefix := treePrefix(depth, ancestry, isLast)
 
 	// Get colors from config
 	colors := cfg.GetBeanColors(b.Status, b.Type, b.Priority)
@@ -308,6 +293,26 @@ func renderNode(sb *strings.Builder, node *TreeNode, depth int, isLast bool, anc
 	sb.WriteString("\n")
 }
 
+// treePrefix builds the connector prefix for a node (e.g. "│ └─").
+// Roots (depth 0) get no prefix; ancestry holds whether each ancestor level was a last child.
+func treePrefix(depth int, ancestry []bool, isLast bool) string {
+	if depth == 0 {
+		return ""
+	}
+	var prefix string
+	for _, wasLast := range ancestry {
+		if wasLast {
+			prefix += treeSpace // parent was last child, no continuation line
+		} else {
+			prefix += treePipe // parent has more siblings, show continuation line
+		}
+	}
+	if isLast {
+		return prefix + treeLastBranch
+	}
+	return prefix + treeBranch
+}
+
 // FlatItem represents a flattened tree node with rendering context.
 // Used by TUI to render tree structure in a flat list.
 type FlatItem struct {
@@ -317,14 +322,6 @@ type FlatItem struct {
 	Matched     bool   // true if bean matched filter (vs. shown for context)
 	TreePrefix  string // pre-computed tree prefix (e.g., "  └─")
 	HasChildren bool   // true if this bean has children
-}
-
-// FlattenTree converts a tree into a flat slice with tree context preserved.
-// Each item includes the pre-computed tree prefix for rendering.
-func FlattenTree(nodes []*TreeNode) []FlatItem {
-	var items []FlatItem
-	flattenNodes(nodes, 0, nil, nil, &items)
-	return items
 }
 
 // FlattenTreeWithCollapsed converts a tree into a flat slice, hiding children of collapsed beans.
@@ -342,25 +339,7 @@ func flattenNodes(nodes []*TreeNode, depth int, ancestry []bool, collapsedBeans 
 	for i, node := range nodes {
 		isLast := i == len(nodes)-1
 
-		// Compute tree prefix
-		var prefix string
-		if depth > 0 {
-			// Build prefix from ancestry - each level adds either │ or space
-			for _, wasLast := range ancestry {
-				if wasLast {
-					prefix += treeSpace // parent was last child, no continuation line
-				} else {
-					prefix += treePipe // parent has more siblings, show continuation line
-				}
-			}
-			// Add connector for this node
-			if isLast {
-				prefix += treeLastBranch
-			} else {
-				prefix += treeBranch
-			}
-		}
-
+		prefix := treePrefix(depth, ancestry, isLast)
 		hasChildren := len(node.Children) > 0
 
 		*items = append(*items, FlatItem{

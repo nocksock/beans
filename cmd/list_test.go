@@ -136,31 +136,6 @@ func TestSortBeans(t *testing.T) {
 	})
 }
 
-func TestTruncate(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  string
-		maxLen int
-		want   string
-	}{
-		{"short string", "hello", 10, "hello"},
-		{"exact length", "hello", 5, "hello"},
-		{"needs truncation", "hello world", 8, "hello..."},
-		{"very short max", "hello", 4, "h..."},
-		{"empty string", "", 10, ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := truncate(tt.input, tt.maxLen)
-			if got != tt.want {
-				t.Errorf("truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
-			}
-		})
-	}
-}
-
-
 func TestHiddenStatuses(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), config.ConfigFileName)
 	if err := os.WriteFile(configPath, []byte("statuses:\n  completed:\n    - name: merged\n    - name: released\n"), 0644); err != nil {

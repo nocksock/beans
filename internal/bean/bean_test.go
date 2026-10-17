@@ -746,18 +746,6 @@ func TestParentAndBlockingRoundtrip(t *testing.T) {
 }
 
 func TestBeanRelationshipMethods(t *testing.T) {
-	t.Run("HasParent", func(t *testing.T) {
-		withParent := &Bean{Parent: "xyz789"}
-		if !withParent.HasParent() {
-			t.Error("expected HasParent() = true when parent is set")
-		}
-
-		withoutParent := &Bean{}
-		if withoutParent.HasParent() {
-			t.Error("expected HasParent() = false when parent is empty")
-		}
-	})
-
 	t.Run("IsBlocking", func(t *testing.T) {
 		b := &Bean{Blocking: []string{"abc", "def"}}
 		if !b.IsBlocking("abc") {

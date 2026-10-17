@@ -57,7 +57,6 @@ func (d tagItemDelegate) Render(w io.Writer, m list.Model, index int, listItem l
 // tagPickerModel is the model for the tag picker view
 type tagPickerModel struct {
 	list   list.Model
-	tags   []tagWithCount
 	width  int
 	height int
 }
@@ -91,7 +90,6 @@ func newTagPickerModel(tags []tagWithCount, width, height int) tagPickerModel {
 
 	return tagPickerModel{
 		list:   l,
-		tags:   tags,
 		width:  width,
 		height: height,
 	}

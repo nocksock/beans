@@ -34,8 +34,7 @@ keybinding:
 		{key: "beans.prefix", want: "app-"},
 		{key: "beans.id_length", want: 4},           // default
 		{key: "beans.default_status", want: "todo"}, // default
-		{key: "tui.disable_launcher_warning", want: false},
-		{key: "prompt.extra", want: ""}, // nil pointer
+		{key: "prompt.extra", want: ""},             // nil pointer
 		{key: "launchers.0.exec", want: `claude "$BEANS_ID"`},
 		{key: "launchers.claude.name", want: "claude"},
 		{key: "keybinding.list.changeStatus", want: KeyList{"s"}},
@@ -103,16 +102,16 @@ func TestSetSetting(t *testing.T) {
 		{
 			name:    "creates missing sections",
 			initial: "beans:\n  prefix: x-\n",
-			key:     "tui.disable_launcher_warning",
-			value:   "true",
-			want:    "beans:\n  prefix: x-\ntui:\n  disable_launcher_warning: true\n",
+			key:     "prompt.extra",
+			value:   "be nice",
+			want:    "beans:\n  prefix: x-\nprompt:\n  extra: be nice\n",
 		},
 		{
 			name:    "fills empty section",
-			initial: "tui:\n",
-			key:     "tui.disable_launcher_warning",
-			value:   "true",
-			want:    "tui:\n  disable_launcher_warning: true\n",
+			initial: "prompt:\n",
+			key:     "prompt.extra",
+			value:   "be nice",
+			want:    "prompt:\n  extra: be nice\n",
 		},
 		{
 			name:    "empty file",

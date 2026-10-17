@@ -55,7 +55,7 @@ func TestLoadUserConfig(t *testing.T) {
 		wantErr    bool
 		wantPrefix string
 		wantIDLen  int
-		wantWarn   bool
+		wantExtra  string
 	}{
 		{
 			name:       "no user config",
@@ -65,11 +65,11 @@ func TestLoadUserConfig(t *testing.T) {
 		},
 		{
 			name:       "user config is the base layer",
-			user:       "beans:\n  prefix: user-\n  id_length: 7\ntui:\n  disable_launcher_warning: true\n",
+			user:       "beans:\n  prefix: user-\n  id_length: 7\nprompt:\n  extra: be nice\n",
 			project:    "beans:\n  prefix: proj-\n",
 			wantPrefix: "proj-",
 			wantIDLen:  7,
-			wantWarn:   true,
+			wantExtra:  "be nice",
 		},
 		{
 			name:       "user config applies without project config",
@@ -116,8 +116,8 @@ func TestLoadUserConfig(t *testing.T) {
 			if cfg.Beans.IDLength != tt.wantIDLen {
 				t.Errorf("IDLength = %d, want %d", cfg.Beans.IDLength, tt.wantIDLen)
 			}
-			if cfg.TUI.DisableLauncherWarning != tt.wantWarn {
-				t.Errorf("DisableLauncherWarning = %v, want %v", cfg.TUI.DisableLauncherWarning, tt.wantWarn)
+			if got := cfg.PromptExtra(); got != tt.wantExtra {
+				t.Errorf("PromptExtra() = %q, want %q", got, tt.wantExtra)
 			}
 			if cfg.ConfigDir() != dir {
 				t.Errorf("ConfigDir() = %q, want %q", cfg.ConfigDir(), dir)

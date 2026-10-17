@@ -31,7 +31,7 @@ var createCmd = &cobra.Command{
 	Use:     "create [title]",
 	Aliases: []string{"c", "new"},
 	Short:   "Create a new bean",
-	Long:    `Creates a new bean (issue) with a generated ID and optional title.
+	Long: `Creates a new bean (issue) with a generated ID and optional title.
 
 The title may be omitted when a body is given; untitled beans are displayed
 using the first line of their body.`,

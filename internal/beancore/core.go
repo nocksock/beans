@@ -484,11 +484,6 @@ func (c *Core) Init() error {
 	return os.MkdirAll(c.root, 0755)
 }
 
-// FullPath returns the absolute path to a bean file.
-func (c *Core) FullPath(b *bean.Bean) string {
-	return filepath.Join(c.root, b.Path)
-}
-
 // Close stops any active file watcher and cleans up resources.
 func (c *Core) Close() error {
 	c.mu.Lock()
