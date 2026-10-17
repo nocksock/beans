@@ -161,3 +161,46 @@ func TestBlockedByPicker(t *testing.T) {
 		}
 	})
 }
+
+func selectedBeanID(a *App) string {
+	if item, ok := a.list.list.SelectedItem().(beanItem); ok {
+		return item.bean.ID
+	}
+	return ""
+}
+
+func TestCreateBeanMovesCursorToNewBean(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	_, cmd := app.Update(beanCreatedMsg{title: "Zzz newly created"})
+	if cmd == nil {
+		t.Fatal("expected command after creating bean")
+	}
+
+	var created *bean.Bean
+	for _, b := range app.core.All() {
+		if b.Title == "Zzz newly created" {
+			created = b
+		}
+	}
+	if created == nil {
+		t.Fatal("created bean not found")
+	}
+
+	// Simulate the list reload that runs alongside the editor
+	app.Update(app.list.loadBeans())
+	if got := selectedBeanID(app); got != created.ID {
+		t.Errorf("selected = %q, want new bean %q", got, created.ID)
+	}
+
+	// Returning from the editor keeps the cursor on the new bean
+	app.Update(openEditorMsg{beanID: created.ID, beanPath: created.Path})
+	_, cmd = app.Update(editorFinishedMsg{})
+	if cmd == nil {
+		t.Fatal("expected list reload after editor finished")
+	}
+	app.Update(cmd())
+	if got := selectedBeanID(app); got != created.ID {
+		t.Errorf("after editor: selected = %q, want new bean %q", got, created.ID)
+	}
+}
