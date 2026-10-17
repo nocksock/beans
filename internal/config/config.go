@@ -18,8 +18,11 @@ const (
 	LegacyConfigFile = "config.yaml"
 )
 
-// DefaultStatuses defines the hardcoded status configuration.
-// Statuses are not configurable - they are hardcoded like types.
+// StatusArchived is the status beans are moved to by `beans archive`.
+const StatusArchived = "archived"
+
+// DefaultStatuses defines the builtin statuses.
+// They can't be changed, but projects can add custom statuses below each of them (see Config.Statuses).
 // Order determines sort priority: in-progress first (active work), then todo, draft, and done states last.
 var DefaultStatuses = []StatusConfig{
 	{Name: "in-progress", Color: "yellow", Description: "Currently being worked on"},
@@ -27,6 +30,7 @@ var DefaultStatuses = []StatusConfig{
 	{Name: "draft", Color: "blue", Description: "Needs refinement before it can be worked on"},
 	{Name: "completed", Color: "gray", Archive: true, Description: "Finished successfully"},
 	{Name: "scrapped", Color: "gray", Archive: true, Description: "Will not be done"},
+	{Name: StatusArchived, Color: "gray", Archive: true, Description: "Done and put away; hidden from lists by default"},
 }
 
 // DefaultTypes defines the default type configuration.
@@ -53,6 +57,16 @@ type StatusConfig struct {
 	Name        string `yaml:"name"`
 	Color       string `yaml:"color"`
 	Archive     bool   `yaml:"archive,omitempty"`
+	Description string `yaml:"description,omitempty"`
+	// Parent is the builtin status a custom status belongs to; empty for builtins.
+	Parent string `yaml:"parent,omitempty"`
+}
+
+// CustomStatusConfig defines a project-specific status in .beans.yml.
+// It belongs to a builtin status and inherits its color and archive behaviour.
+type CustomStatusConfig struct {
+	Name        string `yaml:"name"`
+	Color       string `yaml:"color,omitempty"`
 	Description string `yaml:"description,omitempty"`
 }
 
@@ -95,12 +109,13 @@ type TUIConfig struct {
 }
 
 // Config holds the beans configuration.
-// Note: Statuses are no longer stored in config - they are hardcoded like types.
 type Config struct {
-	Beans     BeansConfig   `yaml:"beans"`
-	TUI       TUIConfig     `yaml:"tui,omitempty"`
-	Launchers []Launcher    `yaml:"launchers,omitempty"`
-	Prompt    *PromptConfig `yaml:"prompt,omitempty"` // Agent prompt customization
+	Beans BeansConfig `yaml:"beans"`
+	// CustomStatuses maps a builtin status to the custom statuses grouped below it.
+	CustomStatuses CustomStatuses `yaml:"statuses,omitempty"`
+	TUI            TUIConfig      `yaml:"tui,omitempty"`
+	Launchers      []Launcher     `yaml:"launchers,omitempty"`
+	Prompt         *PromptConfig  `yaml:"prompt,omitempty"` // Agent prompt customization
 
 	// Keybinding overrides TUI key bindings, per context and action
 	Keybinding Keybindings `yaml:"keybinding,omitempty"`
@@ -115,6 +130,10 @@ type Config struct {
 	// beansPathDir is the directory of the config file that declared Beans.Path (not serialized).
 	// Empty means Beans.Path resolves against configDir.
 	beansPathDir string `yaml:"-"`
+
+	// statuses is the resolved list of builtin and custom statuses (not serialized).
+	// Nil means only the builtins.
+	statuses []StatusConfig `yaml:"-"`
 }
 
 // BeansConfig defines settings for bean creation.
@@ -224,6 +243,11 @@ func fromLayers(configPath string, layers []layer) (*Config, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
+	statuses, err := resolveStatuses(cfg.CustomStatuses)
+	if err != nil {
+		return nil, err
+	}
+	cfg.statuses = statuses
 	return cfg, nil
 }
 
@@ -385,42 +409,32 @@ func (c *Config) PromptExtra() string {
 	return c.Prompt.Extra
 }
 
-// IsValidStatus returns true if the status is a valid hardcoded status.
+// IsValidStatus returns true if the status is a builtin or custom status.
 func (c *Config) IsValidStatus(status string) bool {
-	for _, s := range DefaultStatuses {
-		if s.Name == status {
-			return true
-		}
-	}
-	return false
+	return c.GetStatus(status) != nil
 }
 
 // StatusList returns a comma-separated list of valid statuses.
-// Statuses are hardcoded and not configurable.
 func (c *Config) StatusList() string {
-	names := make([]string, len(DefaultStatuses))
-	for i, s := range DefaultStatuses {
-		names[i] = s.Name
-	}
-	return strings.Join(names, ", ")
+	return strings.Join(c.StatusNames(), ", ")
 }
 
-// StatusNames returns a slice of valid status names.
-// Statuses are hardcoded and not configurable.
+// StatusNames returns a slice of valid status names, in sort order.
 func (c *Config) StatusNames() []string {
-	names := make([]string, len(DefaultStatuses))
-	for i, s := range DefaultStatuses {
+	statuses := c.Statuses()
+	names := make([]string, len(statuses))
+	for i, s := range statuses {
 		names[i] = s.Name
 	}
 	return names
 }
 
 // GetStatus returns the StatusConfig for a given status name, or nil if not found.
-// Statuses are hardcoded and not configurable.
 func (c *Config) GetStatus(name string) *StatusConfig {
-	for i := range DefaultStatuses {
-		if DefaultStatuses[i].Name == name {
-			return &DefaultStatuses[i]
+	statuses := c.Statuses()
+	for i := range statuses {
+		if statuses[i].Name == name {
+			return &statuses[i]
 		}
 	}
 	return nil
@@ -440,12 +454,22 @@ func (c *Config) GetDefaultType() string {
 }
 
 // IsArchiveStatus returns true if the given status is marked for archiving.
-// Statuses are hardcoded and not configurable.
 func (c *Config) IsArchiveStatus(name string) bool {
 	if s := c.GetStatus(name); s != nil {
 		return s.Archive
 	}
 	return false
+}
+
+// IsArchived returns true if the status is archived or one of its custom statuses.
+func (c *Config) IsArchived(name string) bool {
+	return c.StatusCategory(name) == StatusArchived
+}
+
+// IsArchivable returns true if a bean with the given status should be moved
+// to the archived status by a bulk archive (done, but not yet archived).
+func (c *Config) IsArchivable(name string) bool {
+	return !c.IsArchived(name) && c.IsArchiveStatus(name)
 }
 
 // GetType returns the TypeConfig for a given type name, or nil if not found.

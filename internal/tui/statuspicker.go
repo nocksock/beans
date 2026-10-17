@@ -35,6 +35,7 @@ type statusItem struct {
 	color       string
 	isArchive   bool
 	isCurrent   bool
+	isCustom    bool // grouped below a builtin status
 }
 
 func (i statusItem) Title() string       { return i.name }
@@ -61,8 +62,11 @@ func (d statusItemDelegate) Render(w io.Writer, m list.Model, index int, listIte
 		cursor = "  "
 	}
 
-	// Render status with color (text only)
+	// Render status with color (text only), custom statuses indented below their builtin
 	statusText := ui.RenderStatusTextWithColor(item.name, item.color, item.isArchive)
+	if item.isCustom {
+		statusText = "  " + statusText
+	}
 
 	// Add current indicator
 	var currentIndicator string
@@ -84,8 +88,7 @@ type statusPickerModel struct {
 }
 
 func newStatusPickerModel(beanIDs []string, beanTitle, currentStatus string, cfg *config.Config, width, height int) statusPickerModel {
-	// Get all statuses (hardcoded in config package)
-	statuses := config.DefaultStatuses
+	statuses := cfg.Statuses()
 
 	delegate := statusItemDelegate{}
 
@@ -104,6 +107,7 @@ func newStatusPickerModel(beanIDs []string, beanTitle, currentStatus string, cfg
 			color:       s.Color,
 			isArchive:   s.Archive,
 			isCurrent:   isCurrent,
+			isCustom:    s.Parent != "",
 		})
 	}
 

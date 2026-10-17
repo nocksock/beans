@@ -8,7 +8,9 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/config"
+	"github.com/hmans/beans/internal/graph/model"
 	"github.com/hmans/beans/internal/ui"
 )
 
@@ -39,6 +41,26 @@ type openCreateModalMsg struct {
 	parentTitle string // display title of the parent (for UI)
 }
 
+// openEditModalMsg requests opening the form to edit an existing bean
+type openEditModalMsg struct {
+	bean *bean.Bean
+}
+
+// beanEditedMsg is sent when the edit form is saved. input only carries the
+// fields that changed, so an unchanged form results in an empty input.
+type beanEditedMsg struct {
+	beanID     string
+	input      model.UpdateBeanInput
+	openEditor bool // open the bean in $EDITOR after saving
+}
+
+// editModalChromeHeight is the number of rows the edit form needs besides the
+// description field (modal border and padding, header, title, selectors, help)
+const editModalChromeHeight = 24
+
+// editModalMinBodyHeight is the minimum height of the description field when editing
+const editModalMinBodyHeight = 5
+
 // createField identifies a focusable field in the create form
 type createField int
 
@@ -66,6 +88,35 @@ type createModalModel struct {
 	height      int
 	parentID    string // optional parent ID for the new bean
 	parentTitle string // display title of the parent (for UI)
+
+	// Edit mode: set when the form edits an existing bean instead of creating one
+	beanID       string
+	origTitle    string
+	origBody     string
+	origTypeIdx  int
+	origStatIdx  int
+	origPrioIdx  int
+	errorMessage string
+}
+
+// newEditModalModel returns the form prefilled with an existing bean's fields
+func newEditModalModel(cfg *config.Config, width, height int, b *bean.Bean) createModalModel {
+	m := newCreateModalModel(cfg, width, height, "", "")
+	m.beanID = b.ID
+	m.origTitle = strings.TrimSpace(b.Title)
+	m.origBody = strings.TrimSpace(b.Body)
+	m.textInput.SetValue(m.origTitle)
+	m.body.SetValue(m.origBody)
+	m.typeIdx = indexByName(m.types, func(t config.TypeConfig) string { return t.Name }, b.Type)
+	m.statusIdx = indexByName(m.statuses, func(s config.StatusConfig) string { return s.Name }, b.Status)
+	m.priorityIdx = indexByName(m.priorities, func(p config.PriorityConfig) string { return p.Name }, b.Priority)
+	m.origTypeIdx, m.origStatIdx, m.origPrioIdx = m.typeIdx, m.statusIdx, m.priorityIdx
+	m.resize()
+	return m
+}
+
+func (m createModalModel) isEdit() bool {
+	return m.beanID != ""
 }
 
 func newCreateModalModel(cfg *config.Config, width, height int, parentID, parentTitle string) createModalModel {
@@ -93,7 +144,7 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 		textInput:   ti,
 		body:        ta,
 		types:       config.DefaultTypes,
-		statuses:    config.DefaultStatuses,
+		statuses:    cfg.Statuses(),
 		priorities:  config.DefaultPriorities,
 		width:       width,
 		height:      height,
@@ -126,6 +177,9 @@ func (m *createModalModel) resize() {
 	inner := m.modalWidth() - 10 // modal border+padding, field border+padding
 	m.textInput.Width = inner
 	m.body.SetWidth(inner)
+	if m.isEdit() {
+		m.body.SetHeight(max(editModalMinBodyHeight, m.height-editModalChromeHeight))
+	}
 }
 
 func (m createModalModel) Init() tea.Cmd {
@@ -149,6 +203,9 @@ func (m *createModalModel) setFocus(f createField) tea.Cmd {
 // submit returns a command that creates the bean, or closes the modal if both
 // title and description are empty (the title is optional when a description is given)
 func (m createModalModel) submit(openEditor bool) tea.Cmd {
+	if m.isEdit() {
+		return m.submitEdit(openEditor)
+	}
 	title := strings.TrimSpace(m.textInput.Value())
 	body := strings.TrimSpace(m.body.Value())
 	if title == "" && body == "" {
@@ -164,6 +221,48 @@ func (m createModalModel) submit(openEditor bool) tea.Cmd {
 		openEditor: openEditor,
 	}
 	return func() tea.Msg { return msg }
+}
+
+// submitEdit returns a command that saves the changed fields of the edited bean.
+// Selectors only count as changed when moved, so a bean whose type, status or
+// priority is unknown to the config keeps its value.
+func (m createModalModel) submitEdit(openEditor bool) tea.Cmd {
+	title := strings.TrimSpace(m.textInput.Value())
+	body := strings.TrimSpace(m.body.Value())
+	msg := beanEditedMsg{beanID: m.beanID, openEditor: openEditor}
+	if title != m.origTitle {
+		msg.input.Title = &title
+	}
+	if body != m.origBody {
+		msg.input.Body = &body
+	}
+	if m.typeIdx != m.origTypeIdx {
+		msg.input.Type = &m.types[m.typeIdx].Name
+	}
+	if m.statusIdx != m.origStatIdx {
+		msg.input.Status = &m.statuses[m.statusIdx].Name
+	}
+	if m.priorityIdx != m.origPrioIdx {
+		msg.input.Priority = &m.priorities[m.priorityIdx].Name
+	}
+	return func() tea.Msg { return msg }
+}
+
+// validate reports why the form can't be submitted, or "" if it can
+func (m createModalModel) validate() string {
+	if m.isEdit() && strings.TrimSpace(m.textInput.Value()) == "" && strings.TrimSpace(m.body.Value()) == "" {
+		return "A bean needs a title or a description"
+	}
+	return ""
+}
+
+// trySubmit submits the form, or shows a validation error instead
+func (m createModalModel) trySubmit(openEditor bool) (createModalModel, tea.Cmd) {
+	m.errorMessage = m.validate()
+	if m.errorMessage != "" {
+		return m, nil
+	}
+	return m, m.submit(openEditor)
 }
 
 // cycle moves the selection of the focused selector field by delta
@@ -202,13 +301,13 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 		case key.Matches(msg, k.PrevField):
 			return m, m.setFocus(m.focus - 1)
 		case key.Matches(msg, k.Submit):
-			return m, m.submit(false)
+			return m.trySubmit(false)
 		case key.Matches(msg, k.SubmitAndEdit):
-			return m, m.submit(true)
+			return m.trySubmit(true)
 		case key.Matches(msg, k.QuickSubmit):
 			// Enter inserts newlines in the description; elsewhere it submits
 			if m.focus != createFieldBody {
-				return m, m.submit(false)
+				return m.trySubmit(false)
 			}
 		}
 
@@ -219,7 +318,7 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 			case key.Matches(msg, k.CycleNext):
 				m.cycle(1)
 			case key.Matches(msg, k.QuickSubmitAndEdit):
-				return m, m.submit(true)
+				return m.trySubmit(true)
 			}
 			return m, nil
 		}
@@ -244,7 +343,10 @@ func (m createModalModel) View() string {
 
 	// Header - show parent context if creating a child
 	var header string
-	if m.parentTitle != "" {
+	if m.isEdit() {
+		header = lipgloss.NewStyle().Bold(true).Render("Edit Bean") + "\n" +
+			lipgloss.NewStyle().Foreground(ui.ColorMuted).Render(m.beanID)
+	} else if m.parentTitle != "" {
 		header = lipgloss.NewStyle().Bold(true).Render("Create Child Bean")
 		// Truncate parent title if too long
 		parentDisplay := m.parentTitle
@@ -303,19 +405,23 @@ func (m createModalModel) View() string {
 
 	// Help text depends on the focused field
 	k := keymap.CreateModal
+	verb := "create"
+	if m.isEdit() {
+		verb = "save"
+	}
 	var help string
 	switch m.focus {
 	case createFieldBody:
-		help = hint(k.Submit, "")
+		help = hint(k.Submit, verb)
 	case createFieldTitle:
-		help = hint(k.QuickSubmit, "")
+		help = hint(k.QuickSubmit, verb)
 	default:
 		help = groupHint("change", k.CyclePrev, k.CycleNext) +
-			hint(k.QuickSubmit, "") +
-			hint(k.QuickSubmitAndEdit, "")
+			hint(k.QuickSubmit, verb) +
+			hint(k.QuickSubmitAndEdit, verb+" & edit")
 	}
 	if !m.isSelectorFocused() {
-		help += hint(k.SubmitAndEdit, "")
+		help += hint(k.SubmitAndEdit, verb+" & edit")
 	}
 	help = hints(help, hint(k.NextField, ""), hint(k.Cancel, ""))
 
@@ -323,8 +429,11 @@ func (m createModalModel) View() string {
 	content := header + "\n\n" +
 		label(createFieldTitle, "Title") + "\n" + box(createFieldTitle, m.textInput.View()) + "\n\n" +
 		selectors + "\n\n" +
-		label(createFieldBody, "Description") + "\n" + box(createFieldBody, m.body.View()) + "\n\n" +
-		lipgloss.NewStyle().Width(fieldWidth).Render(help)
+		label(createFieldBody, "Description") + "\n" + box(createFieldBody, m.body.View()) + "\n\n"
+	if m.errorMessage != "" {
+		content += lipgloss.NewStyle().Foreground(ui.ColorDanger).Render(m.errorMessage) + "\n"
+	}
+	content += lipgloss.NewStyle().Width(fieldWidth).Render(help)
 
 	// Border style
 	border := lipgloss.NewStyle().

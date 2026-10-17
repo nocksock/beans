@@ -339,3 +339,10 @@ func TestDetailBrowsePrevNext(t *testing.T) {
 		t.Errorf("esc after browsing should return to the list, state = %v", app.state)
 	}
 }
+
+func TestBreadcrumbTitleShowArchived(t *testing.T) {
+	m := listModel{tagFilter: "idea", showArchived: true}
+	if got, want := m.breadcrumbTitle(80), "Beans [tag: idea] [+archived]"; got != want {
+		t.Errorf("breadcrumbTitle = %q, want %q", got, want)
+	}
+}

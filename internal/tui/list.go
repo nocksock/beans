@@ -128,7 +128,8 @@ type listModel struct {
 	idColWidth int                  // ID column width (accounts for tree depth)
 
 	// Active filters
-	tagFilter string // if set, only show beans with this tag
+	tagFilter    string // if set, only show beans with this tag
+	showArchived bool   // if false, beans with the archived status are hidden
 
 	// Multi-select state
 	selectedBeans map[string]bool // IDs of beans marked for multi-edit
@@ -212,10 +213,13 @@ func (m listModel) Init() tea.Cmd {
 }
 
 func (m listModel) loadBeans() tea.Msg {
-	// Build filter if tag filter is set
-	var filter *model.BeanFilter
+	// Build filter from the tag filter and archived visibility
+	filter := &model.BeanFilter{}
 	if m.tagFilter != "" {
-		filter = &model.BeanFilter{Tags: []string{m.tagFilter}}
+		filter.Tags = []string{m.tagFilter}
+	}
+	if !m.showArchived {
+		filter.ExcludeStatus = []string{config.StatusArchived}
 	}
 
 	// Query filtered beans
@@ -230,14 +234,22 @@ func (m listModel) loadBeans() tea.Msg {
 		return errMsg{err}
 	}
 
+	// beansByID keeps archived beans so relationships still resolve; the tree
+	// and child counts only use visible beans, so archived parents stay hidden
 	beansByID := make(map[string]*bean.Bean, len(allBeans))
 	childCounts := make(map[string]int)
+	visibleBeans := allBeans[:0:0]
 	for _, b := range allBeans {
 		beansByID[b.ID] = b
+		if !m.showArchived && m.config.IsArchived(b.Status) {
+			continue
+		}
+		visibleBeans = append(visibleBeans, b)
 		if b.Parent != "" {
 			childCounts[b.Parent]++
 		}
 	}
+	allBeans = visibleBeans
 
 	// Resolve drill-down roots; stop at the first one that no longer exists
 	var rootBeans []*bean.Bean
@@ -671,7 +683,14 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					}
 				}
 			case key.Matches(msg, k.Edit):
-				// Open editor for selected bean
+				// Open the edit form for the bean under the cursor
+				if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg {
+						return openEditModalMsg{bean: item.bean}
+					}
+				}
+			case key.Matches(msg, k.OpenEditor):
+				// Open $EDITOR for the bean under the cursor
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
 						return openEditorMsg{
@@ -721,6 +740,10 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				return m, func() tea.Msg {
 					return archiveCompletedMsg{}
 				}
+			case key.Matches(msg, k.ToggleArchived):
+				// Toggle showing archived beans
+				m.showArchived = !m.showArchived
+				return m, m.loadBeans
 			case key.Matches(msg, k.Back):
 				// First clear selection if any beans are selected
 				if len(m.selectedBeans) > 0 {
@@ -800,6 +823,9 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 	if m.tagFilter != "" {
 		suffix = fmt.Sprintf(" [tag: %s]", m.tagFilter)
 	}
+	if m.showArchived {
+		suffix += " [+archived]"
+	}
 
 	crumbs := make([]string, 0, len(m.rootBeans)+1)
 	crumbs = append(crumbs, "Beans")
@@ -837,6 +863,11 @@ func (m listModel) Footer() string {
 		selectionPrefix = selectionStyle.Render(fmt.Sprintf("(%d selected) ", len(m.selectedBeans)))
 	}
 
+	archivedHelp := "show archived"
+	if m.showArchived {
+		archivedHelp = "hide archived"
+	}
+
 	if len(m.selectedBeans) > 0 {
 		// When beans are selected, show esc to clear selection
 		help = hints(
@@ -858,6 +889,7 @@ func (m listModel) Footer() string {
 			hint(k.View, ""),
 			hint(k.Create, ""),
 			hint(k.Edit, ""),
+			hint(k.OpenEditor, ""),
 			hint(k.ChangeStatus, ""),
 			hint(k.ChangeType, ""),
 			hint(k.ChangePriority, ""),
@@ -879,6 +911,7 @@ func (m listModel) Footer() string {
 			hint(k.View, ""),
 			hint(k.Create, ""),
 			hint(k.Edit, ""),
+			hint(k.OpenEditor, ""),
 			hint(k.ChangeStatus, ""),
 			hint(k.ChangeType, ""),
 			hint(k.ChangePriority, ""),
@@ -889,6 +922,7 @@ func (m listModel) Footer() string {
 			hint(k.ManageBlockedBy, ""),
 			hint(k.Launch, ""),
 			hint(k.Archive, ""),
+			hint(k.ToggleArchived, archivedHelp),
 			groupHint("fold", k.Collapse, k.Expand, k.ToggleCollapse),
 			hint(k.Filter, ""),
 			hint(g.Help, ""),

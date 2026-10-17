@@ -29,9 +29,9 @@ var (
 func getGlamourRenderer() *glamour.TermRenderer {
 	glamourRendererOnce.Do(func() {
 		var err error
-		// Use DarkStyle instead of WithAutoStyle() to avoid slow terminal detection
-		// that can cause multi-second delays in some terminals
-		glamourRenderer, err = glamour.NewTermRenderer(glamour.WithStylePath("dark"))
+		// markdownStyle is detected once at startup instead of using WithAutoStyle(),
+		// which re-queries the terminal and can cause multi-second delays
+		glamourRenderer, err = glamour.NewTermRenderer(glamour.WithStylePath(markdownStyle))
 		if err != nil {
 			glamourRenderer = nil
 		}
@@ -416,7 +416,13 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			}
 
 		case key.Matches(msg, k.Edit):
-			// Open editor for this bean
+			// Open the edit form for this bean
+			return m, func() tea.Msg {
+				return openEditModalMsg{bean: m.bean}
+			}
+
+		case key.Matches(msg, k.OpenEditor):
+			// Open $EDITOR for this bean
 			return m, func() tea.Msg {
 				return openEditorMsg{
 					beanID:   m.bean.ID,
@@ -510,6 +516,7 @@ func (m detailModel) View() string {
 	footer += hints(
 		hint(k.Launch, ""),
 		hint(k.Edit, ""),
+		hint(k.OpenEditor, ""),
 		hint(k.ChangeStatus, ""),
 		hint(k.ChangeType, ""),
 		hint(k.ChangePriority, ""),

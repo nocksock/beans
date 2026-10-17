@@ -254,6 +254,12 @@ func TestReboundKeys(t *testing.T) {
 			wantState: viewList,
 		},
 		{
+			name:      "rebound edit opens the edit form",
+			overrides: config.Keybindings{"list": {"edit": {"ctrl+o"}}},
+			keys:      []tea.KeyMsg{{Type: tea.KeyCtrlO}},
+			wantState: viewCreateModal,
+		},
+		{
 			name:     "back at the top level quits",
 			keys:     []tea.KeyMsg{{Type: tea.KeyEsc}},
 			wantQuit: true,
@@ -276,7 +282,13 @@ func TestReboundKeys(t *testing.T) {
 					quit = true
 					break
 				}
-				runCmd(app, cmd, 0)
+				// One level is enough to open/close views; deeper would run
+				// text input blink timers
+				if cmd != nil {
+					if msg := cmd(); msg != nil {
+						app.Update(msg)
+					}
+				}
 			}
 			if quit != tt.wantQuit {
 				t.Fatalf("quit = %v, want %v", quit, tt.wantQuit)
@@ -316,7 +328,7 @@ func TestFooterShowsReboundKeys(t *testing.T) {
 			t.Errorf("footer should contain %q:\n%s", want, footer)
 		}
 	}
-	if strings.Contains(footer, "archive") {
+	if strings.Contains(footer, "Y archive") {
 		t.Errorf("footer should not show the unbound archive action:\n%s", footer)
 	}
 }
@@ -360,5 +372,17 @@ func TestRunRejectsInvalidKeybinding(t *testing.T) {
 	core := beancore.New(dir, cfg)
 	if err := Run(core, cfg); err == nil || !strings.Contains(err.Error(), "nope") {
 		t.Errorf("Run() error = %v, want unknown action error", err)
+	}
+}
+
+func TestReboundToggleArchived(t *testing.T) {
+	app := newKeymapTestApp(t, config.Keybindings{"list": {"toggleArchived": {"ctrl+a"}}})
+	app.Update(runes("A"))
+	if app.list.showArchived {
+		t.Error("the default key should no longer toggle archived beans")
+	}
+	app.Update(tea.KeyMsg{Type: tea.KeyCtrlA})
+	if !app.list.showArchived {
+		t.Error("the rebound key should toggle archived beans")
 	}
 }

@@ -66,6 +66,7 @@ type ListKeyMap struct {
 	Create          key.Binding
 	CreateChild     key.Binding
 	Edit            key.Binding
+	OpenEditor      key.Binding
 	ChangeStatus    key.Binding
 	ChangeType      key.Binding
 	ChangePriority  key.Binding
@@ -77,6 +78,7 @@ type ListKeyMap struct {
 	ManageBlockedBy key.Binding
 	Launch          key.Binding
 	Archive         key.Binding
+	ToggleArchived  key.Binding
 }
 
 // DetailKeyMap holds bindings for the bean detail view.
@@ -97,6 +99,7 @@ type DetailKeyMap struct {
 	ToggleFocus     key.Binding
 	FollowLink      key.Binding
 	Edit            key.Binding
+	OpenEditor      key.Binding
 	ChangeStatus    key.Binding
 	ChangeType      key.Binding
 	ChangePriority  key.Binding
@@ -214,6 +217,7 @@ func DefaultKeyMap() KeyMap {
 			Create:          bind("create", "c"),
 			CreateChild:     bind("create child", "C"),
 			Edit:            bind("edit", "e"),
+			OpenEditor:      bind("$EDITOR", "E"),
 			ChangeStatus:    bind("status", "s"),
 			ChangeType:      bind("type", "t"),
 			ChangePriority:  bind("priority", "P"),
@@ -225,6 +229,7 @@ func DefaultKeyMap() KeyMap {
 			ManageBlockedBy: bind("blocked by", "B"),
 			Launch:          bind("launch", "!"),
 			Archive:         bind("archive", "Y"),
+			ToggleArchived:  bind("show archived", "A"),
 		},
 		Detail: DetailKeyMap{
 			ScrollUp:     bind("scroll up", "up", "k"),
@@ -243,6 +248,7 @@ func DefaultKeyMap() KeyMap {
 			ToggleFocus:     bind("switch", "tab"),
 			FollowLink:      bind("go to", "enter"),
 			Edit:            bind("edit", "e"),
+			OpenEditor:      bind("$EDITOR", "E"),
 			ChangeStatus:    bind("status", "s"),
 			ChangeType:      bind("type", "t"),
 			ChangePriority:  bind("priority", "P"),

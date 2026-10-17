@@ -98,6 +98,25 @@ Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans`
 - **Merging**: the closest config wins. Nested settings merge key by key; lists of named items (like `launchers`) merge by `name` (same name replaces, new names are added); other lists are replaced.
 - **Paths**: relative paths resolve against the config file that declared them. Set `beans.path` in a subdirectory config to give it its own beans directory. If no config sets it, `.beans` next to the nearest config is used.
 
+### Custom Statuses
+
+The builtin statuses (`in-progress`, `todo`, `draft`, `completed`, `scrapped`) are always available. You can add your own statuses in `.beans.yml`, grouped below the builtin status they are a kind of:
+
+```yaml
+statuses:
+  in-progress:
+    - name: review
+      color: purple          # optional, defaults to the builtin's color
+      description: Waiting for code review
+  completed:
+    - name: merged
+```
+
+- **Order**: custom statuses sort right after their builtin status.
+- **Filtering**: filtering by a builtin status also matches its custom statuses (`beans list -s in-progress` shows `review` beans too); filtering by a custom status matches only that status. The same applies to `status` and `excludeStatus` in GraphQL.
+- **Behaviour**: custom statuses inherit the builtin's archive behaviour, so `merged` beans are hidden from `beans list` by default, are removed by `beans archive`, and no longer block other beans. `beans list --include completed` shows `completed` and `merged` beans; `--include merged` shows only `merged` ones.
+- **GraphQL**: a bean's `statusCategory` field holds the builtin status its status belongs to.
+
 ### User Config
 
 Settings that should apply to all your projects go in `~/.config/beans/config.yml` (or `$XDG_CONFIG_HOME/beans/config.yml`). It uses the same format as `.beans.yml` and is the base layer below every project config, which can override it. `beans.path` can't be set there, and `cascade` has no effect.
@@ -126,8 +145,8 @@ keybinding:
 | Context | Actions (default keys) |
 |---------|------------------------|
 | `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`) |
-| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
-| `detail` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `scrollLeft` (`left`), `scrollRight` (`right`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `filterLinks` (`/`), `back` (`esc` `backspace`), `prevBean` (`h`), `nextBean` (`l`), `toggleFocus` (`tab`), `followLink` (`enter`), `edit` (`e`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
+| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`) |
+| `detail` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `scrollLeft` (`left`), `scrollRight` (`right`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `filterLinks` (`/`), `back` (`esc` `backspace`), `prevBean` (`h`), `nextBean` (`l`), `toggleFocus` (`tab`), `followLink` (`enter`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
 | `help` | `close` (`?` `esc`) |
 | `picker` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `h` `pgup` `b` `u`), `nextPage` (`right` `l` `pgdown` `f` `d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `confirm` (`enter`), `cancel` (`esc` `backspace`), `toggle` (`space`, blocking picker) |
 | `tagEditor` | `up` (`up` `ctrl+p`), `down` (`down` `ctrl+n`), `toggle` (`space` `tab`), `apply` (`enter`), `cancel` (`esc`) |
