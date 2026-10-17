@@ -63,6 +63,14 @@ beans init
 
 This will create a `.beans/` directory and a `.beans.yml` configuration file at the project root. All of it is meant to be tracked in your version control system.
 
+`beans init` takes a flag for each setting in `.beans.yml`, e.g. to keep the beans outside the project:
+
+```bash
+beans init --path ~/path/to/tasks --prefix app- --id-length 6
+```
+
+Run `beans init --help` for the full list.
+
 From this point onward, you can interact with your Beans through the `beans` CLI. To get a list of available commands:
 
 ```bash
