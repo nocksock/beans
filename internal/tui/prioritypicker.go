@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -116,6 +117,7 @@ func newPriorityPickerModel(beanIDs []string, beanTitle, currentPriority string,
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+	l.KeyMap = pickerListKeyMap()
 	l.SetShowPagination(false)
 	l.Styles.Title = listTitleStyle
 	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 0)
@@ -156,14 +158,14 @@ func (m priorityPickerModel) Update(msg tea.Msg) (priorityPickerModel, tea.Cmd) 
 
 	case tea.KeyMsg:
 		if m.list.FilterState() != list.Filtering {
-			switch msg.String() {
-			case "enter":
+			switch {
+			case key.Matches(msg, keymap.Picker.Confirm):
 				if item, ok := m.list.SelectedItem().(priorityItem); ok {
 					return m, func() tea.Msg {
 						return prioritySelectedMsg{beanIDs: m.beanIDs, priority: item.name}
 					}
 				}
-			case "esc", "backspace":
+			case key.Matches(msg, keymap.Picker.Cancel):
 				return m, func() tea.Msg {
 					return closePriorityPickerMsg{}
 				}

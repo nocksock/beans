@@ -15,12 +15,13 @@ func ApplyFilter(beans []*bean.Bean, filter *model.BeanFilter, core *beancore.Co
 
 	result := beans
 
-	// Status filters
+	// Status filters (a builtin status also matches its custom substatuses)
+	cfg := core.Config()
 	if len(filter.Status) > 0 {
-		result = filterByField(result, filter.Status, func(b *bean.Bean) string { return b.Status })
+		result = filterByField(result, cfg.ExpandStatuses(filter.Status), func(b *bean.Bean) string { return b.Status })
 	}
 	if len(filter.ExcludeStatus) > 0 {
-		result = excludeByField(result, filter.ExcludeStatus, func(b *bean.Bean) string { return b.Status })
+		result = excludeByField(result, cfg.ExpandStatuses(filter.ExcludeStatus), func(b *bean.Bean) string { return b.Status })
 	}
 
 	// Type filters
@@ -285,7 +286,7 @@ func filterByNotBlocked(beans []*bean.Bean, core *beancore.Core) []*bean.Bean {
 
 // hasActiveBlocker reports whether any bean blocking targetID (via blocking or
 // blocked_by) is still active.
-// Blockers with an archive status (e.g. completed, scrapped) no longer block.
+// Blockers with an archive status (e.g. completed, scrapped, archived) no longer block.
 func hasActiveBlocker(targetID string, core *beancore.Core) bool {
 	cfg := core.Config()
 	for _, blocker := range core.FindBlockers(targetID) {

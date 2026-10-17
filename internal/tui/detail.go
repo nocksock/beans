@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -28,9 +29,9 @@ var (
 func getGlamourRenderer() *glamour.TermRenderer {
 	glamourRendererOnce.Do(func() {
 		var err error
-		// Use DarkStyle instead of WithAutoStyle() to avoid slow terminal detection
-		// that can cause multi-second delays in some terminals
-		glamourRenderer, err = glamour.NewTermRenderer(glamour.WithStylePath("dark"))
+		// markdownStyle is detected once at startup instead of using WithAutoStyle(),
+		// which re-queries the terminal and can cause multi-second delays
+		glamourRenderer, err = glamour.NewTermRenderer(glamour.WithStylePath(markdownStyle))
 		if err != nil {
 			glamourRenderer = nil
 		}
@@ -191,6 +192,7 @@ func newDetailModel(b *bean.Bean, resolver *graph.Resolver, cfg *config.Config, 
 	vpHeight := height - headerHeight - footerHeight
 
 	m.viewport = viewport.New(vpWidth, vpHeight)
+	m.viewport.KeyMap = detailViewportKeyMap()
 	m.viewport.SetContent(m.renderBody(vpWidth))
 
 	return m
@@ -227,6 +229,8 @@ func (m detailModel) createLinkList() list.Model {
 	l.SetShowHelp(false)
 	l.SetShowPagination(false)
 	l.SetFilteringEnabled(true)
+	k, nav := keymap.Detail, list.DefaultKeyMap()
+	l.KeyMap = listKeyMap(k.ScrollUp, k.ScrollDown, k.PageUp, k.PageDown, nav.GoToStart, nav.GoToEnd, k.FilterLinks)
 
 	// Style the title bar similar to the detail header title (badge style) but with different color
 	l.Styles.Title = lipgloss.NewStyle().
@@ -287,6 +291,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 
 		if !m.ready {
 			m.viewport = viewport.New(vpWidth, vpHeight)
+			m.viewport.KeyMap = detailViewportKeyMap()
 			m.viewport.SetContent(m.renderBody(vpWidth))
 			m.ready = true
 		} else {
@@ -302,30 +307,33 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, cmd
 		}
 
-		switch msg.String() {
-		case "esc", "backspace":
+		k := keymap.Detail
+		switch {
+		case key.Matches(msg, k.Back):
 			return m, func() tea.Msg {
 				return backToListMsg{}
 			}
 
-		case "h", "l":
-			// Browse to the previous/next bean in list order
-			delta := 1
-			if msg.String() == "h" {
-				delta = -1
-			}
+		case key.Matches(msg, k.PrevBean):
+			// Browse to the previous bean in list order
 			return m, func() tea.Msg {
-				return browseBeanMsg{delta: delta}
+				return browseBeanMsg{delta: -1}
 			}
 
-		case "tab":
+		case key.Matches(msg, k.NextBean):
+			// Browse to the next bean in list order
+			return m, func() tea.Msg {
+				return browseBeanMsg{delta: 1}
+			}
+
+		case key.Matches(msg, k.ToggleFocus):
 			// Toggle focus between links and body
 			if len(m.links) > 0 {
 				m.linksActive = !m.linksActive
 			}
 			return m, nil
 
-		case "enter":
+		case key.Matches(msg, k.FollowLink):
 			// Navigate to selected link
 			if m.linksActive {
 				if item, ok := m.linkList.SelectedItem().(linkItem); ok {
@@ -336,7 +344,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "p":
+		case key.Matches(msg, k.ChangeParent):
 			// Open parent picker
 			return m, func() tea.Msg {
 				return openParentPickerMsg{
@@ -347,7 +355,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "s":
+		case key.Matches(msg, k.ChangeStatus):
 			// Open status picker
 			return m, func() tea.Msg {
 				return openStatusPickerMsg{
@@ -357,7 +365,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "t":
+		case key.Matches(msg, k.ChangeType):
 			// Open type picker
 			return m, func() tea.Msg {
 				return openTypePickerMsg{
@@ -367,7 +375,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "T":
+		case key.Matches(msg, k.EditTags):
 			// Open tag editor
 			return m, func() tea.Msg {
 				return openTagEditorMsg{
@@ -376,7 +384,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "P":
+		case key.Matches(msg, k.ChangePriority):
 			// Open priority picker
 			return m, func() tea.Msg {
 				return openPriorityPickerMsg{
@@ -386,7 +394,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "b":
+		case key.Matches(msg, k.ManageBlocking):
 			// Open blocking picker
 			return m, func() tea.Msg {
 				return openBlockingPickerMsg{
@@ -396,7 +404,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "B":
+		case key.Matches(msg, k.ManageBlockedBy):
 			// Open blocked-by picker
 			return m, func() tea.Msg {
 				return openBlockingPickerMsg{
@@ -407,13 +415,13 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "e":
+		case key.Matches(msg, k.Edit):
 			// Open the edit form for this bean
 			return m, func() tea.Msg {
 				return openEditModalMsg{bean: m.bean}
 			}
 
-		case "E":
+		case key.Matches(msg, k.OpenEditor):
 			// Open $EDITOR for this bean
 			return m, func() tea.Msg {
 				return openEditorMsg{
@@ -422,7 +430,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "!":
+		case key.Matches(msg, k.Launch):
 			// Open launcher picker
 			return m, func() tea.Msg {
 				return openLauncherPickerMsg{
@@ -431,7 +439,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
-		case "Y":
+		case key.Matches(msg, k.Archive):
 			// Archive this bean (prompts if not completed)
 			return m, func() tea.Msg {
 				return archiveBeanMsg{beanID: m.bean.ID}
@@ -496,30 +504,33 @@ func (m detailModel) View() string {
 
 	// Footer
 	scrollPct := int(m.viewport.ScrollPercent() * 100)
+	g, k := keymap.Global, keymap.Detail
 	footer := helpStyle.Render(fmt.Sprintf("%d%%", scrollPct)) + "  "
 	if len(m.links) > 0 {
-		footer += helpKeyStyle.Render("tab") + " " + helpStyle.Render("switch") + "  "
+		footer += hint(k.ToggleFocus, "")
 		if m.linksActive {
-			footer += helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  "
+			footer += hint(k.FilterLinks, "")
 		}
-		footer += helpKeyStyle.Render("enter") + " " + helpStyle.Render("go to") + "  "
+		footer += hint(k.FollowLink, "")
 	}
-	footer += helpKeyStyle.Render("!") + " " + helpStyle.Render("launch") + "  " +
-		helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
-		helpKeyStyle.Render("E") + " " + helpStyle.Render("$EDITOR") + "  " +
-		helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
-		helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
-		helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
-		helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
-		helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
-		helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
-		helpKeyStyle.Render("B") + " " + helpStyle.Render("blocked by") + "  " +
-		helpKeyStyle.Render("Y") + " " + helpStyle.Render("archive") + "  " +
-		helpKeyStyle.Render("j/k") + " " + helpStyle.Render("scroll") + "  " +
-		helpKeyStyle.Render("h/l") + " " + helpStyle.Render("prev/next") + "  " +
-		helpKeyStyle.Render("?") + " " + helpStyle.Render("help") + "  " +
-		helpKeyStyle.Render("esc") + " " + helpStyle.Render("back") + "  " +
-		helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
+	footer += hints(
+		hint(k.Launch, ""),
+		hint(k.Edit, ""),
+		hint(k.OpenEditor, ""),
+		hint(k.ChangeStatus, ""),
+		hint(k.ChangeType, ""),
+		hint(k.ChangePriority, ""),
+		hint(k.EditTags, ""),
+		hint(k.ChangeParent, ""),
+		hint(k.ManageBlocking, ""),
+		hint(k.ManageBlockedBy, ""),
+		hint(k.Archive, ""),
+		groupHint("scroll", k.ScrollDown, k.ScrollUp),
+		groupHint("prev/next", k.PrevBean, k.NextBean),
+		hint(g.Help, ""),
+		hint(k.Back, ""),
+		hint(g.Quit, ""),
+	)
 
 	return header + "\n" + linksSection + body + "\n" + footer
 }

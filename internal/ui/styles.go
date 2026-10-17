@@ -174,7 +174,7 @@ func RenderStatus(status string) string {
 	switch status {
 	case "todo", "draft":
 		return StatusOpen.Render(status)
-	case "completed", "scrapped":
+	case "completed", "scrapped", "archived":
 		return StatusDone.Render(status)
 	case "in-progress", "in_progress":
 		return StatusInProgress.Render(status)
@@ -188,7 +188,7 @@ func RenderStatusText(status string) string {
 	switch status {
 	case "todo", "draft":
 		return StatusOpenText.Render(status)
-	case "completed", "scrapped":
+	case "completed", "scrapped", "archived":
 		return StatusDoneText.Render(status)
 	case "in-progress", "in_progress":
 		return StatusInProgressText.Render("in-progress")

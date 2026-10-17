@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -162,6 +163,7 @@ func newBlockingPickerModel(beanID, beanTitle string, blockedBy bool, currentIDs
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+	l.KeyMap = pickerListKeyMap()
 	l.SetShowPagination(false)
 	l.Styles.Title = listTitleStyle
 	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 0)
@@ -208,8 +210,8 @@ func (m blockingPickerModel) Update(msg tea.Msg) (blockingPickerModel, tea.Cmd) 
 
 	case tea.KeyMsg:
 		if m.list.FilterState() != list.Filtering {
-			switch msg.String() {
-			case " ":
+			switch {
+			case key.Matches(msg, keymap.Picker.Toggle):
 				// Toggle the selected item's pending state
 				// The delegate reads from pendingBlocking directly, so no need to update items
 				if item, ok := m.list.SelectedItem().(blockingItem); ok {
@@ -222,7 +224,7 @@ func (m blockingPickerModel) Update(msg tea.Msg) (blockingPickerModel, tea.Cmd) 
 				}
 				return m, nil
 
-			case "enter":
+			case key.Matches(msg, keymap.Picker.Confirm):
 				// Confirm changes - compute diff and send message
 				var toAdd, toRemove []string
 
@@ -249,7 +251,7 @@ func (m blockingPickerModel) Update(msg tea.Msg) (blockingPickerModel, tea.Cmd) 
 					}
 				}
 
-			case "esc", "backspace":
+			case key.Matches(msg, keymap.Picker.Cancel):
 				// Cancel - discard changes
 				return m, func() tea.Msg {
 					return closeBlockingPickerMsg{}
@@ -272,7 +274,7 @@ func (m blockingPickerModel) View() string {
 		BeanTitle:   m.beanTitle,
 		BeanID:      m.beanID,
 		ListContent: m.list.View(),
-		Description: "space toggle, enter confirm, esc cancel",
+		Help:        blockingPickerHelp(),
 		Width:       m.width,
 		WidthPct:    60,
 		MaxWidth:    80,
@@ -283,4 +285,10 @@ func (m blockingPickerModel) View() string {
 func (m blockingPickerModel) ModalView(bgView string, fullWidth, fullHeight int) string {
 	modal := m.View()
 	return overlayModal(bgView, modal, fullWidth, fullHeight)
+}
+
+// blockingPickerHelp renders the blocking picker's footer.
+func blockingPickerHelp() string {
+	k := keymap.Picker
+	return hints(hint(k.Toggle, ""), hint(k.Confirm, "confirm"), hint(k.Filter, ""), hint(k.Cancel, ""))
 }

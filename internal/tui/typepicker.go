@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -115,6 +116,7 @@ func newTypePickerModel(beanIDs []string, beanTitle, currentType string, cfg *co
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+	l.KeyMap = pickerListKeyMap()
 	l.SetShowPagination(false)
 	l.Styles.Title = listTitleStyle
 	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 0)
@@ -155,14 +157,14 @@ func (m typePickerModel) Update(msg tea.Msg) (typePickerModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.list.FilterState() != list.Filtering {
-			switch msg.String() {
-			case "enter":
+			switch {
+			case key.Matches(msg, keymap.Picker.Confirm):
 				if item, ok := m.list.SelectedItem().(typeItem); ok {
 					return m, func() tea.Msg {
 						return typeSelectedMsg{beanIDs: m.beanIDs, beanType: item.name}
 					}
 				}
-			case "esc", "backspace":
+			case key.Matches(msg, keymap.Picker.Cancel):
 				return m, func() tea.Msg {
 					return closeTypePickerMsg{}
 				}

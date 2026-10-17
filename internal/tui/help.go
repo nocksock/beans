@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/hmans/beans/internal/ui"
@@ -13,6 +14,10 @@ type openHelpMsg struct{}
 
 // closeHelpMsg is sent when the help overlay is closed
 type closeHelpMsg struct{}
+
+// helpDescStyle renders shortcut descriptions in the terminal's default
+// foreground, so they stay readable on both light and dark backgrounds.
+var helpDescStyle = lipgloss.NewStyle()
 
 // helpOverlayModel displays keyboard shortcuts organized by context
 type helpOverlayModel struct {
@@ -38,8 +43,7 @@ func (m helpOverlayModel) Update(msg tea.Msg) (helpOverlayModel, tea.Cmd) {
 		m.height = msg.Height
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "?", "esc":
+		if key.Matches(msg, keymap.Help.Close) {
 			return m, func() tea.Msg {
 				return closeHelpMsg{}
 			}
@@ -70,47 +74,55 @@ func (m helpOverlayModel) View() string {
 			Bold(true).
 			Width(12).
 			Render(key)
-		descStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#fff")).
-			Render(desc)
-		return keyStyle + descStyle
+		return keyStyle + helpDescStyle.Render(desc)
 	}
 
 	var content strings.Builder
 	content.WriteString(title + "\n\n")
 
-	content.WriteString(shortcut("enter", "Open children (or details)") + "\n")
-	content.WriteString(shortcut("v", "View details") + "\n")
-	content.WriteString(shortcut("esc/bksp", "Back up a level") + "\n")
-	content.WriteString(shortcut("c", "Create new bean") + "\n")
-	content.WriteString(shortcut("C", "Create child bean") + "\n")
-	content.WriteString(shortcut("!", "Launch with tool") + "\n")
-	content.WriteString(shortcut("L", "Toggle log panel") + "\n")
-	content.WriteString(shortcut("O", "Open latest log output") + "\n")
-	content.WriteString(shortcut("e", "Edit bean") + "\n")
-	content.WriteString(shortcut("E", "Edit in $EDITOR") + "\n")
-	content.WriteString(shortcut("s", "Change status") + "\n")
-	content.WriteString(shortcut("t", "Change type") + "\n")
-	content.WriteString(shortcut("P", "Change priority") + "\n")
-	content.WriteString(shortcut("< >", "Raise / lower priority") + "\n")
-	content.WriteString(shortcut("T", "Edit tags") + "\n")
-	content.WriteString(shortcut("p", "Set parent") + "\n")
-	content.WriteString(shortcut("b", "Manage blocking") + "\n")
-	content.WriteString(shortcut("B", "Manage blocked by") + "\n")
-	content.WriteString(shortcut("Y", "Archive (all completed in list)") + "\n")
-	content.WriteString(shortcut("/", "Filter") + "\n")
-	content.WriteString(shortcut("g t", "Filter by tag") + "\n")
-	content.WriteString(shortcut("h", "Collapse item") + "\n")
-	content.WriteString(shortcut("l", "Expand item") + "\n")
-	content.WriteString(shortcut("h/l", "Prev / next bean (details)") + "\n")
-	content.WriteString(shortcut("z", "Toggle collapse") + "\n")
-	content.WriteString(shortcut("Z", "Collapse all") + "\n")
-	content.WriteString(shortcut("R", "Reload config") + "\n")
-	content.WriteString(shortcut("q", "Quit") + "\n")
+	g, l, d := keymap.Global, keymap.List, keymap.Detail
+	for _, sc := range []struct {
+		keys []string
+		desc string
+	}{
+		{l.Open.Keys(), "Open children (or details)"},
+		{l.View.Keys(), "View details"},
+		{l.Back.Keys(), "Back up a level"},
+		{l.Create.Keys(), "Create new bean"},
+		{l.CreateChild.Keys(), "Create child bean"},
+		{l.Launch.Keys(), "Launch with tool"},
+		{l.ToggleLog.Keys(), "Toggle log panel"},
+		{l.OpenLog.Keys(), "Open latest log output"},
+		{l.Edit.Keys(), "Edit bean"},
+		{l.OpenEditor.Keys(), "Edit in $EDITOR"},
+		{l.ChangeStatus.Keys(), "Change status"},
+		{l.ChangeType.Keys(), "Change type"},
+		{l.ChangePriority.Keys(), "Change priority"},
+		{append(l.RaisePriority.Keys(), l.LowerPriority.Keys()...), "Raise / lower priority"},
+		{l.EditTags.Keys(), "Edit tags"},
+		{l.ChangeParent.Keys(), "Set parent"},
+		{l.ManageBlocking.Keys(), "Manage blocking"},
+		{l.ManageBlockedBy.Keys(), "Manage blocked by"},
+		{l.Archive.Keys(), "Archive (all completed in list)"},
+		{l.ToggleArchived.Keys(), "Show / hide archived"},
+		{l.Filter.Keys(), "Filter"},
+		{l.FilterByTag.Keys(), "Filter by tag"},
+		{l.Collapse.Keys(), "Collapse item"},
+		{l.Expand.Keys(), "Expand item"},
+		{append(d.PrevBean.Keys(), d.NextBean.Keys()...), "Prev / next bean (details)"},
+		{l.ToggleCollapse.Keys(), "Toggle collapse"},
+		{l.CollapseAll.Keys(), "Collapse all"},
+		{g.ReloadConfig.Keys(), "Reload config"},
+		{g.Quit.Keys(), "Quit"},
+	} {
+		if len(sc.keys) > 0 {
+			content.WriteString(shortcut(keyLabel(sc.keys), sc.desc) + "\n")
+		}
+	}
 	content.WriteString("\n")
 
 	// Footer
-	footer := helpKeyStyle.Render("?/esc") + " " + helpStyle.Render("close")
+	footer := helpKeyStyle.Render(keyLabel(keymap.Help.Close.Keys())) + " " + helpStyle.Render("close")
 
 	// Border style
 	border := lipgloss.NewStyle().

@@ -98,6 +98,62 @@ Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans`
 - **Merging**: the closest config wins. Nested settings merge key by key; lists of named items (like `launchers`) merge by `name` (same name replaces, new names are added); other lists are replaced.
 - **Paths**: relative paths resolve against the config file that declared them. Set `beans.path` in a subdirectory config to give it its own beans directory. If no config sets it, `.beans` next to the nearest config is used.
 
+### Custom Statuses
+
+The builtin statuses (`in-progress`, `todo`, `draft`, `completed`, `scrapped`) are always available. You can add your own statuses in `.beans.yml`, grouped below the builtin status they are a kind of:
+
+```yaml
+statuses:
+  in-progress:
+    - name: review
+      color: purple          # optional, defaults to the builtin's color
+      description: Waiting for code review
+  completed:
+    - name: merged
+```
+
+- **Order**: custom statuses sort right after their builtin status.
+- **Filtering**: filtering by a builtin status also matches its custom statuses (`beans list -s in-progress` shows `review` beans too); filtering by a custom status matches only that status. The same applies to `status` and `excludeStatus` in GraphQL.
+- **Behaviour**: custom statuses inherit the builtin's archive behaviour, so `merged` beans are hidden from `beans list` by default, are removed by `beans archive`, and no longer block other beans. `beans list --include completed` shows `completed` and `merged` beans; `--include merged` shows only `merged` ones.
+- **GraphQL**: a bean's `statusCategory` field holds the builtin status its status belongs to.
+
+### User Config
+
+Settings that should apply to all your projects go in `~/.config/beans/config.yml` (or `$XDG_CONFIG_HOME/beans/config.yml`). It uses the same format as `.beans.yml` and is the base layer below every project config, which can override it. `beans.path` can't be set there, and `cascade` has no effect.
+
+### Custom Key Bindings
+
+Every TUI key can be rebound in the `keybinding` section of the user config or a `.beans.yml`, much like lazygit's:
+
+```yaml
+keybinding:
+  global:
+    quit: ctrl+q
+  list:
+    changeStatus: [x, "g s"]  # a key or a list of keys; "g s" is a chord
+    archive: <disabled>       # unbind (an empty list works too)
+  picker:
+    cancel: [esc, q]
+```
+
+- Bindings are grouped by context; the names mirror the TUI's Go key maps in lowerCamel (`ListKeyMap.ChangeStatus` → `list.changeStatus`). Unknown names are an error.
+- An override replaces all default keys of that action. Keys use bubbletea's names (`ctrl+c`, `enter`, `esc`, `shift+tab`, `pgdown`, …); use `space` for the space bar.
+- Keys bound to several actions of one context (`global` counts as part of `list` and `detail`) are reported as a warning in the footer.
+- The tag editor and the create dialog have text inputs: printable keys bound there can't be typed anymore.
+- Footers and the help overlay show your bindings. Key bindings are reloaded with the rest of the config (`R`, or automatically when a config file changes).
+
+| Context | Actions (default keys) |
+|---------|------------------------|
+| `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`) |
+| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleLog` (`L`), `openLog` (`O`) |
+| `detail` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `scrollLeft` (`left`), `scrollRight` (`right`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `filterLinks` (`/`), `back` (`esc` `backspace`), `prevBean` (`h`), `nextBean` (`l`), `toggleFocus` (`tab`), `followLink` (`enter`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
+| `help` | `close` (`?` `esc`) |
+| `picker` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `h` `pgup` `b` `u`), `nextPage` (`right` `l` `pgdown` `f` `d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `confirm` (`enter`), `cancel` (`esc` `backspace`), `toggle` (`space`, blocking picker) |
+| `tagEditor` | `up` (`up` `ctrl+p`), `down` (`down` `ctrl+n`), `toggle` (`space` `tab`), `apply` (`enter`), `cancel` (`esc`) |
+| `createModal` | `cancel` (`esc`), `nextField` (`tab`), `prevField` (`shift+tab`), `submit` (`ctrl+s`), `submitAndEdit` (`ctrl+e`), `quickSubmit` (`enter`, not in the description), `cyclePrev` (`left` `h` `up` `k`), `cycleNext` (`right` `l` `down` `j` `space`), `quickSubmitAndEdit` (`e`); the last three only on type/status/priority |
+| `archiveConfirm` | `confirm` (`y` `Y`), `cancel` (`n` `N` `esc` `backspace`) |
+| `configureLaunchers` | `up` (`up` `k`), `down` (`down` `j`), `toggle` (`space` `enter`), `confirm` (`y`), `cancel` (`esc` `q`) |
+
 ## Agent Configuration
 
 We'll need to teach your coding agent that it should use Beans to track tasks, and how to do so. The exact steps will depend on which agent you're using.
@@ -158,15 +214,12 @@ You can configure external tools to launch from the TUI. Press `!` when viewing 
 
 **First-time setup:** If no launchers are configured, you'll be prompted to select from default options (opencode, claude, crush). Only installed tools will be pre-selected. This provides a quick start with sensible defaults.
 
-**First-time setup:** If no launchers are configured, you'll be prompted to select from default options (opencode, claude, crush). Only installed tools will be pre-selected. This provides a quick start with sensible defaults.
-
 Configure launchers in `.beans.yml`:
 
 ```yaml
 launchers:
   # Simple single-line launcher
   - name: opencode
-<<<<<<< HEAD
     exec: opencode -p "Work on task $BEANS_ID"
     description: "Open task in OpenCode"
   
@@ -208,35 +261,6 @@ launchers:
 ```
 
 ### Multi-Bean Launchers
-=======
-    command: opencode run "Work on task $BEANS_ID"
-    description: "Open task in OpenCode"
-  - name: claude
-    command: claude "Work on task $BEANS_ID"
-    description: "Open task in Claude Code"
-  - name: custom-tool
-    command: .beans/scripts/my-tool.sh
-    description: "Run custom analysis"
-```
-
-**Command execution:**
-- All launcher commands execute via shell (`sh -c`), allowing environment variable expansion
-- Use `$BEANS_ID`, `$BEANS_ROOT`, `$BEANS_TASK` in your commands
-- Commands can be executable names in PATH, relative paths, or absolute paths
-
-**Command templates:** The default launchers serve as templates for custom commands. You can create sophisticated launcher commands using shell features:
-
-```yaml
-# Extract and use the task title
-command: opencode run "Work on $(head -n1 $BEANS_TASK | sed 's/^# //')"
-
-# Pass multiple environment variables
-command: my-tool --id=$BEANS_ID --root=$BEANS_ROOT
-
-# Chain commands
-command: cd $BEANS_ROOT && my-script.sh $BEANS_ID
-```
->>>>>>> main
 
 Some launchers can handle multiple beans in parallel, while others can only work with one bean at a time. Mark launchers that support parallel execution with `multiple: true`:
 
@@ -375,7 +399,6 @@ Launchers receive these environment variables:
 
 ### CLI Usage
 
-<<<<<<< HEAD
 Launch beans from the command line:
 
 ```bash
@@ -406,8 +429,6 @@ beans launch -l --json
 - Shows availability status with `-l` (✓ if command/interpreter found, ✗ if not)
 - Returns non-zero exit code on failure
 
-=======
->>>>>>> main
 ## Contributing
 
 This project currently does not accept contributions -- it's just way too early for that!

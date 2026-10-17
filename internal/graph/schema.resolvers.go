@@ -15,6 +15,11 @@ import (
 	"github.com/hmans/beans/internal/graph/model"
 )
 
+// StatusCategory is the resolver for the statusCategory field.
+func (r *beanResolver) StatusCategory(ctx context.Context, obj *bean.Bean) (string, error) {
+	return r.Core.Config().StatusCategory(obj.Status), nil
+}
+
 // ParentID is the resolver for the parentId field.
 func (r *beanResolver) ParentID(ctx context.Context, obj *bean.Bean) (*string, error) {
 	if obj.Parent == "" {

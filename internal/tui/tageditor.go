@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -208,27 +209,28 @@ func (m tagEditorModel) Update(msg tea.Msg) (tagEditorModel, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "ctrl+p":
+		k := keymap.TagEditor
+		switch {
+		case key.Matches(msg, k.Up):
 			if m.cursor > 0 {
 				m.cursor--
 			}
 			return m, nil
-		case "down", "ctrl+n":
+		case key.Matches(msg, k.Down):
 			if m.cursor < m.itemCount()-1 {
 				m.cursor++
 			}
 			return m, nil
-		case " ", "tab":
+		case key.Matches(msg, k.Toggle):
 			m.toggle()
 			return m, nil
-		case "enter":
+		case key.Matches(msg, k.Apply):
 			toAdd, toRemove := m.changes()
 			beanIDs := m.beanIDs
 			return m, func() tea.Msg {
 				return tagsConfirmedMsg{beanIDs: beanIDs, toAdd: toAdd, toRemove: toRemove}
 			}
-		case "esc":
+		case key.Matches(msg, k.Cancel):
 			return m, func() tea.Msg {
 				return closeTagEditorMsg{}
 			}
@@ -328,9 +330,8 @@ func (m tagEditorModel) View() string {
 		description = lipgloss.NewStyle().Foreground(ui.ColorDanger).Width(modalWidth - 4).Render(errMsg)
 	}
 
-	help := helpKeyStyle.Render("space") + " " + helpStyle.Render("toggle") + "  " +
-		helpKeyStyle.Render("enter") + " " + helpStyle.Render("apply") + "  " +
-		helpKeyStyle.Render("esc") + " " + helpStyle.Render("cancel")
+	k := keymap.TagEditor
+	help := hints(hint(k.Toggle, ""), hint(k.Apply, ""), hint(k.Cancel, ""))
 
 	return renderPickerModal(pickerModalConfig{
 		Title:       "Edit Tags",

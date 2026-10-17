@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -34,6 +35,7 @@ type statusItem struct {
 	color       string
 	isArchive   bool
 	isCurrent   bool
+	isCustom    bool // grouped below a builtin status
 }
 
 func (i statusItem) Title() string       { return i.name }
@@ -60,8 +62,11 @@ func (d statusItemDelegate) Render(w io.Writer, m list.Model, index int, listIte
 		cursor = "  "
 	}
 
-	// Render status with color (text only)
+	// Render status with color (text only), custom statuses indented below their builtin
 	statusText := ui.RenderStatusTextWithColor(item.name, item.color, item.isArchive)
+	if item.isCustom {
+		statusText = "  " + statusText
+	}
 
 	// Add current indicator
 	var currentIndicator string
@@ -83,8 +88,7 @@ type statusPickerModel struct {
 }
 
 func newStatusPickerModel(beanIDs []string, beanTitle, currentStatus string, cfg *config.Config, width, height int) statusPickerModel {
-	// Get all statuses (hardcoded in config package)
-	statuses := config.DefaultStatuses
+	statuses := cfg.Statuses()
 
 	delegate := statusItemDelegate{}
 
@@ -103,6 +107,7 @@ func newStatusPickerModel(beanIDs []string, beanTitle, currentStatus string, cfg
 			color:       s.Color,
 			isArchive:   s.Archive,
 			isCurrent:   isCurrent,
+			isCustom:    s.Parent != "",
 		})
 	}
 
@@ -117,6 +122,7 @@ func newStatusPickerModel(beanIDs []string, beanTitle, currentStatus string, cfg
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+	l.KeyMap = pickerListKeyMap()
 	l.SetShowPagination(false)
 	l.Styles.Title = listTitleStyle
 	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 0)
@@ -157,14 +163,14 @@ func (m statusPickerModel) Update(msg tea.Msg) (statusPickerModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.list.FilterState() != list.Filtering {
-			switch msg.String() {
-			case "enter":
+			switch {
+			case key.Matches(msg, keymap.Picker.Confirm):
 				if item, ok := m.list.SelectedItem().(statusItem); ok {
 					return m, func() tea.Msg {
 						return statusSelectedMsg{beanIDs: m.beanIDs, status: item.name}
 					}
 				}
-			case "esc", "backspace":
+			case key.Matches(msg, keymap.Picker.Cancel):
 				return m, func() tea.Msg {
 					return closeStatusPickerMsg{}
 				}

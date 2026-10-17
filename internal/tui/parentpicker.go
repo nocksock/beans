@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -193,6 +194,7 @@ func newParentPickerModel(beanIDs []string, beanTitle string, beanTypes []string
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+	l.KeyMap = pickerListKeyMap()
 	l.SetShowPagination(false)
 	l.Styles.Title = listTitleStyle
 	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 0, 0)
@@ -276,8 +278,8 @@ func (m parentPickerModel) Update(msg tea.Msg) (parentPickerModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.list.FilterState() != list.Filtering {
-			switch msg.String() {
-			case "enter":
+			switch {
+			case key.Matches(msg, keymap.Picker.Confirm):
 				switch item := m.list.SelectedItem().(type) {
 				case clearParentItem:
 					return m, func() tea.Msg {
@@ -288,7 +290,7 @@ func (m parentPickerModel) Update(msg tea.Msg) (parentPickerModel, tea.Cmd) {
 						return parentSelectedMsg{beanIDs: m.beanIDs, parentID: item.bean.ID}
 					}
 				}
-			case "esc", "backspace":
+			case key.Matches(msg, keymap.Picker.Cancel):
 				// Return without selecting
 				return m, func() tea.Msg {
 					return closeParentPickerMsg{}
