@@ -191,8 +191,8 @@ func RenderTree(nodes []*TreeNode, cfg *config.Config, maxIDWidth int, hasTags b
 	cols := CalculateResponsiveColumns(adjustedWidth, hasTags)
 
 	// Calculate title width from remaining space
-	// Account for: tree/ID col, type col, status col, priority symbol (2), space before tags (1)
-	titleWidth := termWidth - treeColWidth - ColWidthType - ColWidthStatus - 3
+	// Account for: tree/ID col, type col, status col, size col, priority symbol (2), space before tags (1)
+	titleWidth := termWidth - treeColWidth - ColWidthType - ColWidthStatus - ColWidthSize - 3
 	if cols.ShowTags {
 		titleWidth -= cols.Tags
 	}
@@ -206,7 +206,9 @@ func RenderTree(nodes []*TreeNode, cfg *config.Config, maxIDWidth int, hasTags b
 	typeHeader := headerCol.Render("TYPE") + strings.Repeat(" ", ColWidthType-4)
 	statusHeader := headerCol.Render("STATUS") + strings.Repeat(" ", ColWidthStatus-6)
 
-	header := idHeader + typeHeader + statusHeader + headerCol.Render("TITLE")
+	sizeHeader := headerCol.Render("SZ") + strings.Repeat(" ", ColWidthSize-2)
+
+	header := idHeader + typeHeader + statusHeader + sizeHeader + headerCol.Render("TITLE")
 	if cols.ShowTags && titleWidth > 5 {
 		header += strings.Repeat(" ", titleWidth-5+3) + headerCol.Render("TAGS") // +3 for priority/spacing
 	}
@@ -286,6 +288,9 @@ func renderNode(sb *strings.Builder, node *TreeNode, depth int, isLast bool, anc
 		TypeColor:     colors.TypeColor,
 		PriorityColor: colors.PriorityColor,
 		Priority:      b.Priority,
+		Size:          b.Size,
+		SizeColor:     SizeColor(cfg, b.Size),
+		ShowSize:      true,
 		IsArchive:     colors.IsArchive,
 		MaxTitleWidth: renderCfg.titleWidth,
 		ShowCursor:    false,

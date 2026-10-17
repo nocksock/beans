@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/hmans/beans/internal/bean"
+	"github.com/hmans/beans/internal/config"
 )
 
 func TestBuildTree(t *testing.T) {
@@ -324,4 +326,23 @@ func TestTreeNodeToJSON(t *testing.T) {
 			t.Errorf("expected body content, got %s", json.Body)
 		}
 	})
+}
+
+func TestRenderTreeShowsSize(t *testing.T) {
+	cfg := config.Default()
+	beans := []*bean.Bean{
+		{ID: "a1", Title: "Huge", Status: "todo", Type: "task", Size: "xl"},
+		{ID: "b2", Title: "Unsized", Status: "todo", Type: "task"},
+	}
+	nodes := BuildTree(beans, beans, func([]*bean.Bean) {})
+	out := RenderTree(nodes, cfg, 4, false, 100)
+
+	if !strings.Contains(out, "SZ") {
+		t.Errorf("header should contain size column, got:\n%s", out)
+	}
+	for _, want := range []string{"xl Huge", "md Unsized"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output should contain %q, got:\n%s", want, out)
+		}
+	}
 }

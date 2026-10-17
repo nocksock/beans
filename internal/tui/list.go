@@ -93,7 +93,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 			PriorityColor: colors.PriorityColor,
 			Priority:      item.bean.Priority,
 			Size:          item.bean.Size,
-			SizeColor:     sizeColor(d.cfg, item.bean.Size),
+			SizeColor:     ui.SizeColor(d.cfg, item.bean.Size),
 			ShowSize:      true,
 			IsArchive:     colors.IsArchive,
 			MaxTitleWidth: maxTitleWidth,

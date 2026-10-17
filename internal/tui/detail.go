@@ -583,7 +583,7 @@ func (m detailModel) renderHeader() string {
 	headerContent.WriteString(title)
 	headerContent.WriteString("\n")
 	headerContent.WriteString(id + "  " + status + "  " +
-		ui.RenderSizeWithColor(m.bean.Size, sizeColor(m.config, m.bean.Size)))
+		ui.RenderSizeWithColor(m.bean.Size, ui.SizeColor(m.config, m.bean.Size)))
 
 	// Add tags if present
 	if len(m.bean.Tags) > 0 {

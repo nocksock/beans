@@ -277,6 +277,14 @@ func RenderPriorityText(priority, color string) string {
 	return style.Render(priority)
 }
 
+// SizeColor returns the configured color for a size (empty = default size).
+func SizeColor(cfg *config.Config, size string) string {
+	if s := cfg.GetSize(size); s != nil {
+		return s.Color
+	}
+	return ""
+}
+
 // RenderSizeText returns styled size text for tables. An empty size renders
 // as the default size.
 func RenderSizeText(size, color string) string {

@@ -28,14 +28,6 @@ type openSizePickerMsg struct {
 	currentSize string   // Only meaningful for single bean
 }
 
-// sizeColor returns the configured color for a size (empty = default size).
-func sizeColor(cfg *config.Config, size string) string {
-	if s := cfg.GetSize(size); s != nil {
-		return s.Color
-	}
-	return ""
-}
-
 // sizeItem wraps a size to implement list.Item
 type sizeItem struct {
 	name        string

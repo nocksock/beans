@@ -111,7 +111,7 @@ func (m *previewModel) renderBean(width int) string {
 	if b.Priority != "" && b.Priority != "normal" {
 		meta += "  " + ui.RenderPriorityText(b.Priority, colors.PriorityColor)
 	}
-	meta += "  " + ui.RenderSizeWithColor(b.Size, sizeColor(m.config, b.Size))
+	meta += "  " + ui.RenderSizeWithColor(b.Size, ui.SizeColor(m.config, b.Size))
 	parts = append(parts, meta)
 
 	if len(b.Tags) > 0 {
