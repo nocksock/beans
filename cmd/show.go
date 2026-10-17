@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
@@ -14,10 +16,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+//go:embed show_prompt.tmpl
+var beanPromptTemplate string
+
 var (
 	showJSON     bool
 	showRaw      bool
 	showBodyOnly bool
+	showPrompt   bool
 )
 
 var showCmd = &cobra.Command{
@@ -54,6 +60,16 @@ var showCmd = &cobra.Command{
 				return fmt.Errorf("failed to render bean: %w", err)
 			}
 			fmt.Print(string(content))
+			return nil
+		}
+
+		// Agent prompt (bean content, related beans, progress guide)
+		if showPrompt {
+			prompt, err := renderBeanPrompt(b, cfg.PromptExtra())
+			if err != nil {
+				return err
+			}
+			fmt.Print(prompt)
 			return nil
 		}
 
@@ -157,10 +173,89 @@ func formatRelationships(b *bean.Bean) string {
 	return strings.Join(parts, "\n")
 }
 
+// relatedBean is a single entry in the related beans section of a bean prompt.
+type relatedBean struct {
+	ID       string
+	Relation string
+	Status   string
+	Title    string
+}
+
+// beanPromptData holds all data needed to render the bean prompt template.
+type beanPromptData struct {
+	Bean    *bean.Bean
+	Related []relatedBean
+	Extra   string
+}
+
+// renderBeanPrompt renders a prompt for an AI agent to start working on a bean.
+func renderBeanPrompt(b *bean.Bean, extra string) (string, error) {
+	related, err := collectRelatedBeans(b)
+	if err != nil {
+		return "", err
+	}
+
+	tmpl, err := template.New("bean-prompt").
+		Funcs(template.FuncMap{"join": strings.Join, "trim": strings.TrimSpace}).
+		Parse(beanPromptTemplate)
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	data := beanPromptData{Bean: b, Related: related, Extra: strings.TrimSpace(extra)}
+	if err := tmpl.Execute(&sb, data); err != nil {
+		return "", fmt.Errorf("failed to render prompt: %w", err)
+	}
+	return sb.String(), nil
+}
+
+// collectRelatedBeans resolves the parent, blocking, blocked-by and child beans via GraphQL.
+func collectRelatedBeans(b *bean.Bean) ([]relatedBean, error) {
+	ctx := context.Background()
+	resolver := (&graph.Resolver{Core: core}).Bean()
+
+	var related []relatedBean
+	add := func(relation string, beans ...*bean.Bean) {
+		for _, r := range beans {
+			if r != nil {
+				related = append(related, relatedBean{ID: r.ID, Relation: relation, Status: r.Status, Title: r.Title})
+			}
+		}
+	}
+
+	parent, err := resolver.Parent(ctx, b)
+	if err != nil {
+		return nil, err
+	}
+	add("parent", parent)
+
+	blocking, err := resolver.Blocking(ctx, b, nil)
+	if err != nil {
+		return nil, err
+	}
+	add("blocking", blocking...)
+
+	blockedBy, err := resolver.BlockedBy(ctx, b, nil)
+	if err != nil {
+		return nil, err
+	}
+	add("blocked by", blockedBy...)
+
+	children, err := resolver.Children(ctx, b, nil)
+	if err != nil {
+		return nil, err
+	}
+	add("child", children...)
+
+	return related, nil
+}
+
 func init() {
 	showCmd.Flags().BoolVar(&showJSON, "json", false, "Output as JSON")
 	showCmd.Flags().BoolVar(&showRaw, "raw", false, "Output raw markdown without styling")
 	showCmd.Flags().BoolVar(&showBodyOnly, "body-only", false, "Output only the body content")
-	showCmd.MarkFlagsMutuallyExclusive("json", "raw", "body-only")
+	showCmd.Flags().BoolVar(&showPrompt, "prompt", false, "Output a prompt for an AI agent to start working on the bean")
+	showCmd.MarkFlagsMutuallyExclusive("json", "raw", "body-only", "prompt")
 	rootCmd.AddCommand(showCmd)
 }
