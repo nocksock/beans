@@ -6,9 +6,9 @@
 #   BEANS_ID    - The bean ID (e.g., "beans-abc123")
 #   BEANS_TASK  - The bean title (e.g., "Fix bug in parser")
 #   BEANS_DIR   - The .beans directory path
-#   BEANS_ROOT  - The project root directory
+#   BEANS_ROOT  - The hub root; sessions start in its dev/ worktree
 
-PROJECT_ROOT="${BEANS_ROOT:-.}"
+PROJECT_ROOT="${BEANS_ROOT:-.}/dev"
 
 if [[ -z "$BEANS_ID" || -z "$BEANS_TASK" ]]; then
     echo "Error: BEANS_ID and BEANS_TASK environment variables must be set." >&2

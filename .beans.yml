@@ -13,10 +13,10 @@ session:
 
 launchers:
   - name: opencode
-    exec: opencode --prompt "Work on task $BEANS_ID"
+    exec: cd dev && opencode --prompt "Work on task $BEANS_ID"
     description: "Open task in OpenCode"
   - name: claude
-    exec: claude "Work on task $BEANS_ID"
+    exec: cd dev && claude "Work on task $BEANS_ID"
     description: "Open task in Claude Code"
   - name: tmux
     exec: ./scripts/tmux-session-run
@@ -35,7 +35,7 @@ launchers:
       EOF
       PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
 
-      tmux new-window -c "${BEANS_ROOT:-.}" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
+      tmux new-window -c "${BEANS_ROOT:-.}/dev" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
         'claude "$BEANS_PROMPT"'
   - name: worktree-tmux+claude
     multiple: true
@@ -59,7 +59,7 @@ launchers:
       tmux new-window -c "$WORKTREE_DIR" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
         'claude "$BEANS_PROMPT"'
   - name: crush
-    exec: crush run "Work on task $BEANS_ID"
+    exec: cd dev && crush run "Work on task $BEANS_ID"
     description: "Open task in Crush"
   - name: worktree-kitty
     multiple: true
