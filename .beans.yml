@@ -30,6 +30,16 @@ launchers:
       EOF
       PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
 
+      # Draft beans get planned before any implementation
+      read -r -d '' DRAFT_NOTE <<EOF || true
+      ## Draft: plan first
+
+      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to todo with \`beans update $BEANS_ID --status todo\` and commit the bean change in the hub.
+      EOF
+      if [[ "$(beans show --json "$BEANS_ID" | jq -r .status)" == draft ]]; then
+        PROMPT+=$'\n\n'"$DRAFT_NOTE"
+      fi
+
       tmux new-window -c "${BEANS_ROOT:-.}/dev" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
         'claude "$BEANS_PROMPT"'
   - name: worktree-tmux+claude
@@ -64,6 +74,16 @@ launchers:
       5. Close this tmux window as the very last step, since it ends this session: \`tmux kill-window -t "\$TMUX_PANE"\`
       EOF
       PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"$'\n\n'"$CLEANUP_NOTE"
+
+      # Draft beans get planned before any implementation
+      read -r -d '' DRAFT_NOTE <<EOF || true
+      ## Draft: plan first
+
+      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to todo with \`beans update $BEANS_ID --status todo\` and commit the bean change in the hub.
+      EOF
+      if [[ "$(beans show --json "$BEANS_ID" | jq -r .status)" == draft ]]; then
+        PROMPT+=$'\n\n'"$DRAFT_NOTE"
+      fi
 
       tmux new-window -c "$WORKTREE_DIR" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
         'claude "$BEANS_PROMPT"'
