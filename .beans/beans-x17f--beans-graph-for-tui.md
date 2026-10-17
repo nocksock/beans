@@ -44,10 +44,12 @@ Interactive **blocking-dependency graph** view in the TUI (parent/child is alrea
 - `internal/tui/graphview.go`: bubbletea model; loads via `graph.Resolver`, builds component, calls layout, renders with lipgloss.
 
 ### Phases
-- [ ] 1. Spike: render 2-3 real graphs from `.beans/` with mermaid-ascii and a minimal hand-rolled layered layout (longest-path layering + barycenter crossing reduction). Compare readability + node-position access. Record decision here.
+- [x] 1. Spike: render 2-3 real graphs from `.beans/` with mermaid-ascii and a minimal hand-rolled layered layout (longest-path layering + barycenter crossing reduction). Compare readability + node-position access. Record decision here.
+  - **Decision: hand-rolled.** mermaid-ascii lays out on a grid not by depth (fan-in of 5 nodes = 25 lines tall), muddles diamonds/cycles, 5-line boxes, coords unexported (no node positions for nav). Hand-rolled ~200 LOC spike: depth columns, 3-line boxes, positions available, <0.1ms. Gaps to fix: edge junction glyphs (┬┼┤), skip-layer edges must route around boxes, draw+mark cycle edges.
 - [ ] 2. Layout package + static rendering in `viewGraph` (with tests).
 - [ ] 3. Navigation, enter→detail, completed toggle, help entries.
 - [ ] 4. (optional) node actions s/b/B with refresh.
 
 ## Work Log
 2026-10-17 14:00: Planned with user: blocking graph, focused+navigable, spike rendering engine first
+2026-10-17 14:30: Spike done; chose hand-rolled layout over mermaid-ascii

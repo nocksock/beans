@@ -1,11 +1,11 @@
 ---
 # beans-4wwa
 title: beans settings get command
-status: todo
+status: in-progress
 type: task
 priority: normal
 created_at: 2026-10-17T10:51:33Z
-updated_at: 2026-10-17T12:13:39Z
+updated_at: 2026-10-17T13:47:15Z
 parent: beans-xqrj
 blocking:
     - beans-07j8
