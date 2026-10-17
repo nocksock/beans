@@ -5,7 +5,8 @@ status: todo
 type: feature
 priority: low
 created_at: 2026-10-17T10:41:37Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T12:13:39Z
+parent: beans-c8p4
 ---
 
 Phase 2 of beans-jzty. Running beans at a root also discovers descendant .beans.yml files; each subtree's beans are loaded with that subtree's merged (cascaded) config (prefix, path).

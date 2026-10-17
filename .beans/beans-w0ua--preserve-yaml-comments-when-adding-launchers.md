@@ -5,7 +5,8 @@ status: todo
 type: feature
 priority: normal
 created_at: 2025-12-14T20:17:32Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T12:13:39Z
+parent: beans-xqrj
 blocking:
     - beans-4wwa
 ---

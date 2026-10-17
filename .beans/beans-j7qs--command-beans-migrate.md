@@ -5,7 +5,8 @@ status: draft
 type: task
 priority: low
 created_at: 2026-10-17T11:07:15Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T12:13:39Z
+parent: beans-c8p4
 ---
 
 beans migrate --path <new-path>

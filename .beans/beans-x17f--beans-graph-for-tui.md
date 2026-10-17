@@ -5,7 +5,8 @@ status: draft
 type: task
 priority: deferred
 created_at: 2026-10-17T10:43:30Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T12:13:39Z
+parent: beans-7jm4
 ---
 
 surely there's a cli tool out there that's good at rendering graphs, maybe even interactive ones for navigation?

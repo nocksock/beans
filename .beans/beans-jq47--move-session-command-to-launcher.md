@@ -5,7 +5,8 @@ status: todo
 type: task
 priority: high
 created_at: 2026-10-17T10:45:34Z
-updated_at: 2026-10-17T12:12:47Z
+updated_at: 2026-10-17T12:13:40Z
+parent: beans-gl8t
 blocking:
     - beans-hmyr
 ---

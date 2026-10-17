@@ -5,7 +5,8 @@ status: draft
 type: task
 priority: deferred
 created_at: 2026-10-17T10:18:56Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T12:13:40Z
+parent: beans-7jm4
 ---
 
 but also via a something like ~/.config/beans/config.yml (maybe we should move to toml before this)

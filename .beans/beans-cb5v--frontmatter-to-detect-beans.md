@@ -5,7 +5,8 @@ status: draft
 type: task
 priority: low
 created_at: 2026-10-17T10:07:44Z
-updated_at: 2026-10-17T12:08:03Z
+updated_at: 2026-10-17T12:13:39Z
+parent: beans-c8p4
 ---
 
 
