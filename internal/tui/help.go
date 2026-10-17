@@ -15,6 +15,10 @@ type openHelpMsg struct{}
 // closeHelpMsg is sent when the help overlay is closed
 type closeHelpMsg struct{}
 
+// helpDescStyle renders shortcut descriptions in the terminal's default
+// foreground, so they stay readable on both light and dark backgrounds.
+var helpDescStyle = lipgloss.NewStyle()
+
 // helpOverlayModel displays keyboard shortcuts organized by context
 type helpOverlayModel struct {
 	width  int
@@ -70,10 +74,7 @@ func (m helpOverlayModel) View() string {
 			Bold(true).
 			Width(12).
 			Render(key)
-		descStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#fff")).
-			Render(desc)
-		return keyStyle + descStyle
+		return keyStyle + helpDescStyle.Render(desc)
 	}
 
 	var content strings.Builder
