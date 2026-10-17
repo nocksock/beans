@@ -5,7 +5,9 @@ status: in-progress
 type: task
 priority: normal
 created_at: 2026-10-17T13:42:20Z
-updated_at: 2026-10-17T13:53:05Z
+updated_at: 2026-10-17T14:02:53Z
+blocked_by:
+    - beans-bufq
 ---
 
 Add a `size` attribute to beans: `xs sm md lg xl` (smallest → largest). Default is `md`.
@@ -51,4 +53,5 @@ Add a `size` attribute to beans: `xs sm md lg xl` (smallest → largest). Defaul
 2026-10-17 15:20: Added config sizes, bean.Size, GraphQL size field/inputs/filters + tests
 2026-10-17 15:45: Added CLI --size flags (create/update/list), --sort size, show header, prime docs
 2026-10-17 16:05: Added TUI size column, modal Size selector, S size picker, detail/preview headers + tests
-2026-10-17 16:10: No -S short flag (clashes with list --search); size column TUI-only, not in `beans list` output
+2026-10-17 16:10: No -S short flag (clashes with list --search)
+2026-10-17 16:25: Added SZ column to `beans list` tree output; shared ui.SizeColor helper
