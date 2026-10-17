@@ -83,6 +83,7 @@ func (m helpOverlayModel) View() string {
 	content.WriteString(shortcut("v", "View details") + "\n")
 	content.WriteString(shortcut("esc/bksp", "Back up a level") + "\n")
 	content.WriteString(shortcut("c", "Create new bean") + "\n")
+	content.WriteString(shortcut("C", "Create child bean") + "\n")
 	content.WriteString(shortcut("!", "Launch with tool") + "\n")
 	content.WriteString(shortcut("e", "Edit in $EDITOR") + "\n")
 	content.WriteString(shortcut("s", "Change status") + "\n")
