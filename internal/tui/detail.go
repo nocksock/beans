@@ -394,6 +394,16 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 				}
 			}
 
+		case key.Matches(msg, k.ChangeSize):
+			// Open size picker
+			return m, func() tea.Msg {
+				return openSizePickerMsg{
+					beanIDs:     []string{m.bean.ID},
+					beanTitle:   m.bean.DisplayTitle(),
+					currentSize: m.bean.Size,
+				}
+			}
+
 		case key.Matches(msg, k.ManageBlocking):
 			// Open blocking picker
 			return m, func() tea.Msg {
@@ -520,6 +530,7 @@ func (m detailModel) View() string {
 		hint(k.ChangeStatus, ""),
 		hint(k.ChangeType, ""),
 		hint(k.ChangePriority, ""),
+		hint(k.ChangeSize, ""),
 		hint(k.EditTags, ""),
 		hint(k.ChangeParent, ""),
 		hint(k.ManageBlocking, ""),
@@ -571,7 +582,8 @@ func (m detailModel) renderHeader() string {
 	var headerContent strings.Builder
 	headerContent.WriteString(title)
 	headerContent.WriteString("\n")
-	headerContent.WriteString(id + "  " + status)
+	headerContent.WriteString(id + "  " + status + "  " +
+		ui.RenderSizeWithColor(m.bean.Size, ui.SizeColor(m.config, m.bean.Size)))
 
 	// Add tags if present
 	if len(m.bean.Tags) > 0 {

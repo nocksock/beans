@@ -30,6 +30,10 @@ type BeanFilter struct {
 	Priority []string `json:"priority,omitempty"`
 	// Exclude beans with these priorities
 	ExcludePriority []string `json:"excludePriority,omitempty"`
+	// Include only beans with these sizes (OR logic). Beans without a size count as 'md'.
+	Size []string `json:"size,omitempty"`
+	// Exclude beans with these sizes. Beans without a size count as 'md'.
+	ExcludeSize []string `json:"excludeSize,omitempty"`
 	// Include only beans with any of these tags (OR logic)
 	Tags []string `json:"tags,omitempty"`
 	// Exclude beans with any of these tags
@@ -60,6 +64,8 @@ type CreateBeanInput struct {
 	Status *string `json:"status,omitempty"`
 	// Priority level (defaults to 'normal')
 	Priority *string `json:"priority,omitempty"`
+	// Size (xs, sm, md, lg, xl; defaults to 'md')
+	Size *string `json:"size,omitempty"`
 	// Tags for categorization
 	Tags []string `json:"tags,omitempty"`
 	// Markdown body content
@@ -88,6 +94,8 @@ type UpdateBeanInput struct {
 	Type *string `json:"type,omitempty"`
 	// New priority
 	Priority *string `json:"priority,omitempty"`
+	// New size (empty string clears it, which means 'md')
+	Size *string `json:"size,omitempty"`
 	// Replace all tags (nil preserves existing)
 	Tags []string `json:"tags,omitempty"`
 	// New body content

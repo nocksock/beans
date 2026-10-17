@@ -100,6 +100,8 @@ var showCmd = &cobra.Command{
 			header.WriteString(" ")
 			header.WriteString(ui.RenderPriorityWithColor(b.Priority, priorityColor))
 		}
+		header.WriteString(" ")
+		header.WriteString(ui.RenderSizeWithColor(b.Size, ui.SizeColor(cfg, b.Size)))
 		if len(b.Tags) > 0 {
 			header.WriteString("  ")
 			header.WriteString(ui.Muted.Render(strings.Join(b.Tags, ", ")))

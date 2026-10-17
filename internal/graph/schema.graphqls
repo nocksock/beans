@@ -68,6 +68,8 @@ input CreateBeanInput {
   status: String
   "Priority level (defaults to 'normal')"
   priority: String
+  "Size (xs, sm, md, lg, xl; defaults to 'md')"
+  size: String
   "Tags for categorization"
   tags: [String!]
   "Markdown body content"
@@ -92,6 +94,8 @@ input UpdateBeanInput {
   type: String
   "New priority"
   priority: String
+  "New size (empty string clears it, which means 'md')"
+  size: String
   "Replace all tags (nil preserves existing)"
   tags: [String!]
   "New body content"
@@ -118,6 +122,8 @@ type Bean {
   type: String!
   "Priority level (critical, high, normal, low, deferred)"
   priority: String!
+  "Size (xs, sm, md, lg, xl); 'md' when not set"
+  size: String!
   "Tags for categorization"
   tags: [String!]!
   "Creation timestamp"
@@ -178,6 +184,10 @@ input BeanFilter {
   priority: [String!]
   "Exclude beans with these priorities"
   excludePriority: [String!]
+  "Include only beans with these sizes (OR logic). Beans without a size count as 'md'."
+  size: [String!]
+  "Exclude beans with these sizes. Beans without a size count as 'md'."
+  excludeSize: [String!]
   "Include only beans with any of these tags (OR logic)"
   tags: [String!]
   "Exclude beans with any of these tags"

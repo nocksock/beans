@@ -32,6 +32,7 @@ const (
 	viewTypePicker
 	viewBlockingPicker
 	viewPriorityPicker
+	viewSizePicker
 	viewCreateModal
 	viewHelpOverlay
 	viewLauncherPicker
@@ -104,6 +105,7 @@ type App struct {
 	tagEditor          tagEditorModel
 	archiveConfirm     archiveConfirmModel
 	priorityPicker     priorityPickerModel
+	sizePicker         sizePickerModel
 	createModal        createModalModel
 	helpOverlay        helpOverlayModel
 	launcherPicker     launcherPickerModel
@@ -330,6 +332,40 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, beanID := range msg.beanIDs {
 			_, err := a.resolver.Mutation().UpdateBean(context.Background(), beanID, model.UpdateBeanInput{
 				Type: &msg.beanType,
+			})
+			if err != nil {
+				// Continue with other beans even if one fails
+				continue
+			}
+		}
+		// Return to the previous view and refresh
+		a.state = a.previousState
+		// Clear selection after batch edit
+		clear(a.list.selectedBeans)
+		if a.state == viewDetail && len(msg.beanIDs) == 1 {
+			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
+			if updatedBean != nil {
+				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+			}
+		}
+		return a, a.list.loadBeans
+
+	case openSizePickerMsg:
+		a.previousState = a.state
+		a.sizePicker = newSizePickerModel(msg.beanIDs, msg.beanTitle, msg.currentSize, a.width, a.height)
+		a.state = viewSizePicker
+		return a, a.sizePicker.Init()
+
+	case closeSizePickerMsg:
+		// Return to previous view and refresh in case beans changed while picker was open
+		a.state = a.previousState
+		return a, a.list.loadBeans
+
+	case sizeSelectedMsg:
+		// Update all beans' size via GraphQL mutations
+		for _, beanID := range msg.beanIDs {
+			_, err := a.resolver.Mutation().UpdateBean(context.Background(), beanID, model.UpdateBeanInput{
+				Size: &msg.size,
 			})
 			if err != nil {
 				// Continue with other beans even if one fails
@@ -610,6 +646,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.priority != "" {
 			input.Priority = &msg.priority
 		}
+		if msg.size != "" {
+			input.Size = &msg.size
+		}
 		if msg.body != "" {
 			input.Body = &msg.body
 		}
@@ -854,6 +893,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.typePicker, cmd = a.typePicker.Update(msg)
 	case viewPriorityPicker:
 		a.priorityPicker, cmd = a.priorityPicker.Update(msg)
+	case viewSizePicker:
+		a.sizePicker, cmd = a.sizePicker.Update(msg)
 	case viewBlockingPicker:
 		a.blockingPicker, cmd = a.blockingPicker.Update(msg)
 	case viewTagEditor:
@@ -1003,7 +1044,7 @@ func (a *App) chordBindings() []key.Binding {
 		return append(allBindings(keymap.Global), allBindings(keymap.Detail)...)
 	case viewHelpOverlay:
 		return allBindings(keymap.Help)
-	case viewTagPicker, viewParentPicker, viewStatusPicker, viewTypePicker, viewBlockingPicker, viewPriorityPicker, viewLauncherPicker:
+	case viewTagPicker, viewParentPicker, viewStatusPicker, viewTypePicker, viewBlockingPicker, viewPriorityPicker, viewSizePicker, viewLauncherPicker:
 		return allBindings(keymap.Picker)
 	case viewArchiveConfirm:
 		return allBindings(keymap.ArchiveConfirm)
@@ -1046,6 +1087,8 @@ func (a *App) canQuit() bool {
 		return a.blockingPicker.list.FilterState() != list.Filtering
 	case viewPriorityPicker:
 		return a.priorityPicker.list.FilterState() != list.Filtering
+	case viewSizePicker:
+		return a.sizePicker.list.FilterState() != list.Filtering
 	case viewHelpOverlay:
 		return true
 	default:
@@ -1095,6 +1138,8 @@ func (a *App) View() string {
 		return a.typePicker.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewPriorityPicker:
 		return a.priorityPicker.ModalView(a.getBackgroundView(), a.width, a.height)
+	case viewSizePicker:
+		return a.sizePicker.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewBlockingPicker:
 		return a.blockingPicker.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewTagEditor:

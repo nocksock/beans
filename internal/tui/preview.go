@@ -104,13 +104,14 @@ func (m *previewModel) renderBean(width int) string {
 	parts = append(parts, renderDetailTitle(b))
 	parts = append(parts, "")
 
-	// Status, type, priority
+	// Status, type, priority, size
 	colors := m.config.GetBeanColors(b.Status, b.Type, b.Priority)
 	meta := ui.RenderStatusWithColor(b.Status, colors.StatusColor, colors.IsArchive) + "  " +
 		ui.RenderTypeText(b.Type, colors.TypeColor)
 	if b.Priority != "" && b.Priority != "normal" {
 		meta += "  " + ui.RenderPriorityText(b.Priority, colors.PriorityColor)
 	}
+	meta += "  " + ui.RenderSizeWithColor(b.Size, ui.SizeColor(m.config, b.Size))
 	parts = append(parts, meta)
 
 	if len(b.Tags) > 0 {

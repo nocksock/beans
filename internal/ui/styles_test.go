@@ -159,3 +159,31 @@ func TestRenderBeanRow_Compact(t *testing.T) {
 		t.Errorf("compact row (%d) should be narrower than full row (%d)", lipgloss.Width(compact), lipgloss.Width(full))
 	}
 }
+
+func TestRenderBeanRow_Size(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfg      BeanRowConfig
+		want     string
+		wantNone bool
+	}{
+		{name: "hidden by default", cfg: BeanRowConfig{Size: "xl"}, wantNone: true},
+		{name: "explicit size", cfg: BeanRowConfig{ShowSize: true, Size: "xl", SizeColor: "red"}, want: "xl"},
+		{name: "empty size shows default", cfg: BeanRowConfig{ShowSize: true}, want: "md"},
+		{name: "compact", cfg: BeanRowConfig{ShowSize: true, Size: "xs", Compact: true}, want: "xs"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			row := RenderBeanRow("abc123", "todo", "task", "Title", tt.cfg)
+			if tt.wantNone {
+				if strings.Contains(row, tt.cfg.Size) {
+					t.Errorf("row should not show size, got %q", row)
+				}
+				return
+			}
+			if !strings.Contains(row, tt.want+" ") {
+				t.Errorf("row should contain size %q, got %q", tt.want, row)
+			}
+		})
+	}
+}

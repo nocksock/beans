@@ -69,6 +69,7 @@ type ListKeyMap struct {
 	ChangeStatus    key.Binding
 	ChangeType      key.Binding
 	ChangePriority  key.Binding
+	ChangeSize      key.Binding
 	RaisePriority   key.Binding
 	LowerPriority   key.Binding
 	EditTags        key.Binding
@@ -104,6 +105,7 @@ type DetailKeyMap struct {
 	ChangeStatus    key.Binding
 	ChangeType      key.Binding
 	ChangePriority  key.Binding
+	ChangeSize      key.Binding
 	EditTags        key.Binding
 	ChangeParent    key.Binding
 	ManageBlocking  key.Binding
@@ -216,6 +218,7 @@ func DefaultKeyMap() KeyMap {
 			ChangeStatus:    bind("status", "s"),
 			ChangeType:      bind("type", "t"),
 			ChangePriority:  bind("priority", "P"),
+			ChangeSize:      bind("size", "S"),
 			RaisePriority:   bind("raise priority", "<"),
 			LowerPriority:   bind("lower priority", ">"),
 			EditTags:        bind("tags", "T"),
@@ -249,6 +252,7 @@ func DefaultKeyMap() KeyMap {
 			ChangeStatus:    bind("status", "s"),
 			ChangeType:      bind("type", "t"),
 			ChangePriority:  bind("priority", "P"),
+			ChangeSize:      bind("size", "S"),
 			EditTags:        bind("tags", "T"),
 			ChangeParent:    bind("parent", "p"),
 			ManageBlocking:  bind("blocking", "b"),
