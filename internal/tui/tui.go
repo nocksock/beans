@@ -555,8 +555,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.state = viewLauncherError
 			return a, nil
 		}
-		// Return to list and open the new bean in editor
+		// Return to list, move the cursor to the new bean, and open it in the editor
 		a.state = viewList
+		a.list.cursorTarget = createdBean.ID
 		return a, tea.Batch(
 			a.list.loadBeans,
 			func() tea.Msg {
@@ -598,9 +599,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+			// Keep the cursor on the edited bean, even if edits changed its sort position
+			a.list.cursorTarget = a.editingBeanID
 			// Clear editing state
 			a.editingBeanID = ""
 			a.editingBeanModTime = time.Time{}
+			return a, a.list.loadBeans
 		}
 		return a, nil
 
