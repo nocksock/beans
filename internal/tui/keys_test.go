@@ -386,3 +386,15 @@ func TestReboundToggleArchived(t *testing.T) {
 		t.Error("the rebound key should toggle archived beans")
 	}
 }
+
+func TestReboundToggleLog(t *testing.T) {
+	app := newKeymapTestApp(t, config.Keybindings{"list": {"toggleLog": {"ctrl+l"}}})
+	app.Update(runes("L"))
+	if app.log.visible {
+		t.Error("the default key should no longer toggle the log panel")
+	}
+	app.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
+	if !app.log.visible {
+		t.Error("the rebound key should toggle the log panel")
+	}
+}

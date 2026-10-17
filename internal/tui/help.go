@@ -91,6 +91,8 @@ func (m helpOverlayModel) View() string {
 		{l.Create.Keys(), "Create new bean"},
 		{l.CreateChild.Keys(), "Create child bean"},
 		{l.Launch.Keys(), "Launch with tool"},
+		{l.ToggleLog.Keys(), "Toggle log panel"},
+		{l.OpenLog.Keys(), "Open latest log output"},
 		{l.Edit.Keys(), "Edit bean"},
 		{l.OpenEditor.Keys(), "Edit in $EDITOR"},
 		{l.ChangeStatus.Keys(), "Change status"},

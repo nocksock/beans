@@ -40,7 +40,6 @@ const (
 	viewNoLaunchersMulti
 	viewConfigureLaunchers
 	viewConfigWriteError
-	viewLauncherResult
 	viewTagEditor
 	viewArchiveConfirm
 )
@@ -113,7 +112,7 @@ type App struct {
 	noLaunchersMulti   noLaunchersMultiModel
 	configureLaunchers configureLaunchersModel
 	configWriteError   configWriteErrorModel
-	launcherResult     *launcherResultModel
+	log                logPanelModel
 	history            []detailModel // stack of previous detail views for back navigation
 	core               *beancore.Core
 	resolver           *graph.Resolver
@@ -209,6 +208,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keymap.Global.ReloadConfig):
 			if (a.state == viewList || a.state == viewDetail) && a.canQuit() {
 				return a, func() tea.Msg { return reloadConfigMsg{} }
+			}
+		case key.Matches(msg, keymap.List.ToggleLog):
+			if a.state == viewList && a.canQuit() {
+				a.log.visible = !a.log.visible
+				return a, a.resizeList()
+			}
+		case key.Matches(msg, keymap.List.OpenLog):
+			if a.state == viewList && a.canQuit() {
+				return a, a.openLatestLog()
 			}
 		}
 
@@ -754,32 +762,27 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 
-		// Get the bean for env vars
-		b, _ := a.core.Get(msg.beanIDs[0])
-
-		beanTitle := msg.beanTitle
-		if b != nil {
-			beanTitle = b.DisplayTitle()
+		if !msg.launcher.background {
+			// Foreground launchers get the terminal, so only one bean can run
+			return a, a.runLauncher(msg.launcher, msg.beanIDs[0], msg.beanTitle)
 		}
 
-		return a, a.runLauncher(msg.launcher.name, a.newLaunch(msg.launcher.exec, msg.launcher.dir, msg.beanIDs[0], beanTitle))
+		// Background launchers run for every bean in parallel
+		cmds := make([]tea.Cmd, 0, len(msg.beanIDs)+1)
+		for _, id := range msg.beanIDs {
+			cmds = append(cmds, a.runLauncherInBackground(msg.launcher, id, msg.beanTitle))
+		}
+		cmds = append(cmds, a.resizeList())
+		return a, tea.Batch(cmds...)
 
 	case closeLauncherPickerMsg:
 		a.state = a.previousState
 		return a, nil
 
-	case launcherResultMsg:
-		// Show the launcher result
-		result := newLauncherResultModel(msg.name, msg.success, msg.exitCode, msg.logPath, a.width, a.height)
-		a.launcherResult = &result
-		a.previousState = a.state
-		a.state = viewLauncherResult
-		return a, nil
-
-	case closeLauncherResultMsg:
-		// Return to previous state
-		a.state = a.previousState
-		return a, nil
+	case launchFinishedMsg:
+		a.log.finish(msg.id, msg.exitCode, msg.err, time.Now())
+		// Failures show the panel, so the list may need to shrink
+		return a, a.resizeList()
 
 	case launchersConfiguredMsg:
 		// Append selected launchers to .beans.yml
@@ -889,10 +892,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.state = a.previousState
 			return a, nil
 		}
-	case viewLauncherResult:
-		var m tea.Model
-		m, cmd = a.launcherResult.Update(msg)
-		a.launcherResult = m.(*launcherResultModel)
 	}
 
 	return a, cmd
@@ -925,29 +924,47 @@ func (a *App) isTwoColumnMode() bool {
 	return a.width >= twoColumnMinWidth
 }
 
-// resizeList sizes the list for the full width, or the left pane in two-column mode
+// resizeList sizes the list for the full width, or the left pane in two-column
+// mode, leaving room for the log panel when it's shown
 func (a *App) resizeList() tea.Cmd {
 	width := a.width
 	if a.isTwoColumnMode() {
 		width, _ = paneWidths(a.width)
 	}
+	height := a.height
+	if a.logPanelShown() {
+		height -= logPanelHeight
+	}
 	var cmd tea.Cmd
-	a.list, cmd = a.list.Update(tea.WindowSizeMsg{Width: width, Height: a.height})
+	a.list, cmd = a.list.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	return cmd
 }
 
+// logPanelShown returns true if the log panel is toggled on and the terminal
+// is tall enough to fit it below the list
+func (a *App) logPanelShown() bool {
+	return a.log.visible && a.height >= 3*logPanelHeight
+}
+
 // listView renders the list, with the preview pane beside it when there's room
+// and the log panel below it when shown
 func (a *App) listView() string {
-	if !a.isTwoColumnMode() || a.list.err != nil || a.list.width == 0 {
+	if a.list.err != nil || a.list.width == 0 {
 		return a.list.View()
 	}
 
-	_, previewWidth := paneWidths(a.width)
-	a.preview.setBean(a.list.previewData())
-	left := a.list.viewContent()
-	right := a.preview.View(previewWidth, lipgloss.Height(left))
+	body := a.list.viewContent()
+	if a.isTwoColumnMode() {
+		_, previewWidth := paneWidths(a.width)
+		a.preview.setBean(a.list.previewData())
+		right := a.preview.View(previewWidth, lipgloss.Height(body))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, body, right)
+	}
+	if a.logPanelShown() {
+		body += "\n" + a.log.View(a.width)
+	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, right) + "\n" + a.list.Footer()
+	return body + "\n" + a.list.Footer()
 }
 
 // resolveChord tracks chord keys (see KeyMap). It returns pending=true while a
@@ -990,8 +1007,6 @@ func (a *App) chordBindings() []key.Binding {
 		return allBindings(keymap.Picker)
 	case viewArchiveConfirm:
 		return allBindings(keymap.ArchiveConfirm)
-	case viewLauncherResult:
-		return allBindings(keymap.LauncherResult)
 	case viewConfigureLaunchers:
 		return allBindings(keymap.ConfigureLaunchers)
 	}
@@ -1005,7 +1020,7 @@ func (a *App) typingText() bool {
 		return true
 	case viewLauncherPicker:
 		return a.launcherPicker.list.FilterState() == list.Filtering
-	case viewArchiveConfirm, viewLauncherResult, viewConfigureLaunchers:
+	case viewArchiveConfirm, viewConfigureLaunchers:
 		return false
 	}
 	return !a.canQuit()
@@ -1102,8 +1117,6 @@ func (a *App) View() string {
 		return a.configureLaunchers.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewConfigWriteError:
 		return a.configWriteError.ModalView(a.getBackgroundView(), a.width, a.height)
-	case viewLauncherResult:
-		return a.launcherResult.View()
 	}
 	return ""
 }
@@ -1142,28 +1155,69 @@ func (a *App) newLaunch(script, configDir, beanID, beanTitle string) launcherexe
 	}
 }
 
-// runLauncher runs a launch in the foreground (with the terminal handed over
-// to it) and reports its outcome as a launcherResultMsg. Stderr is additionally
-// captured to a log file so failures can be inspected afterwards.
-func (a *App) runLauncher(name string, l launcherexec.Launch) tea.Cmd {
-	cmd, logFile, err := launcherexec.CreateLoggedExecCommand(l)
+// launchFor describes running l for the bean with the given ID. fallbackTitle
+// is used when the bean can't be loaded.
+func (a *App) launchFor(l launcher, beanID, fallbackTitle string) launcherexec.Launch {
+	title := fallbackTitle
+	if b, _ := a.core.Get(beanID); b != nil {
+		title = b.DisplayTitle()
+	}
+	return a.newLaunch(l.exec, l.dir, beanID, title)
+}
+
+// runLauncher runs l in the foreground (with the terminal handed over to it)
+// and logs it in the log panel. Stderr is additionally captured to a log file
+// so failures can be inspected afterwards.
+func (a *App) runLauncher(l launcher, beanID, fallbackTitle string) tea.Cmd {
+	cmd, logFile, err := launcherexec.CreateLoggedExecCommand(a.launchFor(l, beanID, fallbackTitle))
 	if err != nil {
-		return func() tea.Msg {
-			return launcherResultMsg{name: name, success: false, exitCode: -1}
-		}
+		return a.logStartFailure(l, beanID, err)
 	}
 
+	id := a.log.start(l.name, beanID, logFile.Name(), time.Now())
 	a.quitting = true
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		logFile.Close()
 		a.quitting = false
-		exitCode := launcherexec.ExitCode(err)
-		return launcherResultMsg{
-			name:     name,
-			success:  exitCode == 0,
-			exitCode: exitCode,
-			logPath:  logFile.Name(),
-		}
+		return launchFinishedMsg{id: id, exitCode: launcherexec.ExitCode(err), err: err}
+	})
+}
+
+// runLauncherInBackground runs l without the terminal and logs it in the log
+// panel, with stdout and stderr captured for it.
+func (a *App) runLauncherInBackground(l launcher, beanID, fallbackTitle string) tea.Cmd {
+	cmd, logFile, err := launcherexec.CreateBackgroundCommand(a.launchFor(l, beanID, fallbackTitle))
+	if err != nil {
+		return a.logStartFailure(l, beanID, err)
+	}
+
+	id := a.log.start(l.name, beanID, logFile.Name(), time.Now())
+	return func() tea.Msg {
+		err := cmd.Run()
+		logFile.Close()
+		return launchFinishedMsg{id: id, exitCode: launcherexec.ExitCode(err), err: err}
+	}
+}
+
+// logStartFailure logs a run whose command couldn't even be created.
+func (a *App) logStartFailure(l launcher, beanID string, err error) tea.Cmd {
+	id := a.log.start(l.name, beanID, "", time.Now())
+	return func() tea.Msg {
+		return launchFinishedMsg{id: id, exitCode: -1, err: err}
+	}
+}
+
+// openLatestLog opens the latest run's full output in the user's editor.
+func (a *App) openLatestLog() tea.Cmd {
+	e := a.log.latest()
+	if e == nil || e.logPath == "" {
+		return nil
+	}
+	c := exec.Command(getEditor(), e.logPath)
+	a.quitting = true
+	return tea.ExecProcess(c, func(error) tea.Msg {
+		a.quitting = false
+		return nil
 	})
 }
 
@@ -1214,6 +1268,9 @@ func Run(core *beancore.Core, cfg *config.Config) error {
 		return err
 	}
 	defer stopConfigWatch()
+
+	// Finished runs' output is only kept for this session
+	defer app.log.cleanup()
 
 	_, err = p.Run()
 	return err

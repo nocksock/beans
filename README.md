@@ -145,14 +145,13 @@ keybinding:
 | Context | Actions (default keys) |
 |---------|------------------------|
 | `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`) |
-| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`) |
+| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleLog` (`L`), `openLog` (`O`) |
 | `detail` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `scrollLeft` (`left`), `scrollRight` (`right`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `filterLinks` (`/`), `back` (`esc` `backspace`), `prevBean` (`h`), `nextBean` (`l`), `toggleFocus` (`tab`), `followLink` (`enter`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
 | `help` | `close` (`?` `esc`) |
 | `picker` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `h` `pgup` `b` `u`), `nextPage` (`right` `l` `pgdown` `f` `d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `confirm` (`enter`), `cancel` (`esc` `backspace`), `toggle` (`space`, blocking picker) |
 | `tagEditor` | `up` (`up` `ctrl+p`), `down` (`down` `ctrl+n`), `toggle` (`space` `tab`), `apply` (`enter`), `cancel` (`esc`) |
 | `createModal` | `cancel` (`esc`), `nextField` (`tab`), `prevField` (`shift+tab`), `submit` (`ctrl+s`), `submitAndEdit` (`ctrl+e`), `quickSubmit` (`enter`, not in the description), `cyclePrev` (`left` `h` `up` `k`), `cycleNext` (`right` `l` `down` `j` `space`), `quickSubmitAndEdit` (`e`); the last three only on type/status/priority |
 | `archiveConfirm` | `confirm` (`y` `Y`), `cancel` (`n` `N` `esc` `backspace`) |
-| `launcherResult` | `close` (`enter` `esc` `q`), `openLog` (`e`) |
 | `configureLaunchers` | `up` (`up` `k`), `down` (`down` `j`), `toggle` (`space` `enter`), `confirm` (`y`), `cancel` (`esc` `q`) |
 
 ## Agent Configuration
@@ -305,6 +304,22 @@ launchers:
 - **Single bean selected** → All launchers shown
 - **Multiple beans selected** → Only `multiple: true` launchers shown
 - **No `multiple: true` launchers available** → Error message displayed
+
+### Background Launchers
+
+By default a launcher takes over the terminal until it exits, which interactive tools like `claude` or `opencode` need. Launchers that only start something elsewhere (a tmux window, a kitty window, a script) can run in the background instead, so the TUI stays usable:
+
+```yaml
+launchers:
+  - name: worktree-tmux
+    background: true  # ← Runs without the terminal
+    multiple: true    # ← Runs for every selected bean in parallel
+    exec: ...
+```
+
+Background launchers get no stdin; their stdout and stderr are captured. With `multiple: true` and several beans selected, one run per bean starts in parallel.
+
+Every run, foreground or background, shows up in the **log panel** below the bean list: time, ⟳/✓/✗, launcher, bean ID, exit code, and the last lines of output (only stderr for foreground runs, since their stdout is the terminal). The panel appears when a run starts or fails; press `L` to toggle it and `O` to open the latest run's full output in `$EDITOR`. The log is kept for the TUI session only. Background runs still going when you quit keep running; their output files (`beans-launch-*.log` in your temp directory) are left behind for you to inspect.
 
 ### How It Works
 

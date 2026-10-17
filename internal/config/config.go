@@ -95,7 +95,8 @@ type Launcher struct {
 	Name        string `yaml:"name"`
 	Exec        string `yaml:"exec"`
 	Description string `yaml:"description,omitempty"`
-	Multiple    bool   `yaml:"multiple,omitempty"` // Supports launching for multiple beans in parallel
+	Multiple    bool   `yaml:"multiple,omitempty"`   // Supports launching for multiple beans in parallel
+	Background  bool   `yaml:"background,omitempty"` // Runs without the terminal; output goes to the TUI's log panel
 
 	// Dir is the directory of the config file that declared this launcher (not serialized).
 	// The launcher runs from there so relative script paths in inherited configs keep working.

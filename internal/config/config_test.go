@@ -903,6 +903,7 @@ func TestLauncherConfigPersistence(t *testing.T) {
 				Exec:        "make build",
 				Description: "Build the project",
 				Multiple:    true,
+				Background:  true,
 			},
 		},
 	}
@@ -931,6 +932,9 @@ func TestLauncherConfigPersistence(t *testing.T) {
 	}
 	if loaded.Launchers[0].Multiple != true {
 		t.Errorf("Launcher.Multiple = %v, want true", loaded.Launchers[0].Multiple)
+	}
+	if loaded.Launchers[0].Background != true {
+		t.Errorf("Launcher.Background = %v, want true", loaded.Launchers[0].Background)
 	}
 }
 

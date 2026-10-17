@@ -32,7 +32,6 @@ type KeyMap struct {
 	TagEditor          TagEditorKeyMap
 	CreateModal        CreateModalKeyMap
 	ArchiveConfirm     ArchiveConfirmKeyMap
-	LauncherResult     LauncherResultKeyMap
 	ConfigureLaunchers ConfigureLaunchersKeyMap
 }
 
@@ -79,6 +78,8 @@ type ListKeyMap struct {
 	Launch          key.Binding
 	Archive         key.Binding
 	ToggleArchived  key.Binding
+	ToggleLog       key.Binding
+	OpenLog         key.Binding
 }
 
 // DetailKeyMap holds bindings for the bean detail view.
@@ -164,12 +165,6 @@ type ArchiveConfirmKeyMap struct {
 	Cancel  key.Binding
 }
 
-// LauncherResultKeyMap holds bindings for the launcher result dialog.
-type LauncherResultKeyMap struct {
-	Close   key.Binding
-	OpenLog key.Binding
-}
-
 // ConfigureLaunchersKeyMap holds bindings for the configure launchers dialog.
 type ConfigureLaunchersKeyMap struct {
 	Up      key.Binding
@@ -230,6 +225,8 @@ func DefaultKeyMap() KeyMap {
 			Launch:          bind("launch", "!"),
 			Archive:         bind("archive", "Y"),
 			ToggleArchived:  bind("show archived", "A"),
+			ToggleLog:       bind("log", "L"),
+			OpenLog:         bind("open log", "O"),
 		},
 		Detail: DetailKeyMap{
 			ScrollUp:     bind("scroll up", "up", "k"),
@@ -296,10 +293,6 @@ func DefaultKeyMap() KeyMap {
 		ArchiveConfirm: ArchiveConfirmKeyMap{
 			Confirm: bind("archive", "y", "Y"),
 			Cancel:  bind("cancel", "n", "N", "esc", "backspace"),
-		},
-		LauncherResult: LauncherResultKeyMap{
-			Close:   bind("close", "enter", "esc", "q"),
-			OpenLog: bind("open log", "e"),
 		},
 		ConfigureLaunchers: ConfigureLaunchersKeyMap{
 			Up:      bind("up", "up", "k"),
