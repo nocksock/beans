@@ -71,6 +71,33 @@ beans help
 
 But more importantly, you'll want to get your coding agent set up to use it. Let's dive in!
 
+### Monorepos: Cascading Configuration
+
+beans uses the nearest `.beans.yml` found by walking up from the current directory. A config can pass its settings down to configs in subdirectories with `cascade: true`:
+
+```yaml
+# repo/.beans.yml
+cascade: true
+beans:
+  path: .beans
+  prefix: repo-
+launchers:
+  - name: claude
+    exec: claude "Work on task $BEANS_ID"
+```
+
+```yaml
+# repo/packages/api/.beans.yml
+beans:
+  prefix: api-
+```
+
+Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans` directory, and the inherited `claude` launcher.
+
+- **Opt-in by the parent**: only a config with `cascade: true` passes settings down. Chains continue upward while each next config cascades; `cascade` itself is never inherited.
+- **Merging**: the closest config wins. Nested settings merge key by key; lists of named items (like `launchers`) merge by `name` (same name replaces, new names are added); other lists are replaced.
+- **Paths**: relative paths resolve against the config file that declared them. Set `beans.path` in a subdirectory config to give it its own beans directory. If no config sets it, `.beans` next to the nearest config is used.
+
 ## Agent Configuration
 
 We'll need to teach your coding agent that it should use Beans to track tasks, and how to do so. The exact steps will depend on which agent you're using.
@@ -258,8 +285,8 @@ launchers:
 
 - **Single-line exec**: Runs via `sh -c`, just like a shell command. Use for simple commands.
 - **Multi-line exec**: Passed to the interpreter via stdin. **Must start with a shebang** (`#!/bin/bash`, `#!/usr/bin/env python3`, etc.). The shebang determines which interpreter executes your script.
-- **Environment variables**: All launchers receive `$BEANS_ROOT`, `$BEANS_DIR`, `$BEANS_ID`, `$BEANS_TASK`
-- **Working directory**: Set to project root (`$BEANS_ROOT`)
+- **Environment variables**: All launchers receive `$BEANS_ROOT`, `$BEANS_CONFIG_DIR`, `$BEANS_DIR`, `$BEANS_ID`, `$BEANS_TASK`
+- **Working directory**: Set to the directory of the `.beans.yml` that declared the launcher (`$BEANS_CONFIG_DIR`). For a launcher defined in your project's own config, that's the project root (`$BEANS_ROOT`)
 - **Unix/Linux/macOS only**: Shebang mechanism is Unix-specific
 
 ### Multi-Select Launching
@@ -324,7 +351,8 @@ tui:
 
 Launchers receive these environment variables:
 
-- `BEANS_ROOT`: Project root directory (parent of `.beans/`, your working directory)
+- `BEANS_ROOT`: Project root directory (where the nearest `.beans.yml` lives)
+- `BEANS_CONFIG_DIR`: Directory of the `.beans.yml` that declared the launcher (the working directory; differs from `BEANS_ROOT` for [inherited launchers](#monorepos-cascading-configuration))
 - `BEANS_DIR`: Beans directory (e.g., `/path/to/project/.beans`)
 - `BEANS_ID`: Bean ID (e.g., `beans-abc123`)
 - `BEANS_TASK`: Full path to bean file (e.g., `/path/to/project/.beans/beans-abc123.md`)
