@@ -215,15 +215,12 @@ You can configure external tools to launch from the TUI. Press `!` when viewing 
 
 **First-time setup:** If no launchers are configured, you'll be prompted to select from default options (opencode, claude, crush). Only installed tools will be pre-selected. This provides a quick start with sensible defaults.
 
-**First-time setup:** If no launchers are configured, you'll be prompted to select from default options (opencode, claude, crush). Only installed tools will be pre-selected. This provides a quick start with sensible defaults.
-
 Configure launchers in `.beans.yml`:
 
 ```yaml
 launchers:
   # Simple single-line launcher
   - name: opencode
-<<<<<<< HEAD
     exec: opencode -p "Work on task $BEANS_ID"
     description: "Open task in OpenCode"
   
@@ -265,35 +262,6 @@ launchers:
 ```
 
 ### Multi-Bean Launchers
-=======
-    command: opencode run "Work on task $BEANS_ID"
-    description: "Open task in OpenCode"
-  - name: claude
-    command: claude "Work on task $BEANS_ID"
-    description: "Open task in Claude Code"
-  - name: custom-tool
-    command: .beans/scripts/my-tool.sh
-    description: "Run custom analysis"
-```
-
-**Command execution:**
-- All launcher commands execute via shell (`sh -c`), allowing environment variable expansion
-- Use `$BEANS_ID`, `$BEANS_ROOT`, `$BEANS_TASK` in your commands
-- Commands can be executable names in PATH, relative paths, or absolute paths
-
-**Command templates:** The default launchers serve as templates for custom commands. You can create sophisticated launcher commands using shell features:
-
-```yaml
-# Extract and use the task title
-command: opencode run "Work on $(head -n1 $BEANS_TASK | sed 's/^# //')"
-
-# Pass multiple environment variables
-command: my-tool --id=$BEANS_ID --root=$BEANS_ROOT
-
-# Chain commands
-command: cd $BEANS_ROOT && my-script.sh $BEANS_ID
-```
->>>>>>> main
 
 Some launchers can handle multiple beans in parallel, while others can only work with one bean at a time. Mark launchers that support parallel execution with `multiple: true`:
 
@@ -416,7 +384,6 @@ Launchers receive these environment variables:
 
 ### CLI Usage
 
-<<<<<<< HEAD
 Launch beans from the command line:
 
 ```bash
@@ -447,8 +414,6 @@ beans launch -l --json
 - Shows availability status with `-l` (✓ if command/interpreter found, ✗ if not)
 - Returns non-zero exit code on failure
 
-=======
->>>>>>> main
 ## Contributing
 
 This project currently does not accept contributions -- it's just way too early for that!
