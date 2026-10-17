@@ -16,6 +16,7 @@ import (
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph"
 	"github.com/hmans/beans/internal/graph/model"
+	launcherexec "github.com/hmans/beans/internal/launcher"
 	"github.com/hmans/beans/internal/sessionpoller"
 )
 
@@ -695,7 +696,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			beanTitle = b.Title
 		}
 
-		return a, a.runLauncher(msg.launcher.name, msg.launcher.exec, msg.beanIDs[0], beanTitle)
+		return a, a.runLauncher(msg.launcher.name, a.newLaunch(msg.launcher.exec, msg.launcher.dir, msg.beanIDs[0], beanTitle))
 
 	case closeLauncherPickerMsg:
 		a.state = a.previousState
@@ -708,7 +709,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case attachSessionMsg:
 		// Run the attach command for the session
 		if a.config.Session != nil && a.config.Session.Attach != "" {
-			cmd, err := sessionpoller.CreateExecCommand(a.config.Session.Attach, a.core.Root(), msg.beanID, msg.beanTitle)
+			cmd, err := sessionpoller.CreateExecCommand(a.newLaunch(a.config.Session.Attach, a.config.Session.AttachDir, msg.beanID, msg.beanTitle))
 			if err != nil {
 				return a, nil
 			}
@@ -725,7 +726,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 
 		if a.config.Session != nil && a.config.Session.Launch != "" {
-			return a, a.runLauncher("Session", a.config.Session.Launch, msg.beanID, msg.beanTitle)
+			return a, a.runLauncher("Session", a.newLaunch(a.config.Session.Launch, a.config.Session.LaunchDir, msg.beanID, msg.beanTitle))
 		}
 		return a, nil
 
@@ -753,11 +754,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case launchersConfiguredMsg:
 		// Append selected launchers to .beans.yml
-		projectRoot := a.config.ConfigDir()
-		if projectRoot == "" {
-			// Fallback: try to get parent of beans directory
-			projectRoot = filepath.Dir(a.core.Root())
-		}
+		projectRoot := a.projectRoot()
 
 		if err := appendLaunchersToConfig(projectRoot, msg.launchers); err != nil {
 			// Show error modal
@@ -1026,11 +1023,33 @@ func (a *App) getBackgroundView() string {
 
 // getEditor returns the user's preferred editor using the fallback chain:
 // $VISUAL -> $EDITOR -> vi -> nano
-// runLauncher runs execScript in the foreground (with the terminal handed over
+// projectRoot returns the directory of the project's config file, falling back
+// to the parent of the beans directory when no config file was loaded.
+func (a *App) projectRoot() string {
+	if dir := a.config.ConfigDir(); dir != "" {
+		return dir
+	}
+	return filepath.Dir(a.core.Root())
+}
+
+// newLaunch describes running script (declared by the config file in
+// configDir) for a bean of this project.
+func (a *App) newLaunch(script, configDir, beanID, beanTitle string) launcherexec.Launch {
+	return launcherexec.Launch{
+		Script:      script,
+		ProjectRoot: a.projectRoot(),
+		ConfigDir:   configDir,
+		BeansDir:    a.core.Root(),
+		BeanID:      beanID,
+		BeanTitle:   beanTitle,
+	}
+}
+
+// runLauncher runs a launch in the foreground (with the terminal handed over
 // to it) and reports its outcome as a launcherResultMsg. Stderr is additionally
 // captured to a log file so failures can be inspected afterwards.
-func (a *App) runLauncher(name, execScript, beanID, beanTitle string) tea.Cmd {
-	cmd, logFile, err := sessionpoller.CreateLoggedExecCommand(execScript, a.core.Root(), beanID, beanTitle)
+func (a *App) runLauncher(name string, l launcherexec.Launch) tea.Cmd {
+	cmd, logFile, err := sessionpoller.CreateLoggedExecCommand(l)
 	if err != nil {
 		return func() tea.Msg {
 			return launcherResultMsg{name: name, success: false, exitCode: -1}

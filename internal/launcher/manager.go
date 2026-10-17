@@ -103,7 +103,7 @@ func NewLaunchManager(launcher *config.Launcher, beans []*bean.Bean) *LaunchMana
 }
 
 // Start begins execution of all launches in parallel
-func (m *LaunchManager) Start(beansRoot string) error {
+func (m *LaunchManager) Start(projectRoot, beansDir string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -112,7 +112,7 @@ func (m *LaunchManager) Start(beansRoot string) error {
 	}
 
 	for _, launch := range m.launches {
-		if err := m.startLaunch(launch, beansRoot); err != nil {
+		if err := m.startLaunch(launch, projectRoot, beansDir); err != nil {
 			return err
 		}
 	}
@@ -121,8 +121,15 @@ func (m *LaunchManager) Start(beansRoot string) error {
 }
 
 // startLaunch starts a single bean launch (must be called with lock held)
-func (m *LaunchManager) startLaunch(launch *BeanLaunch, beansRoot string) error {
-	cmd, result, err := CreateExecCommand(m.launcher.Exec, beansRoot, launch.Bean.ID, launch.Bean.Title)
+func (m *LaunchManager) startLaunch(launch *BeanLaunch, projectRoot, beansDir string) error {
+	cmd, result, err := CreateExecCommand(Launch{
+		Script:      m.launcher.Exec,
+		ProjectRoot: projectRoot,
+		ConfigDir:   m.launcher.Dir,
+		BeansDir:    beansDir,
+		BeanID:      launch.Bean.ID,
+		BeanTitle:   launch.Bean.Title,
+	})
 	if err != nil {
 		launch.Status = LaunchFailed
 		launch.Error = fmt.Errorf("failed to create command: %w", err)

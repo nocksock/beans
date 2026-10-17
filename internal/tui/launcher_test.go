@@ -232,8 +232,8 @@ func TestHasLaunchersConfigured(t *testing.T) {
 }
 
 func TestLauncherIntegration_EnvironmentVariables(t *testing.T) {
-	// This test verifies that the TUI properly uses the launcher package's CreateExecCommand
-	// which includes all required environment variables including BEANS_DIR
+	// This test verifies that the launcher package's CreateExecCommand (used by the TUI)
+	// sets all required environment variables including BEANS_DIR
 	tests := []struct {
 		name      string
 		script    string
@@ -260,7 +260,13 @@ func TestLauncherIntegration_EnvironmentVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Use the launcher package directly (this is what TUI now uses)
-			cmd, result, err := launcherexec.CreateExecCommand(tt.script, tt.beansDir, tt.beanID, tt.beanTitle)
+			cmd, result, err := launcherexec.CreateExecCommand(launcherexec.Launch{
+				Script:      tt.script,
+				ProjectRoot: filepath.Dir(tt.beansDir),
+				BeansDir:    tt.beansDir,
+				BeanID:      tt.beanID,
+				BeanTitle:   tt.beanTitle,
+			})
 			if err != nil {
 				t.Fatalf("CreateExecCommand() error = %v", err)
 			}
@@ -354,5 +360,22 @@ func TestAppendLaunchersToConfig(t *testing.T) {
 	}
 	if !strings.Contains(resultStr, "path: .beans") {
 		t.Error("Original beans path was lost")
+	}
+}
+
+func TestDiscoverLaunchersKeepsConfigDir(t *testing.T) {
+	cfg := &config.Config{
+		Launchers: []config.Launcher{
+			{Name: "inherited", Exec: "./scripts/run", Dir: "/repo"},
+			{Name: "local", Exec: "./run", Dir: "/repo/pkg"},
+		},
+	}
+
+	launchers := discoverLaunchers(cfg, "/repo/.beans")
+	if len(launchers) != 2 {
+		t.Fatalf("got %d launchers, want 2", len(launchers))
+	}
+	if launchers[0].dir != "/repo" || launchers[1].dir != "/repo/pkg" {
+		t.Errorf("dirs = %q, %q; want /repo, /repo/pkg", launchers[0].dir, launchers[1].dir)
 	}
 }

@@ -2,9 +2,7 @@ package launcher
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -21,37 +19,20 @@ func (r *ExecutionResult) Cleanup() {
 	}
 }
 
-// CreateExecCommand creates a command for executing an exec script.
+// CreateExecCommand creates a command for running a launch.
 // For multi-line scripts with shebang, passes script via stdin to the interpreter.
 // For single-line scripts, it executes via sh -c.
-//
-// Parameters:
-//   - execScript: The script to execute (single-line or multi-line with shebang)
-//   - beansDir: The .beans directory (absolute path)
-//   - beanID: The ID of the bean being worked on
-//   - beanTitle: The title of the bean
-//
-// Returns:
-//   - *exec.Cmd: The command to execute
-//   - *ExecutionResult: Result containing cleanup function
-//   - error: Any error that occurred during setup
-func CreateExecCommand(execScript, beansDir, beanID, beanTitle string) (*exec.Cmd, *ExecutionResult, error) {
-	// Project root is the parent of the beans directory
-	projectRoot := filepath.Dir(beansDir)
-
-	env := append(os.Environ(),
-		fmt.Sprintf("BEANS_ROOT=%s", projectRoot),
-		fmt.Sprintf("BEANS_DIR=%s", beansDir),
-		fmt.Sprintf("BEANS_ID=%s", beanID),
-		fmt.Sprintf("BEANS_TASK=%s", beanTitle),
-	)
+func CreateExecCommand(l Launch) (*exec.Cmd, *ExecutionResult, error) {
+	execScript := l.Script
+	env := l.Env()
+	workDir := l.WorkDir()
 
 	// Check if this is multi-line (contains newline)
 	if !strings.Contains(execScript, "\n") {
 		// Single-line: execute via sh -c
 		cmd := exec.Command("sh", "-c", execScript)
 		cmd.Env = env
-		cmd.Dir = projectRoot
+		cmd.Dir = workDir
 
 		result := &ExecutionResult{
 			Cmd:     cmd,
@@ -87,7 +68,7 @@ func CreateExecCommand(execScript, beansDir, beanID, beanTitle string) (*exec.Cm
 	}
 
 	cmd.Env = env
-	cmd.Dir = projectRoot
+	cmd.Dir = workDir
 
 	// Pass the script (including shebang line) via stdin
 	cmd.Stdin = strings.NewReader(execScript)

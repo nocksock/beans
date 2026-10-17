@@ -14,6 +14,7 @@ type launcher struct {
 	name        string
 	exec        string // exec script (single-line or multi-line)
 	description string
+	dir         string // directory of the config file that declared the launcher
 }
 
 // discoverLaunchers discovers all available launchers from config.
@@ -32,6 +33,7 @@ func discoverLaunchers(cfg *config.Config, beansRoot string) []launcher {
 			name:        lc.Name,
 			exec:        lc.Exec,
 			description: lc.Description,
+			dir:         lc.Dir,
 		})
 	}
 
