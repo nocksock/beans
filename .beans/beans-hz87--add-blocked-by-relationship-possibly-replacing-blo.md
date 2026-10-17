@@ -1,11 +1,11 @@
 ---
 # beans-hz87
 title: Add blocked-by relationship (possibly replacing blocking)
-status: todo
+status: completed
 type: feature
 priority: normal
 created_at: 2025-12-14T14:37:11Z
-updated_at: 2025-12-14T15:05:05Z
+updated_at: 2026-10-16T20:15:43Z
 parent: beans-f11p
 ---
 
@@ -35,10 +35,18 @@ A `blocked-by` relationship is more natural because:
 
 ## Checklist
 
-- [ ] Decide: replace `blocking` or add `blocked-by` alongside it
-- [ ] Update front matter parsing to support `blocked-by`
-- [ ] Update GraphQL schema with new field/relationship
-- [ ] Update CLI commands (`beans update --blocked-by`, `--remove-blocked-by`)
-- [ ] Update `beans prime` documentation
-- [ ] Migrate or deprecate existing `blocking` if replacing
-- [ ] Update tests
+- [x] Decide: replace `blocking` or add `blocked-by` alongside it: use blocked-by alongside it
+- [x] Update front matter parsing to support `blocked-by`
+- [x] Update GraphQL schema with new field/relationship
+- [x] Update CLI commands (`beans update --blocked-by`, `--remove-blocked-by`)
+- [x] Update `beans prime` documentation
+- [x] ~~Migrate or deprecate existing `blocking` if replacing~~ (n/a: kept alongside)
+- [x] Update tests
+- [x] TUI: `B` opens blocked-by picker (reuses blocking picker)
+
+## Work Log
+2026-10-16 19:50: Decided: separate blocked_by field, merged reads, full TUI picker. Worktree .worktrees/beans-hz87 (feat/blocked-by)
+2026-10-16 20:05: Added blocked_by front matter, core merged blocker lookups/cycles, GraphQL field+mutations, merged filters
+2026-10-16 20:25: CLI flags (create/update --blocked-by, --remove-blocked-by), show, prime docs
+2026-10-16 20:35: TUI B picker + preview line; tests for bean/core/graph/tui; all green, manual CLI test ok
+2026-10-16 20:40: Committed 74d4c9e on feat/blocked-by

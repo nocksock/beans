@@ -10,8 +10,6 @@ tags:
 created_at: 2025-12-15T12:48:53Z
 updated_at: 2025-12-15T12:50:36Z
 parent: beans-gl8t
-blocking:
-    - beans-znuf
 ---
 
 Two "no launchers" modals share 80% of the same rendering logic with only slight variations (title, message).

@@ -1,14 +1,14 @@
 ---
 # beans-8olg
 title: Add --unblocked filter to find actionable beans
-status: draft
+status: completed
 type: feature
 priority: normal
 tags:
     - cli
     - filtering
 created_at: 2025-12-07T11:29:37Z
-updated_at: 2025-12-13T14:44:14Z
+updated_at: 2026-10-16T20:19:15Z
 parent: beans-f11p
 ---
 
@@ -40,3 +40,6 @@ Returns beans-jkl (blocker is done) but NOT beans-def (blocker is open).
 - Should combine with other filters: `beans list --status open --unblocked`
 - Consider inverse: `--blocked` to show only blocked beans
 - Could extend to show WHY a bean is blocked
+## Work Log
+
+2026-10-16 22:19: isBlocked filter ignores completed/scrapped blockers; added --unblocked flag + tests (branch feat/unblocked-filter, .worktrees/beans-8olg)
