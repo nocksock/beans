@@ -1,11 +1,11 @@
 ---
 # beans-c05a
 title: 'additional status: review -> completed -> merged'
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2025-12-15T15:44:08Z
-updated_at: 2026-10-17T12:52:04Z
+updated_at: 2026-10-17T13:14:00Z
 parent: beans-xqrj
 ---
 
@@ -61,3 +61,4 @@ filter in-progress would show all substates.
 2026-10-17 14:40: GraphQL filters expand builtins, statusCategory field; beans list exclusions category-aware
 2026-10-17 14:50: README section, full test suite green, manual CLI test ok
 2026-10-17 15:05: beans list --include accepts custom statuses (exact local hidden-status filter)
+2026-10-17 15:15: Merged into dev (9827bbd), tests green
