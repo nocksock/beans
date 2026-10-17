@@ -1,11 +1,11 @@
 ---
 # beans-07j8
 title: init with params
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-16T14:57:39Z
-updated_at: 2026-10-17T13:51:19Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-xqrj
 ---
 

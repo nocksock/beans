@@ -1,14 +1,14 @@
 ---
 # beans-znuf
 title: Consolidate ModalView implementations
-status: scrapped
+status: archived
 type: task
 priority: normal
 tags:
     - technical-debt
     - refactoring
 created_at: 2025-12-15T12:48:57Z
-updated_at: 2026-10-17T14:02:53Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-gl8t
 blocking:
     - beans-mszj

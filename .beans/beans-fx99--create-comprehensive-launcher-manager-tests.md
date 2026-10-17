@@ -1,14 +1,14 @@
 ---
 # beans-fx99
 title: Create comprehensive launcher manager tests
-status: scrapped
+status: archived
 type: task
 priority: high
 tags:
     - test
     - concurrency
 created_at: 2025-12-15T12:49:25Z
-updated_at: 2026-10-17T14:02:52Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-gl8t
 blocking:
     - beans-359x

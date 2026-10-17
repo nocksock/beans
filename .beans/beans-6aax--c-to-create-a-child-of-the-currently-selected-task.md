@@ -1,11 +1,11 @@
 ---
 # beans-6aax
 title: '`C` to create a child of the currently selected task(s)'
-status: completed
+status: archived
 type: feature
 priority: normal
 created_at: 2025-12-15T12:59:39Z
-updated_at: 2026-10-17T14:02:52Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-7jm4
 ---
 

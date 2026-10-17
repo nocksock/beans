@@ -1,11 +1,11 @@
 ---
 # beans-w0nk
 title: fold/collapse entries with children
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2025-12-15T13:06:30Z
-updated_at: 2026-10-17T14:02:52Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-7jm4
 ---
 

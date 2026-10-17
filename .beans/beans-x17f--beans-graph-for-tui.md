@@ -1,11 +1,11 @@
 ---
 # beans-x17f
 title: beans graph for tui
-status: in-progress
+status: completed
 type: task
 priority: deferred
 created_at: 2026-10-17T10:43:30Z
-updated_at: 2026-10-17T14:02:50Z
+updated_at: 2026-10-17T14:18:09Z
 parent: beans-7jm4
 ---
 

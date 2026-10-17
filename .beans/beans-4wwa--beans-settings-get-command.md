@@ -1,11 +1,11 @@
 ---
 # beans-4wwa
 title: beans settings get command
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T10:51:33Z
-updated_at: 2026-10-17T13:54:11Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-xqrj
 blocking:
     - beans-07j8

@@ -1,11 +1,11 @@
 ---
 # beans-cm7n
 title: log panel in overview
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T13:08:21Z
-updated_at: 2026-10-17T13:49:26Z
+updated_at: 2026-10-17T14:16:52Z
 ---
 
 similar to what lazygit has: a log of commands that are run in the background, eg from launcher.

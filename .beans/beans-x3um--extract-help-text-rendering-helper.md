@@ -1,14 +1,14 @@
 ---
 # beans-x3um
 title: Extract help text rendering helper
-status: scrapped
+status: archived
 type: task
 priority: low
 tags:
     - technical-debt
     - refactoring
 created_at: 2025-12-15T12:49:01Z
-updated_at: 2026-10-17T14:02:52Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-gl8t
 ---
 

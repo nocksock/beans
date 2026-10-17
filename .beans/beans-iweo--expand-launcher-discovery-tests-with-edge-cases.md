@@ -1,13 +1,13 @@
 ---
 # beans-iweo
 title: Expand launcher discovery tests with edge cases
-status: scrapped
+status: archived
 type: task
 priority: normal
 tags:
     - test
 created_at: 2025-12-15T12:49:30Z
-updated_at: 2026-10-17T14:02:53Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-gl8t
 blocking:
     - beans-yxao

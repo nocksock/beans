@@ -1,14 +1,14 @@
 ---
 # beans-mszj
 title: Simplify launcher error modal view states
-status: scrapped
+status: archived
 type: task
 priority: low
 tags:
     - enhancement
     - architecture
 created_at: 2025-12-15T12:49:54Z
-updated_at: 2026-10-17T14:02:52Z
+updated_at: 2026-10-17T14:16:52Z
 parent: beans-gl8t
 ---
 

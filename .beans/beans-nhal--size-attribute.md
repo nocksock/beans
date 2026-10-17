@@ -1,11 +1,11 @@
 ---
 # beans-nhal
 title: size attribute
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T13:42:20Z
-updated_at: 2026-10-17T14:09:34Z
+updated_at: 2026-10-17T14:16:52Z
 ---
 
 Add a `size` attribute to beans: `xs sm md lg xl` (smallest → largest). Default is `md`.
