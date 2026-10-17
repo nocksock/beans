@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -139,21 +142,29 @@ func TestTruncate(t *testing.T) {
 }
 
 
-func TestDefaultExcludedStatuses(t *testing.T) {
+func TestHiddenStatuses(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), config.ConfigFileName)
+	if err := os.WriteFile(configPath, []byte("statuses:\n  completed:\n    - name: merged\n    - name: released\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
-		name          string
-		status        []string
-		excludeStatus []string
-		include       []string
-		want          []string
-		wantErr       bool
+		name    string
+		status  []string
+		include []string
+		want    []string
+		wantErr bool
 	}{
 		{
-			name: "hides completed, scrapped and archived by default",
-			want: []string{"completed", "scrapped", "archived"},
+			name: "hides done statuses and their substatuses by default",
+			want: []string{"completed", "merged", "released", "scrapped", "archived"},
 		},
 		{
-			name:    "include completed",
+			name:    "include builtin includes its substatuses",
 			include: []string{"completed"},
 			want:    []string{"scrapped", "archived"},
 		},
@@ -165,23 +176,22 @@ func TestDefaultExcludedStatuses(t *testing.T) {
 		{
 			name:    "include archived",
 			include: []string{"archived"},
-			want:    []string{"completed", "scrapped"},
+			want:    []string{"completed", "merged", "released", "scrapped"},
 		},
 		{
-			name:   "explicit status filter shows hidden status",
+			name:    "include substatus only",
+			include: []string{"merged"},
+			want:    []string{"completed", "released", "scrapped", "archived"},
+		},
+		{
+			name:   "explicit status filter shows hidden status and its substatuses",
 			status: []string{"completed"},
 			want:   []string{"scrapped", "archived"},
 		},
 		{
-			name:          "keeps user exclusions without duplicates",
-			excludeStatus: []string{"draft", "completed"},
-			want:          []string{"draft", "completed", "scrapped", "archived"},
-		},
-		{
-			name:          "explicit exclusion wins over include",
-			excludeStatus: []string{"completed"},
-			include:       []string{"completed"},
-			want:          []string{"completed", "scrapped", "archived"},
+			name:   "explicit status filter for a substatus shows it",
+			status: []string{"merged"},
+			want:   []string{"completed", "released", "scrapped", "archived"},
 		},
 		{
 			name:    "invalid include value",
@@ -192,7 +202,7 @@ func TestDefaultExcludedStatuses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := defaultExcludedStatuses(tt.status, tt.excludeStatus, tt.include)
+			got, err := hiddenStatuses(cfg, tt.status, tt.include)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got %v", got)
@@ -202,13 +212,8 @@ func TestDefaultExcludedStatuses(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if len(got) != len(tt.want) {
+			if !slices.Equal(got, tt.want) {
 				t.Fatalf("got %v, want %v", got, tt.want)
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Fatalf("got %v, want %v", got, tt.want)
-				}
 			}
 		})
 	}

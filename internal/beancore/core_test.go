@@ -676,3 +676,18 @@ func TestClose(t *testing.T) {
 		t.Errorf("Close() error = %v", err)
 	}
 }
+
+func TestReplaceConfig(t *testing.T) {
+	cfg := config.Default()
+	core := New(t.TempDir(), cfg)
+
+	updated := config.DefaultWithPrefix("new-")
+	core.ReplaceConfig(updated)
+
+	if core.Config() != cfg {
+		t.Error("ReplaceConfig should keep the config pointer")
+	}
+	if cfg.Beans.Prefix != "new-" {
+		t.Errorf("prefix = %q, want %q", cfg.Beans.Prefix, "new-")
+	}
+}

@@ -18,9 +18,9 @@ type BeanFilter struct {
 	// - "title:login" - search only title field
 	// - "body:auth" - search only body field
 	Search *string `json:"search,omitempty"`
-	// Include only beans with these statuses (OR logic)
+	// Include only beans with these statuses (OR logic). A builtin status also matches its custom statuses.
 	Status []string `json:"status,omitempty"`
-	// Exclude beans with these statuses
+	// Exclude beans with these statuses. A builtin status also excludes its custom statuses.
 	ExcludeStatus []string `json:"excludeStatus,omitempty"`
 	// Include only beans with these types (OR logic)
 	Type []string `json:"type,omitempty"`

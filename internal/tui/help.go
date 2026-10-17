@@ -85,7 +85,8 @@ func (m helpOverlayModel) View() string {
 	content.WriteString(shortcut("c", "Create new bean") + "\n")
 	content.WriteString(shortcut("C", "Create child bean") + "\n")
 	content.WriteString(shortcut("!", "Launch with tool") + "\n")
-	content.WriteString(shortcut("e", "Edit in $EDITOR") + "\n")
+	content.WriteString(shortcut("e", "Edit bean") + "\n")
+	content.WriteString(shortcut("E", "Edit in $EDITOR") + "\n")
 	content.WriteString(shortcut("s", "Change status") + "\n")
 	content.WriteString(shortcut("t", "Change type") + "\n")
 	content.WriteString(shortcut("P", "Change priority") + "\n")
@@ -103,6 +104,7 @@ func (m helpOverlayModel) View() string {
 	content.WriteString(shortcut("h/l", "Prev / next bean (details)") + "\n")
 	content.WriteString(shortcut("z", "Toggle collapse") + "\n")
 	content.WriteString(shortcut("Z", "Collapse all") + "\n")
+	content.WriteString(shortcut("R", "Reload config") + "\n")
 	content.WriteString(shortcut("q", "Quit") + "\n")
 	content.WriteString("\n")
 

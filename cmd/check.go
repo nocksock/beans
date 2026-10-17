@@ -43,9 +43,10 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 			fmt.Println(ui.Bold.Render("Configuration"))
 		}
 
-		// 1. Check statuses are defined (always true since hardcoded)
+		// 1. Check statuses are defined (custom statuses were validated when loading the config)
 		if !checkJSON {
-			fmt.Printf("  %s Statuses defined (%d hardcoded)\n", ui.Success.Render("✓"), len(config.DefaultStatuses))
+			custom := len(cfg.Statuses()) - len(config.DefaultStatuses)
+			fmt.Printf("  %s Statuses defined (%d builtin, %d custom)\n", ui.Success.Render("✓"), len(config.DefaultStatuses), custom)
 		}
 
 		// 2. Check default_status exists in statuses (always true since hardcoded)
@@ -62,8 +63,8 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 			}
 		}
 
-		// 3. Check all status colors are valid (hardcoded statuses)
-		for _, s := range config.DefaultStatuses {
+		// 3. Check all status colors are valid
+		for _, s := range cfg.Statuses() {
 			if !ui.IsValidColor(s.Color) {
 				configErrors = append(configErrors, fmt.Sprintf("invalid color '%s' for status '%s'", s.Color, s.Name))
 			}

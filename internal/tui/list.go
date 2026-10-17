@@ -144,6 +144,10 @@ type listModel struct {
 	// cursorTarget is a bean ID to move the cursor to after the next load
 	cursorTarget string
 
+	// notice is a transient message shown at the start of the footer
+	notice      string
+	noticeIsErr bool
+
 	// Relationship info across all beans (for the preview pane)
 	beansByID   map[string]*bean.Bean
 	childCounts map[string]int
@@ -229,7 +233,7 @@ func (m listModel) loadBeans() tea.Msg {
 	visibleBeans := allBeans[:0:0]
 	for _, b := range allBeans {
 		beansByID[b.ID] = b
-		if !m.showArchived && b.Status == config.StatusArchived {
+		if !m.showArchived && m.config.IsArchived(b.Status) {
 			continue
 		}
 		visibleBeans = append(visibleBeans, b)
@@ -669,7 +673,14 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					}
 				}
 			case "e":
-				// Open editor for selected bean
+				// Open the edit form for the bean under the cursor
+				if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg {
+						return openEditModalMsg{bean: item.bean}
+					}
+				}
+			case "E":
+				// Open $EDITOR for the bean under the cursor
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
 						return openEditorMsg{
@@ -861,6 +872,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("v") + " " + helpStyle.Render("view") + "  " +
 			helpKeyStyle.Render("c") + " " + helpStyle.Render("create") + "  " +
 			helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
+			helpKeyStyle.Render("E") + " " + helpStyle.Render("$EDITOR") + "  " +
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
@@ -880,6 +892,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("v") + " " + helpStyle.Render("view") + "  " +
 			helpKeyStyle.Render("c") + " " + helpStyle.Render("create") + "  " +
 			helpKeyStyle.Render("e") + " " + helpStyle.Render("edit") + "  " +
+			helpKeyStyle.Render("E") + " " + helpStyle.Render("$EDITOR") + "  " +
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
@@ -897,7 +910,16 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("q") + " " + helpStyle.Render("quit")
 	}
 
-	return selectionPrefix + help
+	var noticePrefix string
+	if m.notice != "" {
+		color := ui.ColorSuccess
+		if m.noticeIsErr {
+			color = ui.ColorDanger
+		}
+		noticePrefix = lipgloss.NewStyle().Foreground(color).Bold(true).Render(m.notice) + "  "
+	}
+
+	return noticePrefix + selectionPrefix + help
 }
 
 // shiftPriority moves the priority of the marked beans (or the bean under the

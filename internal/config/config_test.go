@@ -538,9 +538,9 @@ func TestStatusDescriptions(t *testing.T) {
 		}
 	})
 
-	t.Run("statuses in config file are ignored", func(t *testing.T) {
-		// Even if a config file has custom statuses, they should be ignored
-		// and hardcoded statuses should be used instead
+	t.Run("legacy status list in config file is ignored", func(t *testing.T) {
+		// Old config files list statuses without grouping them below a builtin;
+		// that form is ignored and only the builtins are used
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, ConfigFileName)
 
@@ -1266,6 +1266,38 @@ func TestPromptExtra(t *testing.T) {
 
 			if got := cfg.PromptExtra(); got != tt.want {
 				t.Errorf("PromptExtra() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestArchivedCustomStatus(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), ConfigFileName)
+	if err := os.WriteFile(configPath, []byte("statuses:\n  archived:\n    - name: shelved\n  completed:\n    - name: merged\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		status         string
+		wantArchived   bool
+		wantArchivable bool
+	}{
+		{"archived", true, false},
+		{"shelved", true, false},
+		{"merged", false, true},
+		{"todo", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			if got := cfg.IsArchived(tt.status); got != tt.wantArchived {
+				t.Errorf("IsArchived(%q) = %v, want %v", tt.status, got, tt.wantArchived)
+			}
+			if got := cfg.IsArchivable(tt.status); got != tt.wantArchivable {
+				t.Errorf("IsArchivable(%q) = %v, want %v", tt.status, got, tt.wantArchivable)
 			}
 		})
 	}

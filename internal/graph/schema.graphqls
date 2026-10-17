@@ -110,8 +110,10 @@ type Bean {
   path: String!
   "Bean title"
   title: String!
-  "Current status (draft, todo, in-progress, completed, scrapped, archived)"
+  "Current status (draft, todo, in-progress, completed, scrapped, archived, or a custom status from .beans.yml)"
   status: String!
+  "Builtin status the current status belongs to (the status itself for builtins, empty for unknown statuses)"
+  statusCategory: String!
   "Bean type (milestone, epic, bug, feature, task)"
   type: String!
   "Priority level (critical, high, normal, low, deferred)"
@@ -164,9 +166,9 @@ input BeanFilter {
   - "body:auth" - search only body field
   """
   search: String
-  "Include only beans with these statuses (OR logic)"
+  "Include only beans with these statuses (OR logic). A builtin status also matches its custom statuses."
   status: [String!]
-  "Exclude beans with these statuses"
+  "Exclude beans with these statuses. A builtin status also excludes its custom statuses."
   excludeStatus: [String!]
   "Include only beans with these types (OR logic)"
   type: [String!]

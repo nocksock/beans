@@ -24,8 +24,8 @@ func getPreviewRenderer(wrap int) *glamour.TermRenderer {
 	if r, ok := previewRenderers[wrap]; ok {
 		return r
 	}
-	// Same fixed style as the detail view to avoid slow terminal detection
-	r, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(wrap))
+	// Same startup-detected style as the detail view
+	r, err := glamour.NewTermRenderer(glamour.WithStylePath(markdownStyle), glamour.WithWordWrap(wrap))
 	if err != nil {
 		r = nil
 	}
