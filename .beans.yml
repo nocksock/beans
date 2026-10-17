@@ -44,7 +44,7 @@ launchers:
       read -r -d '' DRAFT_NOTE <<EOF || true
       ## Draft: plan first
 
-      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to todo with \`beans update $BEANS_ID --status todo\` and commit the bean change in the hub.
+      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to in-progress with \`beans update $BEANS_ID --status in-progress\` and commit the bean change in the hub.
       EOF
       if [[ "$(beans show --json "$BEANS_ID" | jq -r .status)" == draft ]]; then
         PROMPT+=$'\n\n'"$DRAFT_NOTE"
@@ -79,7 +79,7 @@ launchers:
       read -r -d '' DRAFT_NOTE <<EOF || true
       ## Draft: plan first
 
-      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to todo with \`beans update $BEANS_ID --status todo\` and commit the bean change in the hub.
+      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to in-progress with \`beans update $BEANS_ID --status in-progress\` and commit the bean change in the hub.
       EOF
       if [[ "$(beans show --json "$BEANS_ID" | jq -r .status)" == draft ]]; then
         PROMPT+=$'\n\n'"$DRAFT_NOTE"
