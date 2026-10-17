@@ -43,3 +43,4 @@ Replace the launcher result modal with a lazygit-style log panel at the bottom o
 2026-10-17 15:20: Planned design with user; plan written
 2026-10-17 15:24: Implemented exec helper, config flag, log panel, App wiring; removed result modal
 2026-10-17 15:25: Manually tested in scratch project via tmux (multi-bean bg, failure, L, O); filed beans-z7jr for README conflict markers
+2026-10-17 15:27: Code review fixes: Setsid, bounded tail read, eviction keeps running entries
