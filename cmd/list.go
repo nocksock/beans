@@ -46,34 +46,25 @@ var (
 // explicitly requested via --include or --status.
 var hiddenByDefaultStatuses = []string{"completed", "scrapped"}
 
-// defaultExcludedStatuses returns the exclude-status list for `beans list`,
-// adding the hidden-by-default statuses unless they were explicitly included
-// or requested via --status. Excluding a builtin status also hides its custom
-// substatuses, so requesting a substatus counts as requesting its builtin.
-func defaultExcludedStatuses(cfg *config.Config, status, excludeStatus, include []string) ([]string, error) {
-	requested := make(map[string]bool)
-	for _, s := range status {
-		requested[s] = true
-		requested[cfg.StatusCategory(s)] = true
-	}
-	for _, s := range include {
-		valid := false
-		for _, h := range hiddenByDefaultStatuses {
-			if s == h {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			return nil, fmt.Errorf("invalid --include value %q (allowed: %s)", s, strings.Join(hiddenByDefaultStatuses, ", "))
-		}
-		requested[s] = true
-	}
+// hiddenStatuses returns the statuses hidden from `beans list`: the
+// hidden-by-default statuses and their custom substatuses, minus those
+// explicitly included or requested via --status. They are filtered out after
+// the query, because a GraphQL excludeStatus on a builtin status would also
+// exclude its substatuses, so --include merged couldn't show merged on its own.
+func hiddenStatuses(cfg *config.Config, status, include []string) ([]string, error) {
+	hideable := cfg.ExpandStatuses(hiddenByDefaultStatuses)
 
-	result := append([]string(nil), excludeStatus...)
-	for _, h := range hiddenByDefaultStatuses {
-		if !requested[h] && !slices.Contains(result, h) {
-			result = append(result, h)
+	for _, s := range include {
+		if !slices.Contains(hideable, s) {
+			return nil, fmt.Errorf("invalid --include value %q (allowed: %s)", s, strings.Join(hideable, ", "))
+		}
+	}
+	requested := cfg.ExpandStatuses(append(slices.Clone(status), include...))
+
+	result := []string{}
+	for _, s := range hideable {
+		if !slices.Contains(requested, s) {
+			result = append(result, s)
 		}
 	}
 	return result, nil
@@ -85,10 +76,12 @@ var listCmd = &cobra.Command{
 	Short:   "List all beans",
 	Long: `Lists all beans in the .beans directory.
 
-Completed and scrapped beans are hidden by default. Use --include to show them:
+Completed and scrapped beans (including their custom statuses) are hidden by
+default. Use --include to show them:
 
   beans list --include completed,scrapped
   beans list --include completed --include scrapped
+  beans list --include merged   # only this custom status of completed
 
 Explicitly filtering by status (e.g. --status completed) also shows them.
 
@@ -106,7 +99,7 @@ Search Syntax (--search/-S):
   title:login    Search only in title field
   body:auth      Search only in body field`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		excludeStatus, err := defaultExcludedStatuses(cfg, listStatus, listNoStatus, listInclude)
+		hidden, err := hiddenStatuses(cfg, listStatus, listInclude)
 		if err != nil {
 			return err
 		}
@@ -114,7 +107,7 @@ Search Syntax (--search/-S):
 		// Build GraphQL filter from CLI flags
 		filter := &model.BeanFilter{
 			Status:          listStatus,
-			ExcludeStatus:   excludeStatus,
+			ExcludeStatus:   listNoStatus,
 			Type:            listType,
 			ExcludeType:     listNoType,
 			Priority:        listPriority,
@@ -158,6 +151,7 @@ Search Syntax (--search/-S):
 		if err != nil {
 			return fmt.Errorf("querying beans: %w", err)
 		}
+		beans = slices.DeleteFunc(beans, func(b *bean.Bean) bool { return slices.Contains(hidden, b.Status) })
 
 		// Sort beans
 		sortBeans(beans, listSort, cfg)
@@ -327,7 +321,7 @@ func init() {
 	listCmd.Flags().BoolVar(&listJSON, "json", false, "Output as JSON")
 	listCmd.Flags().StringVarP(&listSearch, "search", "S", "", "Full-text search in title and body")
 	listCmd.Flags().StringArrayVarP(&listStatus, "status", "s", nil, "Filter by status (can be repeated)")
-	listCmd.Flags().StringSliceVar(&listInclude, "include", nil, "Include statuses hidden by default: completed, scrapped (comma-separated or repeated)")
+	listCmd.Flags().StringSliceVar(&listInclude, "include", nil, "Include statuses hidden by default: completed, scrapped or one of their custom statuses (comma-separated or repeated)")
 	listCmd.Flags().StringArrayVar(&listNoStatus, "no-status", nil, "Exclude by status (can be repeated)")
 	listCmd.Flags().StringArrayVarP(&listType, "type", "t", nil, "Filter by type (can be repeated)")
 	listCmd.Flags().StringArrayVar(&listNoType, "no-type", nil, "Exclude by type (can be repeated)")

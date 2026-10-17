@@ -114,7 +114,7 @@ statuses:
 
 - **Order**: custom statuses sort right after their builtin status.
 - **Filtering**: filtering by a builtin status also matches its custom statuses (`beans list -s in-progress` shows `review` beans too); filtering by a custom status matches only that status. The same applies to `status` and `excludeStatus` in GraphQL.
-- **Behaviour**: custom statuses inherit the builtin's archive behaviour, so `merged` beans are hidden from `beans list` by default, are removed by `beans archive`, and no longer block other beans.
+- **Behaviour**: custom statuses inherit the builtin's archive behaviour, so `merged` beans are hidden from `beans list` by default, are removed by `beans archive`, and no longer block other beans. `beans list --include completed` shows `completed` and `merged` beans; `--include merged` shows only `merged` ones.
 - **GraphQL**: a bean's `statusCategory` field holds the builtin status its status belongs to.
 
 ## Agent Configuration
