@@ -42,3 +42,5 @@ Archiving currently **deletes** completed/scrapped beans (and strips incoming li
 2026-10-17 13:15: Updated prompt.tmpl + schema docs, codegen, full test suite green, manual CLI check ok
 2026-10-17 13:30: Review fixes: hide archived parents, child counts, footer label, stay in detail
 2026-10-17 13:32: Follow-ups: beans-j5a5, beans-9p4x, beans-p0mg
+2026-10-17 13:50: Merged dev (custom statuses) into branch; added IsArchived for archived substatuses
+2026-10-17 13:52: Merged task/beans-ugfx into dev (6cd34ad), tests green
