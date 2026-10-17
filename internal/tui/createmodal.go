@@ -15,11 +15,15 @@ import (
 // New beans start as drafts so they can be refined after a quick capture.
 const createModalDefaultStatus = "draft"
 
+// createModalDefaultPriority is the initial priority for beans created in the TUI.
+const createModalDefaultPriority = "normal"
+
 // beanCreatedMsg is sent when a new bean is created
 type beanCreatedMsg struct {
 	title      string
 	beanType   string // optional type (empty uses the configured default)
 	status     string // optional status (empty uses draft)
+	priority   string // optional priority (empty uses the default)
 	body       string // optional markdown body
 	parentID   string // optional parent ID for the new bean
 	openEditor bool   // open the new bean in $EDITOR after creating it
@@ -41,6 +45,7 @@ const (
 	createFieldTitle createField = iota
 	createFieldType
 	createFieldStatus
+	createFieldPriority
 	createFieldBody
 	createFieldCount
 )
@@ -51,8 +56,10 @@ type createModalModel struct {
 	body        textarea.Model
 	types       []config.TypeConfig
 	statuses    []config.StatusConfig
+	priorities  []config.PriorityConfig
 	typeIdx     int
 	statusIdx   int
+	priorityIdx int
 	focus       createField
 	width       int
 	height      int
@@ -86,29 +93,23 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 		body:        ta,
 		types:       config.DefaultTypes,
 		statuses:    config.DefaultStatuses,
+		priorities:  config.DefaultPriorities,
 		width:       width,
 		height:      height,
 		parentID:    parentID,
 		parentTitle: parentTitle,
 	}
-	m.typeIdx = indexOfType(m.types, cfg.GetDefaultType())
-	m.statusIdx = indexOfStatus(m.statuses, createModalDefaultStatus)
+	m.typeIdx = indexByName(m.types, func(t config.TypeConfig) string { return t.Name }, cfg.GetDefaultType())
+	m.statusIdx = indexByName(m.statuses, func(s config.StatusConfig) string { return s.Name }, createModalDefaultStatus)
+	m.priorityIdx = indexByName(m.priorities, func(p config.PriorityConfig) string { return p.Name }, createModalDefaultPriority)
 	m.resize()
 	return m
 }
 
-func indexOfType(types []config.TypeConfig, name string) int {
-	for i, t := range types {
-		if t.Name == name {
-			return i
-		}
-	}
-	return 0
-}
-
-func indexOfStatus(statuses []config.StatusConfig, name string) int {
-	for i, s := range statuses {
-		if s.Name == name {
+// indexByName returns the index of the item with the given name, or 0 if not found
+func indexByName[T any](items []T, nameOf func(T) string, name string) int {
+	for i, item := range items {
+		if nameOf(item) == name {
 			return i
 		}
 	}
@@ -154,6 +155,7 @@ func (m createModalModel) submit(openEditor bool) tea.Cmd {
 		title:      title,
 		beanType:   m.types[m.typeIdx].Name,
 		status:     m.statuses[m.statusIdx].Name,
+		priority:   m.priorities[m.priorityIdx].Name,
 		body:       strings.TrimSpace(m.body.Value()),
 		parentID:   m.parentID,
 		openEditor: openEditor,
@@ -168,11 +170,13 @@ func (m *createModalModel) cycle(delta int) {
 		m.typeIdx = (m.typeIdx + delta + len(m.types)) % len(m.types)
 	case createFieldStatus:
 		m.statusIdx = (m.statusIdx + delta + len(m.statuses)) % len(m.statuses)
+	case createFieldPriority:
+		m.priorityIdx = (m.priorityIdx + delta + len(m.priorities)) % len(m.priorities)
 	}
 }
 
 func (m createModalModel) isSelectorFocused() bool {
-	return m.focus == createFieldType || m.focus == createFieldStatus
+	return m.focus == createFieldType || m.focus == createFieldStatus || m.focus == createFieldPriority
 }
 
 func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
@@ -283,9 +287,14 @@ func (m createModalModel) View() string {
 		selector(createFieldType, ui.RenderTypeText(t.Name, t.Color))
 	statusField := label(createFieldStatus, "Status") + "\n" +
 		selector(createFieldStatus, ui.RenderStatusTextWithColor(s.Name, s.Color, s.Archive))
+	p := m.priorities[m.priorityIdx]
+	priorityField := label(createFieldPriority, "Priority") + "\n" +
+		selector(createFieldPriority, ui.RenderPriorityText(p.Name, p.Color))
+	column := lipgloss.NewStyle().Width(fieldWidth / 3)
 	selectors := lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Width(fieldWidth/2).Render(typeField),
-		statusField,
+		column.Render(typeField),
+		column.Render(statusField),
+		priorityField,
 	)
 
 	// Help text depends on the focused field

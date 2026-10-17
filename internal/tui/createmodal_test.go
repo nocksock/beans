@@ -44,6 +44,9 @@ func TestCreateModalDefaults(t *testing.T) {
 	if got := m.statuses[m.statusIdx].Name; got != "draft" {
 		t.Errorf("status = %q, want draft", got)
 	}
+	if got := m.priorities[m.priorityIdx].Name; got != "normal" {
+		t.Errorf("priority = %q, want normal", got)
+	}
 }
 
 func TestCreateModalSubmit(t *testing.T) {
@@ -54,6 +57,7 @@ func TestCreateModalSubmit(t *testing.T) {
 		wantTitle  string
 		wantType   string
 		wantStatus string
+		wantPrio   string
 		wantBody   string
 		wantEditor bool
 	}{
@@ -62,7 +66,7 @@ func TestCreateModalSubmit(t *testing.T) {
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
 				return pressCreate(typeIntoCreate(m, "Hello"), keyMsg("enter"))
 			},
-			wantTitle: "Hello", wantType: "task", wantStatus: "draft",
+			wantTitle: "Hello", wantType: "task", wantStatus: "draft", wantPrio: "normal",
 		},
 		{
 			name: "empty title closes",
@@ -72,16 +76,17 @@ func TestCreateModalSubmit(t *testing.T) {
 			wantClose: true,
 		},
 		{
-			name: "selectors cycle type and status",
+			name: "selectors cycle type, status and priority",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
 				m = typeIntoCreate(m, "Bug")
 				// type: task -> milestone (wraps), then back to task, then bug (left twice)
 				return pressCreate(m,
 					keyMsg("tab"), keyMsg("l"), keyMsg("h"), keyMsg("h"), keyMsg("h"),
 					keyMsg("tab"), keyMsg("h"),
+					keyMsg("tab"), keyMsg("k"),
 					keyMsg("enter"))
 			},
-			wantTitle: "Bug", wantType: "bug", wantStatus: "todo",
+			wantTitle: "Bug", wantType: "bug", wantStatus: "todo", wantPrio: "high",
 		},
 		{
 			name: "enter in description inserts newline, ctrl+s creates",
@@ -93,21 +98,21 @@ func TestCreateModalSubmit(t *testing.T) {
 				m = typeIntoCreate(m, "line2")
 				return pressCreate(m, ctrlS)
 			},
-			wantTitle: "With body", wantType: "task", wantStatus: "draft", wantBody: "line1\nline2",
+			wantTitle: "With body", wantType: "task", wantStatus: "draft", wantPrio: "normal", wantBody: "line1\nline2",
 		},
 		{
 			name: "ctrl+e creates and opens editor",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
 				return pressCreate(typeIntoCreate(m, "Edit me"), ctrlE)
 			},
-			wantTitle: "Edit me", wantType: "task", wantStatus: "draft", wantEditor: true,
+			wantTitle: "Edit me", wantType: "task", wantStatus: "draft", wantPrio: "normal", wantEditor: true,
 		},
 		{
 			name: "e on selector creates and opens editor",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
 				return pressCreate(typeIntoCreate(m, "Edit me"), keyMsg("tab"), keyMsg("e"))
 			},
-			wantTitle: "Edit me", wantType: "task", wantStatus: "draft", wantEditor: true,
+			wantTitle: "Edit me", wantType: "task", wantStatus: "draft", wantPrio: "normal", wantEditor: true,
 		},
 	}
 
@@ -128,7 +133,7 @@ func TestCreateModalSubmit(t *testing.T) {
 			if !ok {
 				t.Fatalf("got %#v, want beanCreatedMsg", msg)
 			}
-			want := beanCreatedMsg{title: tt.wantTitle, beanType: tt.wantType, status: tt.wantStatus, body: tt.wantBody, openEditor: tt.wantEditor}
+			want := beanCreatedMsg{title: tt.wantTitle, beanType: tt.wantType, status: tt.wantStatus, priority: tt.wantPrio, body: tt.wantBody, openEditor: tt.wantEditor}
 			if got != want {
 				t.Errorf("got %+v, want %+v", got, want)
 			}
@@ -145,7 +150,7 @@ func TestCreateModalTypingInTitleIgnoresSelectorKeys(t *testing.T) {
 
 func TestCreateBeanFromFormAppliesFields(t *testing.T) {
 	app, _ := newTestApp(t)
-	_, cmd := app.Update(beanCreatedMsg{title: "Form bean", beanType: "bug", status: "todo", body: "Some body"})
+	_, cmd := app.Update(beanCreatedMsg{title: "Form bean", beanType: "bug", status: "todo", priority: "high", body: "Some body"})
 	if cmd == nil {
 		t.Fatal("expected command")
 	}
@@ -154,8 +159,8 @@ func TestCreateBeanFromFormAppliesFields(t *testing.T) {
 	}
 	for _, b := range app.core.All() {
 		if b.Title == "Form bean" {
-			if b.Type != "bug" || b.Status != "todo" || b.Body != "Some body" {
-				t.Errorf("got type=%q status=%q body=%q", b.Type, b.Status, b.Body)
+			if b.Type != "bug" || b.Status != "todo" || b.Priority != "high" || b.Body != "Some body" {
+				t.Errorf("got type=%q status=%q priority=%q body=%q", b.Type, b.Status, b.Priority, b.Body)
 			}
 			return
 		}
@@ -186,7 +191,7 @@ func TestCreateModalKeysReachFormThroughApp(t *testing.T) {
 
 func TestCreateModalView(t *testing.T) {
 	view := typeIntoCreate(newTestCreateModal(), "My title").View()
-	for _, want := range []string{"Create New Bean", "My title", "Type", "task", "Status", "draft", "Description"} {
+	for _, want := range []string{"Create New Bean", "My title", "Type", "task", "Status", "draft", "Priority", "normal", "Description"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q", want)
 		}

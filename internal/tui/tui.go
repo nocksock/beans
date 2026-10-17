@@ -549,6 +549,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.beanType != "" {
 			input.Type = &msg.beanType
 		}
+		if msg.priority != "" {
+			input.Priority = &msg.priority
+		}
 		if msg.body != "" {
 			input.Body = &msg.body
 		}
