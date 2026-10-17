@@ -103,6 +103,19 @@ func (c *Core) Config() *config.Config {
 	return c.config
 }
 
+// ReplaceConfig overwrites the configuration in place with cfg, so everyone
+// holding the pointer returned by Config sees the new settings.
+func (c *Core) ReplaceConfig(cfg *config.Config) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.config == nil {
+		c.config = cfg
+		return
+	}
+	*c.config = *cfg
+}
+
 // Load reads all beans from disk into memory.
 func (c *Core) Load() error {
 	c.mu.Lock()

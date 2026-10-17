@@ -133,6 +133,9 @@ type App struct {
 
 	// Quitting flag - set before running external commands to prevent View output
 	quitting bool
+
+	// noticeSeq identifies the latest footer notice, so stale clears are ignored
+	noticeSeq int
 }
 
 // New creates a new TUI application
@@ -208,6 +211,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.canQuitWithQ() {
 				return a, tea.Quit
 			}
+		case "R":
+			if (a.state == viewList || a.state == viewDetail) && a.canQuitWithQ() {
+				return a, func() tea.Msg { return reloadConfigMsg{} }
+			}
 		}
 
 	case beansChangedMsg:
@@ -226,6 +233,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Trigger list refresh
 		return a, a.list.loadBeans
+
+	case configChangedMsg, reloadConfigMsg:
+		return a, a.reloadConfig()
+
+	case clearNoticeMsg:
+		if msg.seq == a.noticeSeq {
+			a.list.notice = ""
+		}
+		return a, nil
 
 	case openTagPickerMsg:
 		// Collect all tags with their counts
@@ -734,14 +750,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 
-		// Reload config to pick up the new launchers
-		if newCfg, err := config.LoadFromDirectory(projectRoot); err == nil {
-			a.config = newCfg
-		}
-
-		// Return to previous state (detail view)
+		// Return to previous state (detail view), then reload config to pick
+		// up the new launchers
 		a.state = a.previousState
-		return a, nil
+		return a, a.reloadConfig()
 
 	case closeConfigureLaunchersMsg:
 		// User cancelled - return to previous state
@@ -1056,6 +1068,15 @@ func Run(core *beancore.Core, cfg *config.Config) error {
 	}
 	defer core.Unwatch()
 
-	_, err := p.Run()
+	// Reload the config whenever a config file changes
+	stopConfigWatch, err := config.Watch(app.projectRoot(), func() {
+		app.program.Send(configChangedMsg{})
+	})
+	if err != nil {
+		return err
+	}
+	defer stopConfigWatch()
+
+	_, err = p.Run()
 	return err
 }

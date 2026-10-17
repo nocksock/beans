@@ -101,6 +101,7 @@ func (m helpOverlayModel) View() string {
 	content.WriteString(shortcut("l", "Expand item") + "\n")
 	content.WriteString(shortcut("z", "Toggle collapse") + "\n")
 	content.WriteString(shortcut("Z", "Collapse all") + "\n")
+	content.WriteString(shortcut("R", "Reload config") + "\n")
 	content.WriteString(shortcut("q", "Quit") + "\n")
 	content.WriteString("\n")
 
