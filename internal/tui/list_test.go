@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hmans/beans/internal/bean"
@@ -280,4 +281,59 @@ func TestCompareBeansByStatusPriorityAndType(t *testing.T) {
 			t.Error("task should sort before unknown")
 		}
 	})
+}
+
+func TestShiftedPriority(t *testing.T) {
+	names := []string{"critical", "high", "normal", "low", "deferred"}
+	tests := []struct {
+		current string
+		delta   int
+		want    string
+	}{
+		{"normal", -1, "high"},
+		{"normal", 1, "low"},
+		{"", -1, "high"},
+		{"", 1, "low"},
+		{"critical", -1, "critical"},
+		{"deferred", 1, "deferred"},
+		{"bogus", 1, "bogus"},
+	}
+	for _, tt := range tests {
+		if got := shiftedPriority(tt.current, tt.delta, names); got != tt.want {
+			t.Errorf("shiftedPriority(%q, %d) = %q, want %q", tt.current, tt.delta, got, tt.want)
+		}
+	}
+}
+
+func TestPriorityKeysCursorFollowsBean(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	// Both beans start as normal; put the cursor on the second row and raise it twice, lower once
+	app.list.list.Select(1)
+	target := app.list.list.SelectedItem().(beanItem).bean.ID
+
+	for _, key := range []string{"<", "<", ">"} {
+		_, cmd := app.Update(keyMsg(key))
+		if cmd == nil {
+			t.Fatalf("%q: expected reload command", key)
+		}
+		app.Update(cmd())
+
+		sel, ok := app.list.list.SelectedItem().(beanItem)
+		if !ok || sel.bean.ID != target {
+			t.Fatalf("%q: cursor on %v, want %s", key, sel.bean, target)
+		}
+	}
+
+	b, err := app.resolver.Query().Bean(context.Background(), target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Priority != "high" {
+		t.Errorf("priority = %q, want high", b.Priority)
+	}
+	// Raised bean sorts above the other normal one
+	if app.list.list.Index() != 0 {
+		t.Errorf("cursor index = %d, want 0", app.list.list.Index())
+	}
 }

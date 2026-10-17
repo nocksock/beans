@@ -606,6 +606,13 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
+			case ">", "<":
+				// Raise/lower priority one step for selected bean(s)
+				delta := 1
+				if msg.String() == "<" {
+					delta = -1
+				}
+				return m, m.shiftPriority(delta)
 			case "b":
 				// Open blocking picker for selected bean
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
@@ -879,6 +886,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
+			helpKeyStyle.Render("</>") + " " + helpStyle.Render("prio +/-") + "  " +
 			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
@@ -897,6 +905,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
+			helpKeyStyle.Render("</>") + " " + helpStyle.Render("prio +/-") + "  " +
 			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
@@ -911,6 +920,63 @@ func (m listModel) Footer() string {
 	}
 
 	return selectionPrefix + help
+}
+
+// shiftPriority moves the priority of the marked beans (or the bean under the
+// cursor) by delta steps in the priority order (negative = higher priority).
+// The cursor follows the highlighted bean, since re-sorting will likely move it.
+func (m *listModel) shiftPriority(delta int) tea.Cmd {
+	var beans []*bean.Bean
+	if len(m.selectedBeans) > 0 {
+		for id := range m.selectedBeans {
+			if item, ok := m.findBeanItem(id); ok {
+				beans = append(beans, item.bean)
+			}
+		}
+	} else if item, ok := m.list.SelectedItem().(beanItem); ok {
+		beans = append(beans, item.bean)
+	}
+	if len(beans) == 0 {
+		return nil
+	}
+
+	names := m.config.PriorityNames()
+	for _, b := range beans {
+		next := shiftedPriority(b.Priority, delta, names)
+		if next == b.Priority {
+			continue
+		}
+		if _, err := m.resolver.Mutation().UpdateBean(context.Background(), b.ID, model.UpdateBeanInput{
+			Priority: &next,
+		}); err != nil {
+			// Continue with other beans even if one fails
+			continue
+		}
+	}
+
+	if item, ok := m.list.SelectedItem().(beanItem); ok {
+		m.cursorTarget = item.bean.ID
+	}
+	return m.loadBeans
+}
+
+// shiftedPriority returns the priority delta steps away from current in names
+// (ordered highest to lowest), clamped to the ends. Empty means normal.
+func shiftedPriority(current string, delta int, names []string) string {
+	if current == "" {
+		current = "normal"
+	}
+	idx := -1
+	for i, n := range names {
+		if n == current {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return current
+	}
+	return names[max(0, min(len(names)-1, idx+delta))]
 }
 
 func (m listModel) findBeanItem(id string) (beanItem, bool) {
