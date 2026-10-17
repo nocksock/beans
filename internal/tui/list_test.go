@@ -308,11 +308,11 @@ func TestShiftedPriority(t *testing.T) {
 func TestPriorityKeysCursorFollowsBean(t *testing.T) {
 	app, _ := newTestApp(t)
 
-	// Both beans start as normal; put the cursor on the second row and raise it
+	// Both beans start as normal; put the cursor on the second row and raise it twice, lower once
 	app.list.list.Select(1)
 	target := app.list.list.SelectedItem().(beanItem).bean.ID
 
-	for _, key := range []string{">", ">", "<"} {
+	for _, key := range []string{"<", "<", ">"} {
 		_, cmd := app.Update(keyMsg(key))
 		if cmd == nil {
 			t.Fatalf("%q: expected reload command", key)

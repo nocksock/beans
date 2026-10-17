@@ -609,7 +609,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 			case ">", "<":
 				// Raise/lower priority one step for selected bean(s)
 				delta := 1
-				if msg.String() == ">" {
+				if msg.String() == "<" {
 					delta = -1
 				}
 				return m, m.shiftPriority(delta)
@@ -886,7 +886,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
-			helpKeyStyle.Render("</>") + " " + helpStyle.Render("prio -/+") + "  " +
+			helpKeyStyle.Render("</>") + " " + helpStyle.Render("prio +/-") + "  " +
 			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
@@ -905,7 +905,7 @@ func (m listModel) Footer() string {
 			helpKeyStyle.Render("s") + " " + helpStyle.Render("status") + "  " +
 			helpKeyStyle.Render("t") + " " + helpStyle.Render("type") + "  " +
 			helpKeyStyle.Render("P") + " " + helpStyle.Render("priority") + "  " +
-			helpKeyStyle.Render("</>") + " " + helpStyle.Render("prio -/+") + "  " +
+			helpKeyStyle.Render("</>") + " " + helpStyle.Render("prio +/-") + "  " +
 			helpKeyStyle.Render("T") + " " + helpStyle.Render("tags") + "  " +
 			helpKeyStyle.Render("p") + " " + helpStyle.Render("parent") + "  " +
 			helpKeyStyle.Render("b") + " " + helpStyle.Render("blocking") + "  " +
