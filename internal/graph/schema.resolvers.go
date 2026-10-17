@@ -12,12 +12,18 @@ import (
 
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
+	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph/model"
 )
 
 // StatusCategory is the resolver for the statusCategory field.
 func (r *beanResolver) StatusCategory(ctx context.Context, obj *bean.Bean) (string, error) {
 	return r.Core.Config().StatusCategory(obj.Status), nil
+}
+
+// Size is the resolver for the size field.
+func (r *beanResolver) Size(ctx context.Context, obj *bean.Bean) (string, error) {
+	return config.EffectiveSize(obj.Size), nil
 }
 
 // ParentID is the resolver for the parentId field.
@@ -111,6 +117,12 @@ func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBea
 	if input.Priority != nil {
 		b.Priority = *input.Priority
 	}
+	if input.Size != nil {
+		if err := r.validateSize(*input.Size); err != nil {
+			return nil, err
+		}
+		b.Size = *input.Size
+	}
 	if input.Body != nil {
 		b.Body = *input.Body
 	}
@@ -162,6 +174,12 @@ func (r *mutationResolver) UpdateBean(ctx context.Context, id string, input mode
 	}
 	if input.Priority != nil {
 		b.Priority = *input.Priority
+	}
+	if input.Size != nil {
+		if err := r.validateSize(*input.Size); err != nil {
+			return nil, err
+		}
+		b.Size = *input.Size
 	}
 	if input.Body != nil {
 		b.Body = *input.Body

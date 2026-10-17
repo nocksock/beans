@@ -97,6 +97,7 @@ func (m helpOverlayModel) View() string {
 		{l.ChangeType.Keys(), "Change type"},
 		{l.ChangePriority.Keys(), "Change priority"},
 		{append(l.RaisePriority.Keys(), l.LowerPriority.Keys()...), "Raise / lower priority"},
+		{l.ChangeSize.Keys(), "Change size"},
 		{l.EditTags.Keys(), "Edit tags"},
 		{l.ChangeParent.Keys(), "Set parent"},
 		{l.ManageBlocking.Keys(), "Manage blocking"},

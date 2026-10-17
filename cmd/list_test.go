@@ -33,6 +33,25 @@ func TestSortBeans(t *testing.T) {
 		}
 	})
 
+	t.Run("sort by size", func(t *testing.T) {
+		beans := []*bean.Bean{
+			{ID: "xl", Size: "xl"},
+			{ID: "none"},
+			{ID: "xs", Size: "xs"},
+			{ID: "md", Size: "md"},
+			{ID: "lg", Size: "lg"},
+		}
+		sortBeans(beans, "size", testCfg)
+
+		// Smallest first; empty size counts as md and ties sort by ID
+		want := []string{"xs", "md", "none", "lg", "xl"}
+		for i, id := range want {
+			if beans[i].ID != id {
+				t.Errorf("sort by size: position %d = %s, want %s", i, beans[i].ID, id)
+			}
+		}
+	})
+
 	t.Run("sort by created", func(t *testing.T) {
 		beans := []*bean.Bean{
 			{ID: "old", CreatedAt: &evenEarlier},

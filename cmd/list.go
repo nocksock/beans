@@ -27,6 +27,8 @@ var (
 	listNoType     []string
 	listPriority   []string
 	listNoPriority []string
+	listSize       []string
+	listNoSize     []string
 	listTag        []string
 	listNoTag      []string
 	listHasParent   bool
@@ -112,6 +114,8 @@ Search Syntax (--search/-S):
 			ExcludeType:     listNoType,
 			Priority:        listPriority,
 			ExcludePriority: listNoPriority,
+			Size:            listSize,
+			ExcludeSize:     listNoSize,
 			Tags:            listTag,
 			ExcludeTags:     listNoTag,
 		}
@@ -300,6 +304,18 @@ func sortBeans(beans []*bean.Bean, sortBy string, cfg *config.Config) {
 			}
 			return beans[i].ID < beans[j].ID
 		})
+	case "size":
+		sizeOrder := make(map[string]int)
+		for i, s := range cfg.SizeNames() {
+			sizeOrder[s] = i
+		}
+		sort.Slice(beans, func(i, j int) bool {
+			si, sj := sizeOrder[config.EffectiveSize(beans[i].Size)], sizeOrder[config.EffectiveSize(beans[j].Size)]
+			if si != sj {
+				return si < sj
+			}
+			return beans[i].ID < beans[j].ID
+		})
 	case "id":
 		sort.Slice(beans, func(i, j int) bool {
 			return beans[i].ID < beans[j].ID
@@ -327,6 +343,8 @@ func init() {
 	listCmd.Flags().StringArrayVar(&listNoType, "no-type", nil, "Exclude by type (can be repeated)")
 	listCmd.Flags().StringArrayVarP(&listPriority, "priority", "p", nil, "Filter by priority (can be repeated)")
 	listCmd.Flags().StringArrayVar(&listNoPriority, "no-priority", nil, "Exclude by priority (can be repeated)")
+	listCmd.Flags().StringArrayVar(&listSize, "size", nil, "Filter by size (can be repeated; beans without a size count as "+config.DefaultSize+")")
+	listCmd.Flags().StringArrayVar(&listNoSize, "no-size", nil, "Exclude by size (can be repeated)")
 	listCmd.Flags().StringArrayVar(&listTag, "tag", nil, "Filter by tag (can be repeated, OR logic)")
 	listCmd.Flags().StringArrayVar(&listNoTag, "no-tag", nil, "Exclude beans with tag (can be repeated)")
 	listCmd.Flags().BoolVar(&listHasParent, "has-parent", false, "Filter beans with a parent")
@@ -338,7 +356,7 @@ func init() {
 	listCmd.Flags().BoolVar(&listUnblocked, "unblocked", false, "Filter beans not blocked by any active bean (ready to start)")
 	listCmd.MarkFlagsMutuallyExclusive("is-blocked", "unblocked")
 	listCmd.Flags().BoolVarP(&listQuiet, "quiet", "q", false, "Only output IDs (one per line)")
-	listCmd.Flags().StringVar(&listSort, "sort", "", "Sort by: created, updated, status, priority, id (default: status, priority, type, title)")
+	listCmd.Flags().StringVar(&listSort, "sort", "", "Sort by: created, updated, status, priority, size, id (default: status, priority, type, title)")
 	listCmd.Flags().BoolVar(&listFull, "full", false, "Include bean body in JSON output")
 	rootCmd.AddCommand(listCmd)
 }

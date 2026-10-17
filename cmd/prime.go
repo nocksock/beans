@@ -18,6 +18,8 @@ type promptData struct {
 	Types         []config.TypeConfig
 	Statuses      []config.StatusConfig
 	Priorities    []config.PriorityConfig
+	Sizes         []config.SizeConfig
+	DefaultSize   string
 }
 
 var primeCmd = &cobra.Command{
@@ -50,6 +52,8 @@ var primeCmd = &cobra.Command{
 			Types:         config.DefaultTypes,
 			Statuses:      primeConfig().Statuses(),
 			Priorities:    config.DefaultPriorities,
+			Sizes:         config.DefaultSizes,
+			DefaultSize:   config.DefaultSize,
 		}
 
 		return tmpl.Execute(os.Stdout, data)

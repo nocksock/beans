@@ -1327,3 +1327,27 @@ func TestRenderUntitledOmitsTitle(t *testing.T) {
 		t.Errorf("Render() output contains title key:\n%s", out)
 	}
 }
+
+func TestSizeRoundtrip(t *testing.T) {
+	for _, size := range []string{"xs", "sm", "md", "lg", "xl", ""} {
+		t.Run(size, func(t *testing.T) {
+			original := &Bean{Title: "Test Bean", Status: "todo", Size: size}
+
+			rendered, err := original.Render()
+			if err != nil {
+				t.Fatalf("Render() error: %v", err)
+			}
+			if size == "" && strings.Contains(string(rendered), "size:") {
+				t.Errorf("empty size should be omitted from front matter, got:\n%s", rendered)
+			}
+
+			parsed, err := Parse(strings.NewReader(string(rendered)))
+			if err != nil {
+				t.Fatalf("Parse() error: %v", err)
+			}
+			if parsed.Size != original.Size {
+				t.Errorf("Size roundtrip failed: got %q, want %q", parsed.Size, original.Size)
+			}
+		})
+	}
+}

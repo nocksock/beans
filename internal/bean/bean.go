@@ -184,10 +184,12 @@ type Bean struct {
 	Path string `yaml:"-" json:"path"`
 
 	// Front matter fields
-	Title     string     `yaml:"title" json:"title"`
-	Status    string     `yaml:"status" json:"status"`
-	Type      string     `yaml:"type,omitempty" json:"type,omitempty"`
-	Priority  string     `yaml:"priority,omitempty" json:"priority,omitempty"`
+	Title    string `yaml:"title" json:"title"`
+	Status   string `yaml:"status" json:"status"`
+	Type     string `yaml:"type,omitempty" json:"type,omitempty"`
+	Priority string `yaml:"priority,omitempty" json:"priority,omitempty"`
+	// Size is the estimated size (xs, sm, md, lg, xl); empty means the default size.
+	Size      string     `yaml:"size,omitempty" json:"size,omitempty"`
 	Tags      []string   `yaml:"tags,omitempty" json:"tags,omitempty"`
 	CreatedAt *time.Time `yaml:"created_at,omitempty" json:"created_at,omitempty"`
 	UpdatedAt *time.Time `yaml:"updated_at,omitempty" json:"updated_at,omitempty"`
@@ -211,6 +213,7 @@ type frontMatter struct {
 	Status    string     `yaml:"status"`
 	Type      string     `yaml:"type,omitempty"`
 	Priority  string     `yaml:"priority,omitempty"`
+	Size      string     `yaml:"size,omitempty"`
 	Tags      []string   `yaml:"tags,omitempty"`
 	CreatedAt *time.Time `yaml:"created_at,omitempty"`
 	UpdatedAt *time.Time `yaml:"updated_at,omitempty"`
@@ -232,6 +235,7 @@ func Parse(r io.Reader) (*Bean, error) {
 		Status:    fm.Status,
 		Type:      fm.Type,
 		Priority:  fm.Priority,
+		Size:      fm.Size,
 		Tags:      fm.Tags,
 		CreatedAt: fm.CreatedAt,
 		UpdatedAt: fm.UpdatedAt,
@@ -248,6 +252,7 @@ type renderFrontMatter struct {
 	Status    string     `yaml:"status"`
 	Type      string     `yaml:"type,omitempty"`
 	Priority  string     `yaml:"priority,omitempty"`
+	Size      string     `yaml:"size,omitempty"`
 	Tags      []string   `yaml:"tags,omitempty"`
 	CreatedAt *time.Time `yaml:"created_at,omitempty"`
 	UpdatedAt *time.Time `yaml:"updated_at,omitempty"`
@@ -263,6 +268,7 @@ func (b *Bean) Render() ([]byte, error) {
 		Status:    b.Status,
 		Type:      b.Type,
 		Priority:  b.Priority,
+		Size:      b.Size,
 		Tags:      b.Tags,
 		CreatedAt: b.CreatedAt,
 		UpdatedAt: b.UpdatedAt,

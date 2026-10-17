@@ -63,7 +63,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	if d.idColWidth > 0 {
 		idWidth = d.idColWidth
 	}
-	baseWidth := idWidth + d.cols.Status + d.cols.Type + 4 // 4 for cursor + padding
+	baseWidth := idWidth + d.cols.Status + d.cols.Type + ui.ColWidthSize + 4 // 4 for cursor + padding
 	if d.cols.ShowTags {
 		baseWidth += d.cols.Tags
 	}
@@ -92,6 +92,9 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 			TypeColor:     colors.TypeColor,
 			PriorityColor: colors.PriorityColor,
 			Priority:      item.bean.Priority,
+			Size:          item.bean.Size,
+			SizeColor:     sizeColor(d.cfg, item.bean.Size),
+			ShowSize:      true,
 			IsArchive:     colors.IsArchive,
 			MaxTitleWidth: maxTitleWidth,
 			ShowCursor:    true,
@@ -612,6 +615,29 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
+			case key.Matches(msg, k.ChangeSize):
+				// Open size picker for selected bean(s)
+				if len(m.selectedBeans) > 0 {
+					// Multi-select mode
+					ids := make([]string, 0, len(m.selectedBeans))
+					for id := range m.selectedBeans {
+						ids = append(ids, id)
+					}
+					return m, func() tea.Msg {
+						return openSizePickerMsg{
+							beanIDs:   ids,
+							beanTitle: fmt.Sprintf("%d selected beans", len(ids)),
+						}
+					}
+				} else if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg {
+						return openSizePickerMsg{
+							beanIDs:     []string{item.bean.ID},
+							beanTitle:   item.bean.DisplayTitle(),
+							currentSize: item.bean.Size,
+						}
+					}
+				}
 			case key.Matches(msg, k.RaisePriority):
 				// Raise priority one step for selected bean(s)
 				return m, m.shiftPriority(-1)
@@ -875,6 +901,7 @@ func (m listModel) Footer() string {
 			hint(k.ChangeStatus, ""),
 			hint(k.ChangeType, ""),
 			hint(k.ChangePriority, ""),
+			hint(k.ChangeSize, ""),
 			hint(k.Launch, ""),
 			hint(k.EditTags, ""),
 			hint(k.Back, "clear selection"),
@@ -893,6 +920,7 @@ func (m listModel) Footer() string {
 			hint(k.ChangeStatus, ""),
 			hint(k.ChangeType, ""),
 			hint(k.ChangePriority, ""),
+			hint(k.ChangeSize, ""),
 			groupHint("prio +/-", k.RaisePriority, k.LowerPriority),
 			hint(k.EditTags, ""),
 			hint(k.ChangeParent, ""),
@@ -915,6 +943,7 @@ func (m listModel) Footer() string {
 			hint(k.ChangeStatus, ""),
 			hint(k.ChangeType, ""),
 			hint(k.ChangePriority, ""),
+			hint(k.ChangeSize, ""),
 			groupHint("prio +/-", k.RaisePriority, k.LowerPriority),
 			hint(k.EditTags, ""),
 			hint(k.ChangeParent, ""),

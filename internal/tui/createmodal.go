@@ -27,6 +27,7 @@ type beanCreatedMsg struct {
 	beanType   string // optional type (empty uses the configured default)
 	status     string // optional status (empty uses draft)
 	priority   string // optional priority (empty uses the default)
+	size       string // optional size (empty uses the default)
 	body       string // optional markdown body
 	parentID   string // optional parent ID for the new bean
 	openEditor bool   // open the new bean in $EDITOR after creating it
@@ -58,6 +59,10 @@ type beanEditedMsg struct {
 // description field (modal border and padding, header, title, selectors, help)
 const editModalChromeHeight = 24
 
+// selectorColumnsMinWidth is the width the type, status, priority and size
+// selectors need side by side
+const selectorColumnsMinWidth = 13 + 15 + 12 + 6
+
 // editModalMinBodyHeight is the minimum height of the description field when editing
 const editModalMinBodyHeight = 5
 
@@ -69,6 +74,7 @@ const (
 	createFieldType
 	createFieldStatus
 	createFieldPriority
+	createFieldSize
 	createFieldBody
 	createFieldCount
 )
@@ -80,9 +86,11 @@ type createModalModel struct {
 	types       []config.TypeConfig
 	statuses    []config.StatusConfig
 	priorities  []config.PriorityConfig
+	sizes       []config.SizeConfig
 	typeIdx     int
 	statusIdx   int
 	priorityIdx int
+	sizeIdx     int
 	focus       createField
 	width       int
 	height      int
@@ -96,6 +104,7 @@ type createModalModel struct {
 	origTypeIdx  int
 	origStatIdx  int
 	origPrioIdx  int
+	origSizeIdx  int
 	errorMessage string
 }
 
@@ -110,7 +119,8 @@ func newEditModalModel(cfg *config.Config, width, height int, b *bean.Bean) crea
 	m.typeIdx = indexByName(m.types, func(t config.TypeConfig) string { return t.Name }, b.Type)
 	m.statusIdx = indexByName(m.statuses, func(s config.StatusConfig) string { return s.Name }, b.Status)
 	m.priorityIdx = indexByName(m.priorities, func(p config.PriorityConfig) string { return p.Name }, b.Priority)
-	m.origTypeIdx, m.origStatIdx, m.origPrioIdx = m.typeIdx, m.statusIdx, m.priorityIdx
+	m.sizeIdx = indexByName(m.sizes, func(s config.SizeConfig) string { return s.Name }, config.EffectiveSize(b.Size))
+	m.origTypeIdx, m.origStatIdx, m.origPrioIdx, m.origSizeIdx = m.typeIdx, m.statusIdx, m.priorityIdx, m.sizeIdx
 	m.resize()
 	return m
 }
@@ -146,6 +156,7 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 		types:       config.DefaultTypes,
 		statuses:    cfg.Statuses(),
 		priorities:  config.DefaultPriorities,
+		sizes:       config.DefaultSizes,
 		width:       width,
 		height:      height,
 		parentID:    parentID,
@@ -154,6 +165,7 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 	m.typeIdx = indexByName(m.types, func(t config.TypeConfig) string { return t.Name }, cfg.GetDefaultType())
 	m.statusIdx = indexByName(m.statuses, func(s config.StatusConfig) string { return s.Name }, createModalDefaultStatus)
 	m.priorityIdx = indexByName(m.priorities, func(p config.PriorityConfig) string { return p.Name }, createModalDefaultPriority)
+	m.sizeIdx = indexByName(m.sizes, func(s config.SizeConfig) string { return s.Name }, config.DefaultSize)
 	m.resize()
 	return m
 }
@@ -169,7 +181,16 @@ func indexByName[T any](items []T, nameOf func(T) string, name string) int {
 }
 
 func (m createModalModel) modalWidth() int {
-	return max(50, min(72, m.width*60/100))
+	return max(52, min(72, m.width*60/100))
+}
+
+// selectedSize returns the chosen size, or "" for the default size so that
+// beans without an explicit size don't get one written.
+func (m createModalModel) selectedSize() string {
+	if name := m.sizes[m.sizeIdx].Name; name != config.DefaultSize {
+		return name
+	}
+	return ""
 }
 
 // resize fits the text fields to the modal width
@@ -216,6 +237,7 @@ func (m createModalModel) submit(openEditor bool) tea.Cmd {
 		beanType:   m.types[m.typeIdx].Name,
 		status:     m.statuses[m.statusIdx].Name,
 		priority:   m.priorities[m.priorityIdx].Name,
+		size:       m.selectedSize(),
 		body:       body,
 		parentID:   m.parentID,
 		openEditor: openEditor,
@@ -244,6 +266,10 @@ func (m createModalModel) submitEdit(openEditor bool) tea.Cmd {
 	}
 	if m.priorityIdx != m.origPrioIdx {
 		msg.input.Priority = &m.priorities[m.priorityIdx].Name
+	}
+	if m.sizeIdx != m.origSizeIdx {
+		size := m.selectedSize()
+		msg.input.Size = &size
 	}
 	return func() tea.Msg { return msg }
 }
@@ -274,11 +300,17 @@ func (m *createModalModel) cycle(delta int) {
 		m.statusIdx = (m.statusIdx + delta + len(m.statuses)) % len(m.statuses)
 	case createFieldPriority:
 		m.priorityIdx = (m.priorityIdx + delta + len(m.priorities)) % len(m.priorities)
+	case createFieldSize:
+		m.sizeIdx = (m.sizeIdx + delta + len(m.sizes)) % len(m.sizes)
 	}
 }
 
 func (m createModalModel) isSelectorFocused() bool {
-	return m.focus == createFieldType || m.focus == createFieldStatus || m.focus == createFieldPriority
+	switch m.focus {
+	case createFieldType, createFieldStatus, createFieldPriority, createFieldSize:
+		return true
+	}
+	return false
 }
 
 func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
@@ -396,11 +428,17 @@ func (m createModalModel) View() string {
 	p := m.priorities[m.priorityIdx]
 	priorityField := label(createFieldPriority, "Priority") + "\n" +
 		selector(createFieldPriority, ui.RenderPriorityText(p.Name, p.Color))
-	column := lipgloss.NewStyle().Width(fieldWidth / 3)
+	sz := m.sizes[m.sizeIdx]
+	sizeField := label(createFieldSize, "Size") + "\n" +
+		selector(createFieldSize, ui.RenderSizeText(sz.Name, sz.Color))
+	// Columns fit their longest values ("milestone", "in-progress", "deferred");
+	// extra room is shared between them, and size takes the rest.
+	extra := max(0, fieldWidth-selectorColumnsMinWidth) / 3
 	selectors := lipgloss.JoinHorizontal(lipgloss.Top,
-		column.Render(typeField),
-		column.Render(statusField),
-		priorityField,
+		lipgloss.NewStyle().Width(13+extra).Render(typeField),
+		lipgloss.NewStyle().Width(15+extra).Render(statusField),
+		lipgloss.NewStyle().Width(12+extra).Render(priorityField),
+		sizeField,
 	)
 
 	// Help text depends on the focused field

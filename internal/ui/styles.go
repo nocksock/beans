@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/hmans/beans/internal/config"
 )
 
 // Color palette
@@ -276,6 +277,21 @@ func RenderPriorityText(priority, color string) string {
 	return style.Render(priority)
 }
 
+// RenderSizeText returns styled size text for tables. An empty size renders
+// as the default size.
+func RenderSizeText(size, color string) string {
+	size = config.EffectiveSize(size)
+	if color == "" {
+		return Muted.Render(size)
+	}
+	return lipgloss.NewStyle().Foreground(ResolveColor(color)).Render(size)
+}
+
+// RenderSizeWithColor returns a styled size badge using the specified color.
+func RenderSizeWithColor(size, color string) string {
+	return RenderSizeText("["+config.EffectiveSize(size)+"]", color)
+}
+
 // ShortCode returns a single-character code for a type or status name,
 // e.g. "in-progress" -> "I", "milestone" -> "M".
 func ShortCode(name string) string {
@@ -324,6 +340,9 @@ type BeanRowConfig struct {
 	TypeColor     string
 	PriorityColor string
 	Priority      string // Priority value (critical, high, normal, low, deferred)
+	Size          string // Size value (xs, sm, md, lg, xl); empty renders as the default size
+	SizeColor     string
+	ShowSize      bool // Whether to show the size column
 	IsArchive     bool
 	MaxTitleWidth int  // 0 means no truncation
 	ShowCursor    bool // Show selection cursor
@@ -348,6 +367,7 @@ const (
 	ColWidthStatus = 14
 	ColWidthType   = 12
 	ColWidthTags   = 24
+	ColWidthSize   = 3 // two-letter size plus a space
 
 	// Compact type/status columns: one character plus a space
 	ColWidthCompact = 2
@@ -509,6 +529,17 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 		statusCol = statusStyle.Render(RenderStatusTextWithColor(status, cfg.StatusColor, cfg.IsArchive))
 	}
 
+	// Size column (optional)
+	var sizeCol string
+	if cfg.ShowSize {
+		sizeStyle := lipgloss.NewStyle().Width(ColWidthSize)
+		if cfg.Dimmed {
+			sizeCol = sizeStyle.Render(Muted.Render(config.EffectiveSize(cfg.Size)))
+		} else {
+			sizeCol = sizeStyle.Render(RenderSizeText(cfg.Size, cfg.SizeColor))
+		}
+	}
+
 	// Tags column (optional)
 	var tagsCol string
 	if cfg.ShowTags {
@@ -580,7 +611,7 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 		if titleColWidth > titleLen {
 			padding = strings.Repeat(" ", titleColWidth-titleLen)
 		}
-		return cursor + idCol + typeCol + statusCol + prioritySymbol + titleStyled + padding + " " + tagsCol
+		return cursor + idCol + typeCol + statusCol + sizeCol + prioritySymbol + titleStyled + padding + " " + tagsCol
 	}
-	return cursor + idCol + typeCol + statusCol + prioritySymbol + titleStyled
+	return cursor + idCol + typeCol + statusCol + sizeCol + prioritySymbol + titleStyled
 }

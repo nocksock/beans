@@ -17,6 +17,7 @@ var (
 	updateStatus          string
 	updateType            string
 	updatePriority        string
+	updateSize            string
 	updateTitle           string
 	updateBody            string
 	updateBodyFile        string
@@ -123,7 +124,7 @@ var updateCmd = &cobra.Command{
 		// Require at least one change
 		if len(changes) == 0 {
 			return cmdError(updateJSON, output.ErrValidation,
-				"no changes specified (use --status, --type, --priority, --title, --body, --parent, --blocking, --blocked-by, --tag, or their --remove-* variants)")
+				"no changes specified (use --status, --type, --priority, --size, --title, --body, --parent, --blocking, --blocked-by, --tag, or their --remove-* variants)")
 		}
 
 		// Output result
@@ -165,6 +166,14 @@ func buildUpdateInput(cmd *cobra.Command, existingTags []string) (model.UpdateBe
 		changes = append(changes, "priority")
 	}
 
+	if cmd.Flags().Changed("size") {
+		if !cfg.IsValidSize(updateSize) {
+			return input, nil, fmt.Errorf("invalid size: %s (must be %s)", updateSize, cfg.SizeList())
+		}
+		input.Size = &updateSize
+		changes = append(changes, "size")
+	}
+
 	if cmd.Flags().Changed("title") {
 		input.Title = &updateTitle
 		changes = append(changes, "title")
@@ -190,7 +199,7 @@ func buildUpdateInput(cmd *cobra.Command, existingTags []string) (model.UpdateBe
 // hasFieldUpdates returns true if any field in the input is set.
 func hasFieldUpdates(input model.UpdateBeanInput) bool {
 	return input.Status != nil || input.Type != nil || input.Priority != nil ||
-		input.Title != nil || input.Body != nil || input.Tags != nil
+		input.Size != nil || input.Title != nil || input.Body != nil || input.Tags != nil
 }
 
 func init() {
@@ -211,6 +220,7 @@ func init() {
 	updateCmd.Flags().StringVarP(&updateStatus, "status", "s", "", "New status ("+strings.Join(statusNames, ", ")+", or a custom status from .beans.yml)")
 	updateCmd.Flags().StringVarP(&updateType, "type", "t", "", "New type ("+strings.Join(typeNames, ", ")+")")
 	updateCmd.Flags().StringVarP(&updatePriority, "priority", "p", "", "New priority ("+strings.Join(priorityNames, ", ")+", or empty to clear)")
+	updateCmd.Flags().StringVar(&updateSize, "size", "", "New size ("+strings.Join(sizeNames(), ", ")+", or empty to clear)")
 	updateCmd.Flags().StringVar(&updateTitle, "title", "", "New title")
 	updateCmd.Flags().StringVarP(&updateBody, "body", "d", "", "New body (use '-' to read from stdin)")
 	updateCmd.Flags().StringVar(&updateBodyFile, "body-file", "", "Read body from file")

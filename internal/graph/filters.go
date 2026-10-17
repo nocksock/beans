@@ -3,6 +3,7 @@ package graph
 import (
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
+	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph/model"
 )
 
@@ -38,6 +39,15 @@ func ApplyFilter(beans []*bean.Bean, filter *model.BeanFilter, core *beancore.Co
 	}
 	if len(filter.ExcludePriority) > 0 {
 		result = excludeByPriority(result, filter.ExcludePriority)
+	}
+
+	// Size filters (empty size treated as the default size)
+	beanSize := func(b *bean.Bean) string { return config.EffectiveSize(b.Size) }
+	if len(filter.Size) > 0 {
+		result = filterByField(result, filter.Size, beanSize)
+	}
+	if len(filter.ExcludeSize) > 0 {
+		result = excludeByField(result, filter.ExcludeSize, beanSize)
 	}
 
 	// Tag filters

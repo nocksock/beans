@@ -17,6 +17,7 @@ var (
 	createStatus    string
 	createType      string
 	createPriority  string
+	createSize      string
 	createBody      string
 	createBodyFile  string
 	createTag       []string
@@ -47,6 +48,9 @@ using the first line of their body.`,
 		if createPriority != "" && !cfg.IsValidPriority(createPriority) {
 			return cmdError(createJSON, output.ErrValidation, "invalid priority: %s (must be %s)", createPriority, cfg.PriorityList())
 		}
+		if !cfg.IsValidSize(createSize) {
+			return cmdError(createJSON, output.ErrValidation, "invalid size: %s (must be %s)", createSize, cfg.SizeList())
+		}
 
 		body, err := resolveContent(createBody, createBodyFile)
 		if err != nil {
@@ -75,6 +79,9 @@ using the first line of their body.`,
 		}
 		if createPriority != "" {
 			input.Priority = &createPriority
+		}
+		if createSize != "" {
+			input.Size = &createSize
 		}
 		if body != "" {
 			input.Body = &body
@@ -132,6 +139,7 @@ func init() {
 	createCmd.Flags().StringVarP(&createStatus, "status", "s", "", "Initial status ("+strings.Join(statusNames, ", ")+", or a custom status from .beans.yml)")
 	createCmd.Flags().StringVarP(&createType, "type", "t", "", "Bean type ("+strings.Join(typeNames, ", ")+")")
 	createCmd.Flags().StringVarP(&createPriority, "priority", "p", "", "Priority level ("+strings.Join(priorityNames, ", ")+")")
+	createCmd.Flags().StringVar(&createSize, "size", "", "Size ("+strings.Join(sizeNames(), ", ")+"; default "+config.DefaultSize+")")
 	createCmd.Flags().StringVarP(&createBody, "body", "d", "", "Body content (use '-' to read from stdin)")
 	createCmd.Flags().StringVar(&createBodyFile, "body-file", "", "Read body from file")
 	createCmd.Flags().StringArrayVar(&createTag, "tag", nil, "Add tag (can be repeated)")
@@ -141,4 +149,14 @@ func init() {
 	createCmd.Flags().BoolVar(&createJSON, "json", false, "Output as JSON")
 	createCmd.MarkFlagsMutuallyExclusive("body", "body-file")
 	rootCmd.AddCommand(createCmd)
+}
+
+// sizeNames returns the hardcoded size names for flag help texts, which are
+// built before the project config is loaded.
+func sizeNames() []string {
+	names := make([]string, len(config.DefaultSizes))
+	for i, s := range config.DefaultSizes {
+		names[i] = s.Name
+	}
+	return names
 }
