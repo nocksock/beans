@@ -39,3 +39,15 @@ status:
         git -C "$wt" status --short --branch
         git -C "$wt" log --oneline --no-decorate -5
     done
+
+# Install beans from a worktree (default: dev)
+install dir="dev":
+    cd ./{{dir}} && go install .
+
+# Run beans from a worktree (default: dev), e.g. just run feat-x list
+run dir="dev" *args:
+    cd ./{{dir}} && go run . {{args}}
+
+# Start the TUI from a worktree (default: dev)
+tui dir="dev" *args:
+    cd ./{{dir}} && go run . tui {{args}}
