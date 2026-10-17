@@ -10,9 +10,11 @@ import (
 func graphTestBeans() []*bean.Bean {
 	return []*bean.Bean{
 		{ID: "a", Title: "Epic A", Status: "todo"},
-		{ID: "b", Title: "Task B", Status: "in-progress", Parent: "a", Blocking: []string{"c"}},
+		{ID: "b", Title: "Task B", Status: "in-progress", Parent: "a", Blocking: []string{"c", "e"}},
 		{ID: "c", Title: "Task C", Status: "todo", Parent: "a"},
 		{ID: "d", Title: "Lonely", Status: "draft", Blocking: []string{"missing"}},
+		// e is blocked by c (declared on e) and by b (declared both ways, deduplicated)
+		{ID: "e", Title: "Task E", Status: "todo", BlockedBy: []string{"c", "b", "missing"}},
 	}
 }
 
@@ -42,14 +44,14 @@ func TestBuildGraph(t *testing.T) {
 	}{
 		{
 			name:      "all relationships",
-			wantEdges: []string{"b blocking c", "b parent a", "c parent a"},
-			wantNodes: []string{"a", "b", "c"},
+			wantEdges: []string{"b blocking c", "b blocking e", "b parent a", "c blocking e", "c parent a"},
+			wantNodes: []string{"a", "b", "c", "e"},
 		},
 		{
 			name:      "only blocking",
 			types:     []string{relBlocking},
-			wantEdges: []string{"b blocking c"},
-			wantNodes: []string{"b", "c"},
+			wantEdges: []string{"b blocking c", "b blocking e", "c blocking e"},
+			wantNodes: []string{"b", "c", "e"},
 		},
 		{
 			name:      "only parent",
@@ -60,8 +62,8 @@ func TestBuildGraph(t *testing.T) {
 		{
 			name:      "focus on bean",
 			focus:     []string{"c"},
-			wantEdges: []string{"b blocking c", "c parent a"},
-			wantNodes: []string{"a", "b", "c"},
+			wantEdges: []string{"b blocking c", "c blocking e", "c parent a"},
+			wantNodes: []string{"a", "b", "c", "e"},
 		},
 		{
 			name:      "focus on isolated bean keeps node",
@@ -92,7 +94,7 @@ func TestBuildGraph(t *testing.T) {
 }
 
 func TestRenderGraphDOT(t *testing.T) {
-	g := buildGraph(graphTestBeans(), []string{relBlocking}, nil)
+	g := buildGraph(graphTestBeans()[:3], []string{relBlocking}, nil)
 	colors := map[string]string{"in-progress": "yellow"}
 	got := renderGraphDOT(g, func(s string) string { return colors[s] })
 
@@ -120,7 +122,7 @@ func TestRenderGraphDOTEscapesTitles(t *testing.T) {
 func TestRenderGraphASCII(t *testing.T) {
 	g := buildGraph(graphTestBeans(), nil, nil)
 	got := renderGraphASCII(g)
-	want := "b ──blocking──> c\nb ──parent──> a\nc ──parent──> a\n"
+	want := "b ──blocking──> c\nb ──blocking──> e\nb ──parent──> a\nc ──blocking──> e\nc ──parent──> a\n"
 	if got != want {
 		t.Errorf("renderGraphASCII() =\n%s\nwant\n%s", got, want)
 	}

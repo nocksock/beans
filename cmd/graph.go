@@ -108,14 +108,22 @@ func buildGraph(allBeans []*bean.Bean, types []string, focus []string) beanGraph
 	}
 
 	var edges []graphEdge
+	seenEdges := make(map[graphEdge]bool)
 	addEdge := func(from, to, typ string) {
+		if _, ok := byID[from]; !ok {
+			return
+		}
 		if _, ok := byID[to]; !ok {
 			return
 		}
 		if len(focus) > 0 && !slices.Contains(focus, from) && !slices.Contains(focus, to) {
 			return
 		}
-		edges = append(edges, graphEdge{From: from, To: to, Type: typ})
+		e := graphEdge{From: from, To: to, Type: typ}
+		if !seenEdges[e] {
+			seenEdges[e] = true
+			edges = append(edges, e)
+		}
 	}
 
 	for _, b := range allBeans {
@@ -125,6 +133,10 @@ func buildGraph(allBeans []*bean.Bean, types []string, focus []string) beanGraph
 		if include(relBlocking) {
 			for _, target := range b.Blocking {
 				addEdge(b.ID, target, relBlocking)
+			}
+			// blocked_by is the inverse declaration: blocker -> b
+			for _, blocker := range b.BlockedBy {
+				addEdge(blocker, b.ID, relBlocking)
 			}
 		}
 	}
