@@ -46,13 +46,17 @@ filter in-progress would show all substates.
 
 ## Plan
 
-- [ ] config: parse/validate `statuses` map, resolved status list, `StatusCategory`, `ExpandStatuses`
-- [ ] replace `config.DefaultStatuses` usages with `cfg.Statuses()` (cmd create/update/check/prime, TUI picker/create modal)
-- [ ] GraphQL: expand status filters; add `statusCategory` field; codegen
-- [ ] `beans list` hidden-by-default expands to substatuses
-- [ ] prime prompt lists custom statuses with their category
-- [ ] tests + docs
+- [x] config: parse/validate `statuses` map, resolved status list, `StatusCategory`, `ExpandStatuses`
+- [x] replace `config.DefaultStatuses` usages with `cfg.Statuses()` (cmd create/update/check/prime, TUI picker/create modal)
+- [x] GraphQL: expand status filters; add `statusCategory` field; codegen
+- [x] `beans list` hidden-by-default expands to substatuses
+- [x] prime prompt lists custom statuses with their category
+- [x] tests + docs
 
 ## Work Log
 
 2026-10-17 14:00: Design agreed with user (map form, statusCategory field), plan written
+2026-10-17 14:20: config: CustomStatuses map, resolved status list, StatusCategory/ExpandStatuses, legacy list ignored
+2026-10-17 14:30: callers use cfg.Statuses(); TUI picker indents substatuses; prime lists custom statuses
+2026-10-17 14:40: GraphQL filters expand builtins, statusCategory field; beans list exclusions category-aware
+2026-10-17 14:50: README section, full test suite green, manual CLI test ok
