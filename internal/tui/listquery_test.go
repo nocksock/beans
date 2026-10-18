@@ -120,3 +120,28 @@ func TestTagPickerSetsQueryToken(t *testing.T) {
 		t.Errorf("query = %q, want %q", got, want)
 	}
 }
+
+func TestCreateFromFilterPrefills(t *testing.T) {
+	app, _, _ := newHierarchyApp(t, 160)
+	app.list.setQuery("size:sm size:lg tag:idea sort:created")
+	app.Update(app.list.loadBeans())
+
+	open, ok := press(app, "c").(openCreateModalMsg)
+	if !ok {
+		t.Fatal("c should open the create modal")
+	}
+	app.Update(open)
+	app.createModal.textInput.SetValue("From filter")
+	app.Update(app.createModal.submit(false)())
+	app.Update(app.list.loadBeans())
+
+	// The new bean matches the filter, so it is listed
+	got := listedIDs(app)
+	if len(got) != 1 {
+		t.Fatalf("filtered list should contain only the new bean, got %v", got)
+	}
+	b := app.list.beansByID[got[0]]
+	if b.Size != "lg" || !slices.Equal(b.Tags, []string{"idea"}) {
+		t.Errorf("new bean size=%q tags=%v, want lg [idea]", b.Size, b.Tags)
+	}
+}

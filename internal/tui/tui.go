@@ -589,7 +589,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openCreateModalMsg:
 		a.previousState = a.state
-		a.createModal = newCreateModalModel(a.config, a.width, a.height, msg.parentID, msg.parentTitle)
+		a.createModal = newCreateModalModel(a.config, a.width, a.height, msg.parentID, msg.parentTitle).withPrefill(msg.prefill)
 		a.createModal.prefixes = a.config.AvailablePrefixes()
 		a.state = viewCreateModal
 		return a, a.createModal.Init()
@@ -656,6 +656,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.body != "" {
 			input.Body = &msg.body
 		}
+		input.Tags = msg.tags
 		if msg.parentID != "" {
 			input.Parent = &msg.parentID
 		}

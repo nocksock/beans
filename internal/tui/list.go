@@ -732,7 +732,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 			case key.Matches(msg, k.Create):
 				// Open create modal
 				return m, func() tea.Msg {
-					return openCreateModalMsg{}
+					return openCreateModalMsg{prefill: m.query.prefill()}
 				}
 			case key.Matches(msg, k.CreateChild):
 				// Open create modal with selected bean(s) as parent (create child)
@@ -765,6 +765,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						return openCreateModalMsg{
 							parentID:    parentID,
 							parentTitle: parentTitle,
+							prefill:     m.query.prefill(),
 						}
 					}
 				}

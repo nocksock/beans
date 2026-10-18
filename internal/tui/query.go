@@ -127,3 +127,28 @@ func withTag(input, tag string) string {
 	})
 	return strings.Join(append(tokens, "tag:"+tag), " ")
 }
+
+// beanPrefill holds field values for a new bean, taken from the active filter query.
+type beanPrefill struct {
+	Type, Status, Priority, Size string
+	Tags                         []string
+}
+
+// prefill returns the query's included values as defaults for a new bean, so it
+// matches the filter. If a field is given several times, the last value wins.
+func (q query) prefill() beanPrefill {
+	last := func(values []string) string {
+		if len(values) == 0 {
+			return ""
+		}
+		return values[len(values)-1]
+	}
+	f := q.Filter
+	return beanPrefill{
+		Type:     last(f.Type),
+		Status:   last(f.Status),
+		Priority: last(f.Priority),
+		Size:     last(f.Size),
+		Tags:     slices.Clone(f.Tags),
+	}
+}

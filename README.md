@@ -235,6 +235,7 @@ login type:bug size:sm size:lg -status:completed sort:created
 - `field:value` filters by `status`, `type`, `priority`, `size` or `tag`. Repeating a field matches any of its values; different fields must all match. A leading `-` excludes.
 - `sort:field[:asc|desc]` sorts siblings by `status`, `priority`, `type`, `size`, `created`, `updated`, `title` or `id` (`created`/`updated` default to newest first).
 - Unknown fields or values are ignored and shown as a warning. `enter` applies the query, `esc` clears it.
+- While a filter is active, `c`/`C` prefill the new bean's type, status, priority and size from it (the last value wins if a field is repeated) and add all its `tag:` values, so the new bean shows up in the filtered list.
 
 **But the real power of Beans** comes from letting your coding agent manage your tasks for you.
 

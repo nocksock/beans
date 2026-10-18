@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -28,6 +29,7 @@ type beanCreatedMsg struct {
 	status     string // optional status (empty uses draft)
 	priority   string // optional priority (empty uses the default)
 	size       string // optional size (empty uses the default)
+	tags       []string
 	body       string // optional markdown body
 	parentID   string // optional parent ID for the new bean
 	prefix     string // ID prefix for the new bean
@@ -41,6 +43,7 @@ type closeCreateModalMsg struct{}
 type openCreateModalMsg struct {
 	parentID    string // optional parent ID for the new bean
 	parentTitle string // display title of the parent (for UI)
+	prefill     beanPrefill
 }
 
 // openEditModalMsg requests opening the form to edit an existing bean
@@ -100,6 +103,7 @@ type createModalModel struct {
 	height      int
 	parentID    string // optional parent ID for the new bean
 	parentTitle string // display title of the parent (for UI)
+	tags        []string
 
 	// Edit mode: set when the form edits an existing bean instead of creating one
 	beanID       string
@@ -173,6 +177,29 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 	m.sizeIdx = indexByName(m.sizes, func(s config.SizeConfig) string { return s.Name }, config.DefaultSize)
 	m.resize()
 	return m
+}
+
+// withPrefill preselects the given fields; empty or unknown values keep the defaults
+func (m createModalModel) withPrefill(p beanPrefill) createModalModel {
+	prefill := func(idx *int, names []string, name string) {
+		if i := slices.Index(names, name); name != "" && i >= 0 {
+			*idx = i
+		}
+	}
+	prefill(&m.typeIdx, namesOf(m.types, func(t config.TypeConfig) string { return t.Name }), p.Type)
+	prefill(&m.statusIdx, namesOf(m.statuses, func(s config.StatusConfig) string { return s.Name }), p.Status)
+	prefill(&m.priorityIdx, namesOf(m.priorities, func(p config.PriorityConfig) string { return p.Name }), p.Priority)
+	prefill(&m.sizeIdx, namesOf(m.sizes, func(s config.SizeConfig) string { return s.Name }), p.Size)
+	m.tags = p.Tags
+	return m
+}
+
+func namesOf[T any](items []T, nameOf func(T) string) []string {
+	names := make([]string, len(items))
+	for i, item := range items {
+		names[i] = nameOf(item)
+	}
+	return names
 }
 
 // indexByName returns the index of the item with the given name, or 0 if not found
@@ -258,6 +285,7 @@ func (m createModalModel) submit(openEditor bool) tea.Cmd {
 		status:     m.statuses[m.statusIdx].Name,
 		priority:   m.priorities[m.priorityIdx].Name,
 		size:       m.selectedSize(),
+		tags:       m.tags,
 		body:       body,
 		parentID:   m.parentID,
 		prefix:     m.prefixes[m.prefixIdx],
@@ -413,6 +441,9 @@ func (m createModalModel) View() string {
 		header = header + "\n" + parentLine
 	} else {
 		header = lipgloss.NewStyle().Bold(true).Render("Create New Bean")
+	}
+	if len(m.tags) > 0 {
+		header += "\n" + lipgloss.NewStyle().Foreground(ui.ColorMuted).Render("Tags: "+strings.Join(m.tags, ", "))
 	}
 
 	label := func(f createField, text string) string {

@@ -151,3 +151,25 @@ func TestWithTag(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryPrefill(t *testing.T) {
+	cfg := config.Default()
+	tests := []struct {
+		input string
+		want  beanPrefill
+	}{
+		{"", beanPrefill{}},
+		{"size:sm", beanPrefill{Size: "sm"}},
+		{"size:sm size:lg", beanPrefill{Size: "lg"}},
+		{
+			"type:bug status:todo priority:high tag:idea text -size:xl sort:created tag:wip",
+			beanPrefill{Type: "bug", Status: "todo", Priority: "high", Tags: []string{"idea", "wip"}},
+		},
+		{"-status:completed -tag:wip", beanPrefill{}},
+	}
+	for _, tt := range tests {
+		if got := parseQuery(tt.input, cfg).prefill(); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("prefill(%q) = %+v, want %+v", tt.input, got, tt.want)
+		}
+	}
+}
