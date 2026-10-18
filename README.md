@@ -220,7 +220,7 @@ The TUI is made of panes, lazygit-style: the bean list, the details of the selec
 
 - `enter` on a bean shows it in the details pane and moves focus there; `tab`/`shift+tab` cycle through the panes and `esc` goes back.
 - `+` and `-` step through layout presets, which depend on the focused pane: from the list, `+` hides the details, then the log; from the details, `+` swaps the list for the dependency graph, then shows the details alone.
-- `v`, `D` and `L` toggle the details, the dependency graph and the log anywhere. In the dependency graph, moving the cursor shows that bean in the details; `enter` makes it the graph's root.
+- `v`, `D` and `L` toggle the details, the dependency graph and the log anywhere. In the dependency graph, moving the cursor shows that bean in the details; `enter` makes it the graph's root and moves focus to the details.
 - In terminals narrower than 120 columns, the list and the details don't fit side by side, so only the focused one is shown.
 
 **But the real power of Beans** comes from letting your coding agent manage your tasks for you.

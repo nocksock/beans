@@ -217,8 +217,12 @@ func (m depNavModel) Update(msg tea.Msg) (depNavModel, tea.Cmd) {
 	case key.Matches(keyMsg, k.Down):
 		m.moveCursor(1)
 	case key.Matches(keyMsg, k.Refocus):
-		if b := m.selectedBean(); b != nil && b.ID != m.root.ID {
-			m.focus(b)
+		// Root the graph at the bean and look at it in the context pane
+		if b := m.selectedBean(); b != nil {
+			if b.ID != m.root.ID {
+				m.focus(b)
+			}
+			return m, func() tea.Msg { return selectBeanMsg{bean: b} }
 		}
 	case key.Matches(keyMsg, k.ToggleDone):
 		m.showDone = !m.showDone

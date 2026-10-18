@@ -200,7 +200,7 @@ func TestDepGraphPane(t *testing.T) {
 		}
 	})
 
-	t.Run("enter refocuses on the selected bean", func(t *testing.T) {
+	t.Run("enter refocuses on the selected bean and moves to the context", func(t *testing.T) {
 		pump(app, keyMsg("enter"))
 		if app.deps.root.ID != id("blocker") {
 			t.Fatalf("root = %s, want blocker", app.deps.root.ID)
@@ -209,15 +209,22 @@ func TestDepGraphPane(t *testing.T) {
 		if got := depNavIDs(app.deps); !slices.Equal(got, want) {
 			t.Errorf("rows = %v, want %v", got, want)
 		}
-	})
-
-	t.Run("esc returns to the context, which keeps the bean", func(t *testing.T) {
-		pump(app, keyMsg("esc"))
 		if app.ws.focus != paneContext {
 			t.Errorf("focus = %v, want the context", app.ws.focus)
 		}
 		if app.ctx.bean.ID != id("blocker") {
 			t.Errorf("context = %s, want blocker", app.ctx.bean.ID)
+		}
+	})
+
+	t.Run("esc returns to the graph", func(t *testing.T) {
+		pump(app, keyMsg("esc"))
+		if app.ws.focus != paneDepGraph {
+			t.Errorf("focus = %v, want the dependency graph", app.ws.focus)
+		}
+		pump(app, keyMsg("esc"))
+		if app.ws.focus != paneContext {
+			t.Errorf("focus = %v, want the context", app.ws.focus)
 		}
 	})
 

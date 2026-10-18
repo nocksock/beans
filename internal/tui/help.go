@@ -89,7 +89,7 @@ func (m helpOverlayModel) View() string {
 		{lk.ToggleLog.Keys(), "Toggle log pane"},
 		{l.Open.Keys(), "Open children (or details)"},
 		{l.Back.Keys(), "Back up a level / previous pane"},
-		{d.Refocus.Keys(), "Focus bean (dependencies)"},
+		{d.Refocus.Keys(), "Root graph at bean and open it (dependencies)"},
 		{l.Create.Keys(), "Create new bean"},
 		{l.CreateChild.Keys(), "Create child bean"},
 		{l.Launch.Keys(), "Launch with tool"},

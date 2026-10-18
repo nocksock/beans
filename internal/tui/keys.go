@@ -279,7 +279,7 @@ func DefaultKeyMap() KeyMap {
 		DepGraph: DepGraphKeyMap{
 			Up:         bind("up", "up", "k"),
 			Down:       bind("down", "down", "j"),
-			Refocus:    bind("focus", "enter"),
+			Refocus:    bind("open", "enter"),
 			ToggleDone: bind("show done", "A"),
 			Back:       bind("back", "esc", "backspace"),
 		},
