@@ -20,3 +20,7 @@ Verified with a test: newTestApp, press '/', press '?', and the state is viewHel
 
 ## Fix idea
 Guard the help case with a.canQuit() (or !a.typingText()), like ReloadConfig, and add a TestQuitKey-style table test.
+
+## Update (beans-kumc)
+
+Still reproducible after beans-kumc replaced the bubbles list filter with its own query input (`listModel.queryInput`): `/` then `?` opens help and the query stays empty. `canQuit()`/`typingText()` now use `a.list.editingQuery()` for viewList, so guarding the help case with `!a.typingText()` should fix it.
