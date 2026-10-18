@@ -43,14 +43,13 @@ func TestLogPanelLifecycle(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var m logPanelModel
 			id := m.start("tmux", "beans-x", writeLog(t, tt.output), now)
-			if !m.visible {
-				t.Error("starting a run should show the panel")
+			if !m.takeReveal() {
+				t.Error("starting a run should show the pane")
 			}
 			if got := m.entries[0].state; got != runRunning {
 				t.Errorf("state after start = %v, want running", got)
 			}
 
-			m.visible = false
 			m.finish(id, tt.exitCode, tt.err, now.Add(time.Second))
 
 			e := m.entries[0]
@@ -60,8 +59,8 @@ func TestLogPanelLifecycle(t *testing.T) {
 			if fmt.Sprint(e.tail) != fmt.Sprint(tt.wantTail) {
 				t.Errorf("tail = %q, want %q", e.tail, tt.wantTail)
 			}
-			if wantVisible := tt.wantState == runFailed; m.visible != wantVisible {
-				t.Errorf("visible after finish = %v, want %v (failures show the panel)", m.visible, wantVisible)
+			if wantReveal := tt.wantState == runFailed; m.takeReveal() != wantReveal {
+				t.Errorf("reveal after finish = %v, want %v (failures show the pane)", !wantReveal, wantReveal)
 			}
 		})
 	}
@@ -142,7 +141,7 @@ func TestLogPanelView(t *testing.T) {
 	long := strings.Repeat("x", 200)
 
 	var m logPanelModel
-	if view := m.View(60); !strings.Contains(view, "No commands run yet") {
+	if view := m.View(60, 5); !strings.Contains(view, "No commands run yet") {
 		t.Errorf("empty panel should say so:\n%s", view)
 	}
 
@@ -152,12 +151,12 @@ func TestLogPanelView(t *testing.T) {
 	m.finish(failed, 3, nil, now)
 	m.start("claude", "beans-run", writeLog(t, ""), now)
 
-	view := m.View(60)
+	view := m.View(60, 5)
 	lines := strings.Split(view, "\n")
-	if len(lines) != logPanelHeight {
-		t.Errorf("panel is %d lines, want %d:\n%s", len(lines), logPanelHeight, view)
+	if len(lines) != 5 {
+		t.Errorf("panel is %d lines, want 5:\n%s", len(lines), view)
 	}
-	for _, s := range []string{"Log", "✗ tmux beans-bad (exit 3)", "boom", "⟳ claude beans-run"} {
+	for _, s := range []string{"✗ tmux beans-bad (exit 3)", "boom", "⟳ claude beans-run"} {
 		if !strings.Contains(view, s) {
 			t.Errorf("view missing %q:\n%s", s, view)
 		}
@@ -196,6 +195,7 @@ func TestBackgroundLaunchLogsEachBean(t *testing.T) {
 		other = listedIDs(app)[1]
 	}
 	t.Cleanup(app.log.cleanup)
+	app.Update(keyMsg("L")) // hide the log
 
 	_, cmd := app.Update(launcherSelectedMsg{
 		launcher: launcher{name: "bg", exec: `echo "hi $BEANS_ID"; [ "$BEANS_ID" = "` + b.ID + `" ]`, background: true},
@@ -205,8 +205,8 @@ func TestBackgroundLaunchLogsEachBean(t *testing.T) {
 	if got := len(app.log.entries); got != 2 {
 		t.Fatalf("entries = %d, want one per bean", got)
 	}
-	if !app.log.visible {
-		t.Error("panel should show when a run starts")
+	if !app.ws.isVisible(paneLog) {
+		t.Error("the log should show when a run starts")
 	}
 	if app.quitting {
 		t.Error("background runs must not hand over the terminal")
@@ -233,32 +233,31 @@ func TestBackgroundLaunchLogsEachBean(t *testing.T) {
 
 func TestLogPanelToggle(t *testing.T) {
 	app, _ := newTestApp(t)
-	fullHeight := app.list.height
+	withLog := app.list.height
+	if !strings.Contains(app.View(), "No commands run yet") {
+		t.Fatalf("the log should show by default:\n%s", app.View())
+	}
 
 	app.Update(keyMsg("L"))
-	if !app.log.visible {
-		t.Fatal("L should show the panel")
+	if app.ws.isVisible(paneLog) {
+		t.Fatal("L should hide the log")
 	}
-	if got, want := app.list.height, fullHeight-logPanelHeight; got != want {
-		t.Errorf("list height with panel = %d, want %d", got, want)
+	if got, want := app.list.height, withLog+8; got != want {
+		t.Errorf("list height without log = %d, want %d", got, want)
 	}
+
+	app.Update(keyMsg("L"))
 	view := app.View()
-	if got := lipgloss.Height(view); got > app.height {
-		t.Errorf("view is %d lines, taller than terminal (%d)", got, app.height)
+	if !app.ws.isVisible(paneLog) || app.list.height != withLog {
+		t.Errorf("second L should show the log and restore height (height=%d)", app.list.height)
 	}
-	if !strings.Contains(view, "No commands run yet") {
-		t.Errorf("view should contain the panel:\n%s", view)
-	}
-
-	app.Update(keyMsg("L"))
-	if app.log.visible || app.list.height != fullHeight {
-		t.Errorf("second L should hide the panel and restore height (visible=%v, height=%d)", app.log.visible, app.list.height)
+	if got := lipgloss.Height(view); got != app.height {
+		t.Errorf("view is %d lines, want the terminal's %d", got, app.height)
 	}
 
-	// Too short a terminal keeps the panel out of the way
-	app.Update(keyMsg("L"))
-	app.Update(tea.WindowSizeMsg{Width: 120, Height: 10})
-	if app.list.height != 10 || strings.Contains(app.View(), "No commands run yet") {
-		t.Errorf("panel should not render in a 10-row terminal (list height %d)", app.list.height)
+	// Too short a terminal keeps the log out of the way
+	app.Update(tea.WindowSizeMsg{Width: 120, Height: 12})
+	if strings.Contains(app.View(), "No commands run yet") {
+		t.Errorf("log should not render in a 12-row terminal:\n%s", app.View())
 	}
 }

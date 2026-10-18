@@ -68,7 +68,7 @@ func unarchived(a *App) map[string]bool {
 func TestArchive(t *testing.T) {
 	tests := []struct {
 		name      string
-		openBean  string   // bean to open in detail view ("" = list view)
+		openBean  string   // bean to show in the context pane ("" = list focused)
 		keys      []string // keys pressed
 		wantKept  []string
 		wantState viewState
@@ -92,32 +92,32 @@ func TestArchive(t *testing.T) {
 			wantState: viewList,
 		},
 		{
-			name:      "detail Y archives completed bean directly",
+			name:      "context Y archives completed bean directly",
 			openBean:  "completed",
 			keys:      []string{"Y"},
 			wantKept:  []string{"todo", "scrapped"},
-			wantState: viewDetail,
+			wantState: viewList,
 		},
 		{
-			name:      "detail Y prompts for unfinished bean",
+			name:      "context Y prompts for unfinished bean",
 			openBean:  "todo",
 			keys:      []string{"Y"},
 			wantKept:  []string{"todo", "completed", "scrapped"},
 			wantState: viewArchiveConfirm,
 		},
 		{
-			name:      "detail YY archives unfinished bean",
+			name:      "context YY archives unfinished bean",
 			openBean:  "todo",
 			keys:      []string{"Y", "Y"},
 			wantKept:  []string{"completed", "scrapped"},
-			wantState: viewDetail,
+			wantState: viewList,
 		},
 		{
-			name:      "detail Y esc cancels",
+			name:      "context Y esc cancels",
 			openBean:  "todo",
 			keys:      []string{"Y", "esc"},
 			wantKept:  []string{"todo", "completed", "scrapped"},
-			wantState: viewDetail,
+			wantState: viewList,
 		},
 	}
 
@@ -145,6 +145,9 @@ func TestArchive(t *testing.T) {
 			}
 			if app.state != tt.wantState {
 				t.Errorf("state = %v, want %v", app.state, tt.wantState)
+			}
+			if tt.openBean != "" && app.ws.focus != paneContext {
+				t.Errorf("focus = %v, want the context pane", app.ws.focus)
 			}
 		})
 	}
@@ -201,25 +204,25 @@ func TestArchiveSkipsArchivedBeans(t *testing.T) {
 		t.Errorf("state = %v, want list (no archivable beans)", app.state)
 	}
 
-	// Y on an archived bean in the detail view is a no-op
+	// Y on an archived bean in the context pane is a no-op
 	pump(app, keyMsg("A"))
 	b, _ := app.core.Get(beans["completed"].ID)
 	pump(app, selectBeanMsg{bean: b})
 	pump(app, keyMsg("Y"))
-	if app.state != viewDetail {
-		t.Errorf("state = %v, want detail (already archived)", app.state)
+	if app.state != viewList || app.ws.focus != paneContext {
+		t.Errorf("state = %v, focus = %v, want context pane (already archived)", app.state, app.ws.focus)
 	}
 }
 
-func TestArchiveFromDetailShowsNewStatus(t *testing.T) {
+func TestArchiveFromContextShowsNewStatus(t *testing.T) {
 	app, beans := newArchiveTestApp(t)
 	pump(app, selectBeanMsg{bean: beans["completed"]})
 	pump(app, keyMsg("Y"))
-	if app.state != viewDetail {
-		t.Fatalf("state = %v, want detail", app.state)
+	if app.state != viewList || app.ws.focus != paneContext {
+		t.Fatalf("state = %v, focus = %v, want context pane", app.state, app.ws.focus)
 	}
-	if got := app.detail.bean.Status; got != config.StatusArchived {
-		t.Errorf("detail status = %q, want %q", got, config.StatusArchived)
+	if got := app.ctx.bean.Status; got != config.StatusArchived {
+		t.Errorf("context status = %q, want %q", got, config.StatusArchived)
 	}
 }
 

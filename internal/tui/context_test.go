@@ -10,7 +10,7 @@ import (
 	"github.com/hmans/beans/internal/config"
 )
 
-func TestPreviewView(t *testing.T) {
+func TestContextView(t *testing.T) {
 	parent := &bean.Bean{ID: "beans-prnt", Title: "Parent Bean"}
 	tests := []struct {
 		name    string
@@ -51,9 +51,10 @@ func TestPreviewView(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := newPreviewModel(config.Default())
+			m := newContextModel(config.Default())
 			m.setBean(tt.bean, tt.ctx)
-			view := ansi.Strip(m.View(70, 30))
+			m.setSize(70, 30)
+			view := ansi.Strip(m.View())
 			for _, s := range tt.want {
 				if !strings.Contains(view, s) {
 					t.Errorf("preview should contain %q:\n%s", s, view)
@@ -68,7 +69,7 @@ func TestPreviewView(t *testing.T) {
 	}
 }
 
-func TestPreviewViewExactSize(t *testing.T) {
+func TestContextViewFitsSize(t *testing.T) {
 	long := &bean.Bean{
 		ID: "beans-long", Title: strings.Repeat("Very long title ", 10), Status: "todo", Type: "task",
 		Body: strings.Repeat("A paragraph of body text that goes on and on.\n\n", 50),
@@ -76,14 +77,15 @@ func TestPreviewViewExactSize(t *testing.T) {
 	sizes := []struct{ w, h int }{{80, 40}, {50, 10}, {40, 5}}
 	for _, b := range []*bean.Bean{nil, long} {
 		for _, sz := range sizes {
-			m := newPreviewModel(config.Default())
+			m := newContextModel(config.Default())
 			m.setBean(b, previewContext{})
-			view := m.View(sz.w, sz.h)
-			if got := lipgloss.Height(view); got != sz.h {
-				t.Errorf("%dx%d: height = %d, want %d", sz.w, sz.h, got, sz.h)
+			m.setSize(sz.w, sz.h)
+			view := m.View()
+			if got := lipgloss.Height(view); got > sz.h {
+				t.Errorf("%dx%d: height = %d, want at most %d", sz.w, sz.h, got, sz.h)
 			}
-			if got := lipgloss.Width(view); got != sz.w {
-				t.Errorf("%dx%d: width = %d, want %d", sz.w, sz.h, got, sz.w)
+			if got := lipgloss.Width(view); got > sz.w {
+				t.Errorf("%dx%d: width = %d, want at most %d", sz.w, sz.h, got, sz.w)
 			}
 		}
 	}

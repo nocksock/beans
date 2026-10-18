@@ -15,10 +15,9 @@ import (
 )
 
 const (
-	logPanelHeight = 6        // rows the panel takes below the list: a title rule plus content
-	maxLogEntries  = 50       // runs kept in memory; older ones are dropped
-	logTailLines   = 3        // output lines shown per run
-	tailReadBytes  = 16 << 10 // only this much of the end of a run's output is read for its tail
+	maxLogEntries = 50       // runs kept in memory; older ones are dropped
+	logTailLines  = 3        // output lines shown per run
+	tailReadBytes = 16 << 10 // only this much of the end of a run's output is read for its tail
 )
 
 // runState is the lifecycle state of a launcher run
@@ -50,14 +49,15 @@ type launchFinishedMsg struct {
 	err      error // set when the command couldn't be run at all
 }
 
-// logPanelModel is the lazygit-style command log at the bottom of the overview
+// logPanelModel is the lazygit-style command log pane
 type logPanelModel struct {
 	entries []logEntry
 	nextID  int
-	visible bool
+	reveal  bool // the pane should be shown: a run started or failed
 }
 
-// start records a new running entry, shows the panel and returns the entry's id.
+// start records a new running entry, asks for the pane to be shown and
+// returns the entry's id.
 func (m *logPanelModel) start(launcher, beanID, logPath string, now time.Time) int {
 	m.nextID++
 	m.entries = append(m.entries, logEntry{
@@ -77,11 +77,12 @@ func (m *logPanelModel) start(launcher, beanID, logPath string, now time.Time) i
 		m.entries[i].removeLog()
 		m.entries = slices.Delete(m.entries, i, i+1)
 	}
-	m.visible = true
+	m.reveal = true
 	return m.nextID
 }
 
-// finish marks the entry as done, reads its output tail and shows the panel on failure.
+// finish marks the entry as done, reads its output tail and asks for the pane
+// to be shown on failure.
 func (m *logPanelModel) finish(id, exitCode int, err error, now time.Time) {
 	e := m.entry(id)
 	if e == nil {
@@ -92,7 +93,7 @@ func (m *logPanelModel) finish(id, exitCode int, err error, now time.Time) {
 	e.state = runOK
 	if exitCode != 0 {
 		e.state = runFailed
-		m.visible = true
+		m.reveal = true
 	}
 	e.tail = tailLines(e.logPath, logTailLines)
 	if exitCode == -1 && err != nil {
@@ -131,11 +132,15 @@ func (e logEntry) removeLog() {
 	}
 }
 
-// View renders the panel, exactly logPanelHeight lines tall and width wide.
-func (m logPanelModel) View(width int) string {
-	title := " Log "
-	rule := ui.Muted.Render("─" + title + strings.Repeat("─", max(width-len(title)-1, 0)))
+// takeReveal reports whether the pane should be shown, and clears the request.
+func (m *logPanelModel) takeReveal() bool {
+	r := m.reveal
+	m.reveal = false
+	return r
+}
 
+// View renders the newest log lines at exactly width x height.
+func (m logPanelModel) View(width, height int) string {
 	var lines []string
 	for _, e := range m.entries {
 		lines = append(lines, e.header())
@@ -152,7 +157,7 @@ func (m logPanelModel) View(width int) string {
 	}
 
 	// Newest at the bottom: keep only the lines that fit
-	rows := logPanelHeight - 1
+	rows := max(height, 0)
 	if len(lines) > rows {
 		lines = lines[len(lines)-rows:]
 	}
@@ -163,7 +168,7 @@ func (m logPanelModel) View(width int) string {
 		lines[i] = ansi.Truncate(l, width, "…")
 	}
 
-	return rule + "\n" + strings.Join(lines, "\n")
+	return strings.Join(lines, "\n")
 }
 
 // header renders the entry's status line, e.g. "15:04 ✗ tmux beans-x (exit 3)".

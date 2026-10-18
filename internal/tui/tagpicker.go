@@ -120,7 +120,7 @@ func (m tagPickerModel) Update(msg tea.Msg) (tagPickerModel, tea.Cmd) {
 			case key.Matches(msg, keymap.Picker.Cancel):
 				// Return to list without selecting a tag
 				return m, func() tea.Msg {
-					return backToListMsg{}
+					return closeTagPickerMsg{}
 				}
 			}
 		}
@@ -129,6 +129,9 @@ func (m tagPickerModel) Update(msg tea.Msg) (tagPickerModel, tea.Cmd) {
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
+
+// closeTagPickerMsg is sent when the tag picker is cancelled
+type closeTagPickerMsg struct{}
 
 func (m tagPickerModel) View() string {
 	if m.width == 0 {

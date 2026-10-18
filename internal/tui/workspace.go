@@ -76,6 +76,11 @@ func (w *workspace) apply(p preset) {
 	}
 }
 
+// show makes a pane visible, keeping the rest of the layout.
+func (w *workspace) show(id layout.ID) {
+	w.visible[id] = true
+}
+
 // toggle shows or hides a pane. The last visible pane stays. Hiding the
 // focused pane moves focus back to the previous visible one.
 func (w *workspace) toggle(id layout.ID) {
@@ -164,9 +169,15 @@ func (w *workspace) matches(p preset) bool {
 	return true
 }
 
-// cycleFocus focuses the next (delta 1) or previous (-1) visible pane.
+// cycleFocus focuses the next (delta 1) or previous (-1) visible pane that
+// can take focus.
 func (w *workspace) cycleFocus(delta int) {
-	panes := w.visiblePanes()
+	var panes []layout.ID
+	for _, id := range w.visiblePanes() {
+		if !unfocusable[id] || id == w.focus {
+			panes = append(panes, id)
+		}
+	}
 	i := slices.Index(panes, w.focus)
 	n := len(panes)
 	w.focusPane(panes[((i+delta)%n+n)%n])

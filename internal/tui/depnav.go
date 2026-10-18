@@ -12,14 +12,6 @@ import (
 	"github.com/hmans/beans/internal/ui"
 )
 
-// openDepNavMsg requests opening the dependency navigator on a bean
-type openDepNavMsg struct {
-	bean *bean.Bean
-}
-
-// closeDepNavMsg is sent when the dependency navigator is closed
-type closeDepNavMsg struct{}
-
 // depRow is one line of the dependency navigator.
 type depRow struct {
 	bean   *bean.Bean // nil for headings and empty-section lines
@@ -77,6 +69,8 @@ func buildDepTree(root *bean.Bean, next func(*bean.Bean) []*bean.Bean, visible f
 
 // depNavModel shows the beans blocking a bean and the beans it blocks, both
 // transitively, as trees.
+// depNavModel is the dependency graph pane: the chains of beans blocking and
+// blocked by a root bean. Its cursor picks the bean the context pane shows.
 type depNavModel struct {
 	root     *bean.Bean
 	resolver *graph.Resolver
@@ -89,10 +83,21 @@ type depNavModel struct {
 	height   int
 }
 
-func newDepNavModel(root *bean.Bean, resolver *graph.Resolver, cfg *config.Config, width, height int) depNavModel {
-	m := depNavModel{resolver: resolver, config: cfg, width: width, height: height}
-	m.focus(root)
-	return m
+func newDepNavModel(resolver *graph.Resolver, cfg *config.Config) depNavModel {
+	return depNavModel{resolver: resolver, config: cfg}
+}
+
+func (m *depNavModel) setSize(width, height int) {
+	m.width, m.height = width, height
+	m.scrollToCursor()
+}
+
+// title is the pane title.
+func (m *depNavModel) title() string {
+	if m.root == nil {
+		return "Dependencies"
+	}
+	return "Dependencies of " + m.root.ID
 }
 
 // focus rebuilds the navigator around b, with the cursor on b.
@@ -111,6 +116,9 @@ func (m *depNavModel) focus(b *bean.Bean) {
 // reload re-reads the beans, keeping the cursor on the same bean if possible.
 // It returns false if the focused bean is gone.
 func (m *depNavModel) reload() bool {
+	if m.root == nil {
+		return false
+	}
 	root, err := m.resolver.Query().Bean(context.Background(), m.root.ID)
 	if err != nil || root == nil {
 		return false
@@ -177,9 +185,9 @@ func (m *depNavModel) moveCursor(delta int) {
 	m.scrollToCursor()
 }
 
-// listHeight is the number of rows that fit between header and footer.
+// listHeight is the number of rows that fit in the pane.
 func (m depNavModel) listHeight() int {
-	return max(1, m.height-4)
+	return max(1, m.height)
 }
 
 func (m *depNavModel) scrollToCursor() {
@@ -197,50 +205,35 @@ func (m *depNavModel) scrollToCursor() {
 	}
 }
 
-func (m depNavModel) Init() tea.Cmd {
-	return nil
-}
-
 func (m depNavModel) Update(msg tea.Msg) (depNavModel, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		m.scrollToCursor()
-
-	case tea.KeyMsg:
-		k := keymap.DepNav
-		switch {
-		case key.Matches(msg, k.Up):
-			m.moveCursor(-1)
-		case key.Matches(msg, k.Down):
-			m.moveCursor(1)
-		case key.Matches(msg, k.Open):
-			if b := m.selectedBean(); b != nil {
-				return m, func() tea.Msg { return selectBeanMsg{bean: b} }
-			}
-		case key.Matches(msg, k.Refocus):
-			if b := m.selectedBean(); b != nil && b.ID != m.root.ID {
-				m.focus(b)
-			}
-		case key.Matches(msg, k.ToggleDone):
-			m.showDone = !m.showDone
-			m.reload()
-		case key.Matches(msg, k.Back):
-			return m, func() tea.Msg { return closeDepNavMsg{} }
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok || m.root == nil {
+		return m, nil
+	}
+	k := keymap.DepGraph
+	switch {
+	case key.Matches(keyMsg, k.Up):
+		m.moveCursor(-1)
+	case key.Matches(keyMsg, k.Down):
+		m.moveCursor(1)
+	case key.Matches(keyMsg, k.Refocus):
+		if b := m.selectedBean(); b != nil && b.ID != m.root.ID {
+			m.focus(b)
 		}
+	case key.Matches(keyMsg, k.ToggleDone):
+		m.showDone = !m.showDone
+		m.reload()
+	case key.Matches(keyMsg, k.Back):
+		return m, func() tea.Msg { return focusBackMsg{} }
 	}
 	return m, nil
 }
 
+// View renders the rows at exactly the size set by setSize.
 func (m depNavModel) View() string {
-	if m.width == 0 {
-		return "Loading..."
+	if m.root == nil || m.width == 0 {
+		return ""
 	}
-
-	var sb strings.Builder
-	sb.WriteString(" " + ui.Bold.Render("Dependencies of ") + ui.ID.Render(m.root.ID) + "  " + m.root.DisplayTitle())
-	sb.WriteString("\n\n")
 
 	cols := ui.CalculateResponsiveColumns(m.width, false)
 	idColWidth := cols.ID
@@ -252,17 +245,12 @@ func (m depNavModel) View() string {
 	}
 	maxTitleWidth := max(1, m.width-idColWidth-cols.Status-cols.Type-4)
 
+	var lines []string
 	end := min(len(m.rows), m.offset+m.listHeight())
 	for i := m.offset; i < end; i++ {
-		sb.WriteString(m.renderRow(m.rows[i], i == m.cursor, idColWidth, maxTitleWidth, cols.Compact))
-		sb.WriteString("\n")
+		lines = append(lines, m.renderRow(m.rows[i], i == m.cursor, idColWidth, maxTitleWidth, cols.Compact))
 	}
-	for i := end - m.offset; i < m.listHeight(); i++ {
-		sb.WriteString("\n")
-	}
-
-	sb.WriteString("\n" + m.footer())
-	return sb.String()
+	return strings.Join(lines, "\n")
 }
 
 func (m depNavModel) renderRow(r depRow, selected bool, idColWidth, maxTitleWidth int, compact bool) string {
@@ -304,18 +292,18 @@ func (m depNavModel) renderRow(r depRow, selected bool, idColWidth, maxTitleWidt
 	})
 }
 
+// footer renders the hints for the focused pane.
 func (m depNavModel) footer() string {
-	g, k := keymap.Global, keymap.DepNav
+	k := keymap.DepGraph
 	doneHelp := "show done"
 	if m.showDone {
 		doneHelp = "hide done"
 	}
 	legend := helpStyle.Render("↺ cycle") + "  "
 	return legend + hints(
-		hint(k.Open, ""),
+		groupHint("move", k.Down, k.Up),
 		hint(k.Refocus, ""),
 		hint(k.ToggleDone, doneHelp),
 		hint(k.Back, ""),
-		hint(g.Quit, ""),
 	)
 }

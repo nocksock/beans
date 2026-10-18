@@ -26,6 +26,11 @@ var layoutTree = layout.VSplit(
 	layout.Leaf(paneLog).Fixed(8).Drop(1),
 )
 
+// unfocusable panes are shown but skipped by tab.
+var unfocusable = map[layout.ID]bool{
+	paneLog: true, // not navigable yet
+}
+
 // preset is a set of visible panes.
 type preset []layout.ID
 
