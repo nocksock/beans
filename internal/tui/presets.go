@@ -1,14 +1,28 @@
 package tui
 
-import "github.com/hmans/beans/internal/tui/layout"
+import (
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/hmans/beans/internal/tui/layout"
+)
 
 // Panes of the main screen
 const (
 	paneList     layout.ID = "list"
-	paneContext  layout.ID = "context" // details of what's selected in the list or dependency graph
+	paneContext  layout.ID = "context" // details of what's selected in the list, dependency graph or log
 	paneDepGraph layout.ID = "deps"
 	paneLog      layout.ID = "log"
 )
+
+// paneKeys are the bindings focusing each pane, shown in the pane titles.
+func paneKeys() map[layout.ID]key.Binding {
+	k := keymap.Layout
+	return map[layout.ID]key.Binding{
+		paneList:     k.FocusList,
+		paneContext:  k.FocusContext,
+		paneDepGraph: k.FocusDepGraph,
+		paneLog:      k.FocusLog,
+	}
+}
 
 // layoutTree arranges every pane. Which ones are shown is up to the presets
 // and toggles; hidden panes collapse and their siblings take the space.
@@ -17,19 +31,14 @@ const (
 // unfocused one is dropped. The log needs 18 rows.
 var layoutTree = layout.VSplit(
 	layout.HSplit(
-		layout.Leaf(paneList).Min(40),
+		layout.Leaf(paneList).Min(60),
 		layout.VSplit(
 			layout.Leaf(paneDepGraph).Min(6),
 			layout.Leaf(paneContext).Weight(2).Min(6),
-		).Min(80).Max(80).Drop(1), // bean bodies are written for ~80 columns
+		).Min(60).Drop(1),
 	).Min(10),
 	layout.Leaf(paneLog).Fixed(8).Drop(1),
 )
-
-// unfocusable panes are shown but skipped by tab.
-var unfocusable = map[layout.ID]bool{
-	paneLog: true, // not navigable yet
-}
 
 // preset is a set of visible panes.
 type preset []layout.ID
@@ -47,5 +56,9 @@ var presetCycles = map[layout.ID][]preset{
 		{paneList, paneContext, paneLog},
 		{paneDepGraph, paneContext, paneLog},
 		{paneContext},
+	},
+	paneLog: {
+		{paneList, paneContext, paneLog},
+		{paneContext, paneLog}, // run output at full width
 	},
 }

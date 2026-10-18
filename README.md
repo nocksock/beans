@@ -169,17 +169,18 @@ keybinding:
 
 - Bindings are grouped by context; the names mirror the TUI's Go key maps in lowerCamel (`ListKeyMap.ChangeStatus` → `list.changeStatus`). Unknown names are an error.
 - An override replaces all default keys of that action. Keys use bubbletea's names (`ctrl+c`, `enter`, `esc`, `shift+tab`, `pgdown`, …); use `space` for the space bar.
-- Keys bound to several actions of one context (`global` and `layout` count as part of `list`, `context` and `depGraph`) are reported as a warning in the footer.
+- Keys bound to several actions of one context (`global` and `layout` count as part of `list`, `context`, `depGraph` and `log`) are reported as a warning in the footer.
 - The tag editor and the create dialog have text inputs: printable keys bound there can't be typed anymore.
 - Footers and the help overlay show your bindings. Key bindings are reloaded with the rest of the config (`R`, or automatically when a config file changes).
 
 | Context | Actions (default keys) |
 |---------|------------------------|
 | `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`), `openLog` (`O`) |
-| `layout` | `nextPreset` (`+` `=`), `prevPreset` (`-`), `focusNext` (`tab`), `focusPrev` (`shift+tab`), `toggleContext` (`v`), `toggleDepGraph` (`D`), `toggleLog` (`L`) |
+| `layout` | `nextPreset` (`+` `=`), `prevPreset` (`-`), `focusNext` (`tab`), `focusPrev` (`shift+tab`), `toggleContext` (`v`), `toggleDepGraph` (`D`), `toggleLog` (`L`), `focusList` (`1`), `focusContext` (`2`), `focusDepGraph` (`3`), `focusLog` (`4`) |
 | `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleScope` (`g s`) |
 | `context` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `back` (`esc` `backspace`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `changeSize` (`S`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
 | `depGraph` | `up` (`up` `k`), `down` (`down` `j`), `refocus` (`enter`), `toggleDone` (`A`), `back` (`esc` `backspace`) |
+| `log` | `up` (`up` `k`), `down` (`down` `j`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `open` (`enter`), `openEditor` (`E`), `back` (`esc` `backspace`) |
 | `help` | `close` (`?` `esc`) |
 | `picker` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `h` `pgup` `b` `u`), `nextPage` (`right` `l` `pgdown` `f` `d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `confirm` (`enter`), `cancel` (`esc` `backspace`), `toggle` (`space`, blocking picker) |
 | `tagEditor` | `up` (`up` `ctrl+p`), `down` (`down` `ctrl+n`), `toggle` (`space` `tab`), `apply` (`enter`), `cancel` (`esc`) |
@@ -371,7 +372,7 @@ launchers:
 
 Background launchers get no stdin; their stdout and stderr are captured. With `multiple: true` and several beans selected, one run per bean starts in parallel.
 
-Every run, foreground or background, shows up in the **log panel** below the bean list: time, ⟳/✓/✗, launcher, bean ID, exit code, and the last lines of output (only stderr for foreground runs, since their stdout is the terminal). The panel appears when a run starts or fails; press `L` to toggle it and `O` to open the latest run's full output in `$EDITOR`. The log is kept for the TUI session only. Background runs still going when you quit keep running; their output files (`beans-launch-*.log` in your temp directory) are left behind for you to inspect.
+Every run, foreground or background, shows up in the **log panel** below the bean list: time, ⟳/✓/✗, launcher, bean ID, exit code, and the last lines of output (only stderr for foreground runs, since their stdout is the terminal). The panel appears when a run starts or fails; press `L` to toggle it and `O` to open the latest run's full output in `$EDITOR`. `tab` into the panel to move through the runs: the details pane shows the selected run's full output (`enter` to scroll it, `E` to open it in `$EDITOR`, `+` to show it at full width). The log is kept for the TUI session only. Background runs still going when you quit keep running; their output files (`beans-launch-*.log` in your temp directory) are left behind for you to inspect.
 
 ### How It Works
 

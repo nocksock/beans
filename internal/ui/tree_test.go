@@ -340,7 +340,7 @@ func TestRenderTreeShowsSize(t *testing.T) {
 	if !strings.Contains(out, "SZ") {
 		t.Errorf("header should contain size column, got:\n%s", out)
 	}
-	for _, want := range []string{"xl Huge", "md Unsized"} {
+	for _, want := range []string{"xl a1", "md b2"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output should contain %q, got:\n%s", want, out)
 		}

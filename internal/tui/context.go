@@ -39,6 +39,9 @@ func getBodyRenderer(wrap int) *glamour.TermRenderer {
 // focusBackMsg asks the app to move focus back to the previously focused pane
 type focusBackMsg struct{}
 
+// focusContextMsg asks the app to move focus to the context pane
+type focusContextMsg struct{}
+
 // previewContext holds relationship info for the shown bean that isn't on the bean itself
 type previewContext struct {
 	parent     *bean.Bean // nil if no parent (or parent missing)
@@ -52,9 +55,8 @@ type contextModel struct {
 	config *config.Config
 	bean   *bean.Bean
 	ctx    previewContext
-	offset int // first visible line
-	width  int // content size, set by setSize
-	height int
+	scroll scroller
+	width  int // content width, set by setSize
 
 	// Rendered markdown body cache - glamour is too slow to run on every View()
 	cachedBody      string
@@ -69,15 +71,15 @@ func newContextModel(cfg *config.Config) contextModel {
 // setBean changes the shown bean. Scrolling restarts at the top for another bean.
 func (m *contextModel) setBean(b *bean.Bean, ctx previewContext) {
 	if b == nil || m.bean == nil || b.ID != m.bean.ID {
-		m.offset = 0
+		m.scroll.offset = 0
 	}
 	m.bean = b
 	m.ctx = ctx
 }
 
 func (m *contextModel) setSize(width, height int) {
-	m.width, m.height = width, height
-	m.clampOffset()
+	m.width, m.scroll.height = width, height
+	m.scroll.clamp(len(m.lines()))
 }
 
 // title is the pane title.
@@ -94,27 +96,10 @@ func (m contextModel) Update(msg tea.Msg) (contextModel, tea.Cmd) {
 		return m, nil
 	}
 
-	k := keymap.Context
 	switch {
-	case key.Matches(keyMsg, k.Back):
+	case key.Matches(keyMsg, keymap.Context.Back):
 		return m, func() tea.Msg { return focusBackMsg{} }
-	case key.Matches(keyMsg, k.ScrollUp):
-		m.scroll(-1)
-	case key.Matches(keyMsg, k.ScrollDown):
-		m.scroll(1)
-	case key.Matches(keyMsg, k.HalfPageUp):
-		m.scroll(-max(1, m.height/2))
-	case key.Matches(keyMsg, k.HalfPageDown):
-		m.scroll(max(1, m.height/2))
-	case key.Matches(keyMsg, k.PageUp):
-		m.scroll(-max(1, m.height))
-	case key.Matches(keyMsg, k.PageDown):
-		m.scroll(max(1, m.height))
-	case key.Matches(keyMsg, k.GoToStart):
-		m.offset = 0
-	case key.Matches(keyMsg, k.GoToEnd):
-		m.offset = len(m.lines())
-		m.clampOffset()
+	case m.scroll.scrollKey(keyMsg, len(m.lines())):
 	default:
 		if m.bean != nil {
 			return m, m.beanAction(keyMsg)
@@ -160,16 +145,6 @@ func (m contextModel) beanAction(msg tea.KeyMsg) tea.Cmd {
 	return func() tea.Msg { return out }
 }
 
-func (m *contextModel) scroll(delta int) {
-	m.offset += delta
-	m.clampOffset()
-}
-
-// clampOffset keeps the last page full when scrolled to the end.
-func (m *contextModel) clampOffset() {
-	m.offset = max(0, min(m.offset, len(m.lines())-m.height))
-}
-
 // lines renders the bean, wrapped to the pane width.
 func (m *contextModel) lines() []string {
 	if m.bean == nil || m.width <= 0 {
@@ -181,35 +156,15 @@ func (m *contextModel) lines() []string {
 // View renders the visible part of the bean at exactly the size set by setSize.
 func (m *contextModel) View() string {
 	if m.bean == nil {
-		return lipgloss.NewStyle().
-			Width(m.width).
-			Height(m.height).
-			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(ui.ColorMuted).
-			Render("No bean selected")
+		return centeredMuted("No bean selected", m.width, m.scroll.height)
 	}
-	lines := m.lines()
-	end := min(len(lines), m.offset+m.height)
-	visible := lines[min(m.offset, end):end]
-	if end < len(lines) && len(visible) > 0 {
-		visible[len(visible)-1] = ui.Muted.Render("…")
-	}
-	return strings.Join(visible, "\n")
-}
-
-// scrollPercent is how far the pane is scrolled, from 0 to 100.
-func (m *contextModel) scrollPercent() int {
-	maxOffset := len(m.lines()) - m.height
-	if maxOffset <= 0 {
-		return 100
-	}
-	return m.offset * 100 / maxOffset
+	return strings.Join(m.scroll.window(m.lines()), "\n")
 }
 
 // footer renders the hints for the focused pane.
 func (m *contextModel) footer() string {
 	k := keymap.Context
-	return helpStyle.Render(fmt.Sprintf("%d%%", m.scrollPercent())) + "  " + hints(
+	return m.scroll.percentHint(len(m.lines())) + "  " + hints(
 		groupHint("scroll", k.ScrollDown, k.ScrollUp),
 		hint(k.Launch, ""),
 		hint(k.Edit, ""),
@@ -298,4 +253,14 @@ func (m *contextModel) renderBody(width int) string {
 	m.cachedBodyWidth = width
 	m.cachedBodyOut = out
 	return out
+}
+
+// centeredMuted renders a muted note in the middle of a width x height pane.
+func centeredMuted(text string, width, height int) string {
+	return lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Foreground(ui.ColorMuted).
+		Render(text)
 }

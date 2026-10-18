@@ -2,6 +2,7 @@ package tui
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/hmans/beans/internal/tui/layout"
@@ -118,8 +119,8 @@ func TestWorkspace(t *testing.T) {
 			wantFocus:   paneContext,
 		},
 		{
-			name:        "tab wraps around, skipping the log",
-			ops:         []wsOp{tab, tab},
+			name:        "tab wraps around",
+			ops:         []wsOp{tab, tab, tab},
 			wantVisible: []layout.ID{paneList, paneContext, paneLog},
 			wantFocus:   paneList,
 		},
@@ -127,7 +128,7 @@ func TestWorkspace(t *testing.T) {
 			name:        "shift+tab goes backwards",
 			ops:         []wsOp{toggle(paneDepGraph), func(w *workspace) { w.cycleFocus(-1) }},
 			wantVisible: []layout.ID{paneList, paneDepGraph, paneContext, paneLog},
-			wantFocus:   paneContext,
+			wantFocus:   paneLog,
 		},
 		{
 			name:        "esc goes back to the previous pane",
@@ -167,5 +168,24 @@ func TestWorkspace(t *testing.T) {
 				t.Errorf("focus = %v, want %v", w.focus, tt.wantFocus)
 			}
 		})
+	}
+}
+
+func TestFocusPaneByNumber(t *testing.T) {
+	app, _ := newTestApp(t)
+	if view := app.View(); !strings.Contains(view, "[1] Beans") || !strings.Contains(view, "[4] Log") {
+		t.Errorf("pane titles should show their keys:\n%s", view)
+	}
+	for _, tt := range []struct {
+		key  string
+		want layout.ID
+	}{{"4", paneLog}, {"2", paneContext}, {"3", paneDepGraph}, {"1", paneList}} {
+		pump(app, keyMsg(tt.key))
+		if app.ws.focus != tt.want {
+			t.Errorf("%s: focus = %v, want %v", tt.key, app.ws.focus, tt.want)
+		}
+		if !app.ws.isVisible(tt.want) {
+			t.Errorf("%s: %v should be shown", tt.key, tt.want)
+		}
 	}
 }

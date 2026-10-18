@@ -153,65 +153,36 @@ const (
 	treeLastBranch = "└─ "
 	treePipe       = "│  " // vertical line for ongoing branches
 	treeSpace      = "   " // empty space for completed branches
-	treeIndent     = 3     // width of connector
 )
-
-// calculateMaxDepth returns the maximum depth of the tree.
-func calculateMaxDepth(nodes []*TreeNode) int {
-	maxDepth := 0
-	for _, node := range nodes {
-		depth := 1 + calculateMaxDepth(node.Children)
-		if depth > maxDepth {
-			maxDepth = depth
-		}
-	}
-	return maxDepth
-}
 
 // RenderTree renders the tree as an ASCII tree with styled columns.
 // termWidth is used to calculate responsive column widths.
 func RenderTree(nodes []*TreeNode, cfg *config.Config, maxIDWidth int, hasTags bool, termWidth int) string {
 	var sb strings.Builder
 
-	// Calculate max depth to determine ID column width
-	maxDepth := calculateMaxDepth(nodes)
-	// ID column needs: indent (3 chars per level beyond depth 1) + connector (3 chars) + ID width
-	// depth 0: 0 extra chars
-	// depth 1: 3 chars (connector only)
-	// depth 2: 6 chars (3 indent + 3 connector)
-	// depth N: (N-1)*3 + 3 = N*3 chars
-	treeColWidth := maxIDWidth
-	if maxDepth > 0 {
-		treeColWidth = maxIDWidth + maxDepth*treeIndent
-	}
+	cols := CalculateResponsiveColumns(termWidth, hasTags)
 
-	// Calculate responsive columns based on terminal width
-	// Adjust for tree column width vs default ID column width
-	adjustedWidth := termWidth - treeColWidth + ColWidthID
-	cols := CalculateResponsiveColumns(adjustedWidth, hasTags)
-
-	// Calculate title width from remaining space
-	// Account for: tree/ID col, type col, status col, size col, priority symbol (2), space before tags (1)
-	titleWidth := termWidth - treeColWidth - ColWidthType - ColWidthStatus - ColWidthSize - 3
+	// The title column takes what's left after the other columns, the space
+	// after it and a margin; tree prefixes are indented within it
+	titleWidth := termWidth - ColWidthType - ColWidthStatus - ColWidthSize - maxIDWidth - 2
 	if cols.ShowTags {
 		titleWidth -= cols.Tags
 	}
-	if titleWidth < 20 {
-		titleWidth = 20
-	}
+	titleWidth = max(titleWidth, 20)
 
 	// Header with manual padding (lipgloss Width doesn't handle styled strings well)
 	headerCol := lipgloss.NewStyle().Foreground(ColorMuted)
-	idHeader := headerCol.Render("ID") + strings.Repeat(" ", treeColWidth-2)
-	typeHeader := headerCol.Render("TYPE") + strings.Repeat(" ", ColWidthType-4)
-	statusHeader := headerCol.Render("STATUS") + strings.Repeat(" ", ColWidthStatus-6)
-
-	sizeHeader := headerCol.Render("SZ") + strings.Repeat(" ", ColWidthSize-2)
-
-	header := idHeader + typeHeader + statusHeader + sizeHeader + headerCol.Render("TITLE")
-	if cols.ShowTags && titleWidth > 5 {
-		header += strings.Repeat(" ", titleWidth-5+3) + headerCol.Render("TAGS") // +3 for priority/spacing
+	pad := func(label string, width int) string {
+		return headerCol.Render(label) + strings.Repeat(" ", max(1, width-len(label)))
 	}
+	padLeft := func(label string, width int) string {
+		return strings.Repeat(" ", max(0, width-1-len(label))) + headerCol.Render(label) + " "
+	}
+	header := padLeft("STATUS", ColWidthStatus) + padLeft("TYPE", ColWidthType) + pad("TITLE", titleWidth+1)
+	if cols.ShowTags {
+		header += pad("TAGS", cols.Tags)
+	}
+	header += pad("SZ", ColWidthSize) + headerCol.Render("ID")
 	dividerWidth := termWidth - 1 // -1 to avoid wrapping on exact terminal width
 	sb.WriteString(header)
 	sb.WriteString("\n")
@@ -220,9 +191,8 @@ func RenderTree(nodes []*TreeNode, cfg *config.Config, maxIDWidth int, hasTags b
 
 	// Build render config from responsive columns
 	renderCfg := treeRenderConfig{
-		treeColWidth: treeColWidth,
-		titleWidth:   titleWidth,
-		cols:         cols,
+		titleWidth: titleWidth,
+		cols:       cols,
 	}
 
 	// Render nodes (depth 0 = root level, no ancestry yet)
@@ -233,9 +203,8 @@ func RenderTree(nodes []*TreeNode, cfg *config.Config, maxIDWidth int, hasTags b
 
 // treeRenderConfig holds computed rendering configuration for tree output
 type treeRenderConfig struct {
-	treeColWidth int
-	titleWidth   int
-	cols         ResponsiveColumns
+	titleWidth int
+	cols       ResponsiveColumns
 }
 
 // renderNodes recursively renders tree nodes with proper indentation.
@@ -286,7 +255,6 @@ func renderNode(sb *strings.Builder, node *TreeNode, depth int, isLast bool, anc
 		TreePrefix:    prefix,
 		Dimmed:        !node.Matched,
 		TitleMuted:    !b.HasTitle(),
-		IDColWidth:    renderCfg.treeColWidth,
 	})
 
 	sb.WriteString(row)
@@ -363,15 +331,4 @@ func flattenNodes(nodes []*TreeNode, depth int, ancestry []bool, collapsedBeans 
 			flattenNodes(node.Children, depth+1, newAncestry, collapsedBeans, items)
 		}
 	}
-}
-
-// MaxTreeDepth returns the maximum depth of the flattened tree.
-func MaxTreeDepth(items []FlatItem) int {
-	maxDepth := 0
-	for _, item := range items {
-		if item.Depth > maxDepth {
-			maxDepth = item.Depth
-		}
-	}
-	return maxDepth
 }

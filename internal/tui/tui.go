@@ -82,6 +82,8 @@ type App struct {
 	panes              map[layout.ID]pane
 	list               listModel
 	ctx                contextModel
+	logDetail          logDetailModel
+	ctxPane            contextPane // shows ctx or logDetail
 	deps               depNavModel
 	tagPicker          tagPickerModel
 	parentPicker       parentPickerModel
@@ -151,6 +153,7 @@ func New(core *beancore.Core, cfg *config.Config) *App {
 		deps:        newDepNavModel(resolver, cfg),
 		keyWarnings: warnings,
 	}
+	a.ctxPane = contextPane{bean: &a.ctx, run: &a.logDetail}
 	a.panes = a.newPanes()
 	return a
 }
@@ -211,7 +214,9 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 			}
 		case key.Matches(msg, keymap.Global.OpenLog):
 			if a.state == viewList && a.canQuit() {
-				return a.openLatestLog()
+				if e := a.log.latest(); e != nil {
+					return a.openLog(e.logPath)
+				}
 			}
 		}
 		if a.state == viewList && !a.typingText() && a.handleLayoutKey(msg) {
@@ -788,6 +793,18 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case focusBackMsg:
 		a.ws.back()
 		return nil
+
+	case titleScrollMsg:
+		// Even behind a modal, so the scroll doesn't stall
+		a.list, cmd = a.list.Update(msg)
+		return cmd
+
+	case focusContextMsg:
+		a.ws.focusPane(paneContext)
+		return nil
+
+	case openLogMsg:
+		return a.openLog(msg.path)
 	}
 
 	// Forward all messages to the current view
@@ -869,6 +886,12 @@ func (a *App) handleLayoutKey(msg tea.KeyMsg) bool {
 	case key.Matches(msg, k.ToggleLog):
 		a.ws.toggle(paneLog)
 	default:
+		for id, b := range paneKeys() {
+			if key.Matches(msg, b) {
+				a.ws.focusPane(id)
+				return true
+			}
+		}
 		return false
 	}
 	return true
@@ -890,7 +913,7 @@ func (a *App) focusedPane() pane {
 // syncPanes brings the panes in line with the layout after an update: it
 // shows the log when a run asks for it, sizes the panes to their areas, roots
 // a newly shown dependency graph at the context's bean, and points the
-// context at the focused list or dependency graph's bean.
+// context at the focused list or dependency graph's bean, or the log's run.
 func (a *App) syncPanes() {
 	if a.log.takeReveal() {
 		a.ws.show(paneLog)
@@ -907,17 +930,25 @@ func (a *App) syncPanes() {
 	}
 	a.depsShown = depsShown
 
-	if source, ok := a.focusedPane().(selectionSource); ok {
+	switch source := a.focusedPane().(type) {
+	case selectionSource:
 		a.showInContext(source.selection())
+	case runSource:
+		a.ctxPane.showRun = true
+		a.logDetail.setEntry(source.selectedRun())
+	default:
+		if a.ctxPane.showRun && a.logDetail.entry != nil {
+			// Keep up with the shown run's output
+			a.logDetail.setEntry(a.log.entry(a.logDetail.entry.id))
+		}
 	}
-
 }
 
 // refreshPanes re-reads the beans shown in the context and dependency graph
 // after the beans were reloaded.
 func (a *App) refreshPanes() {
 	if b := a.ctx.bean; b != nil {
-		a.showInContext(a.list.beansByID[b.ID])
+		a.setContextBean(a.list.beansByID[b.ID])
 	}
 	if a.deps.root != nil && !a.deps.reload() {
 		// The root is gone; start over from the context's bean
@@ -930,6 +961,12 @@ func (a *App) refreshPanes() {
 
 // showInContext shows b (or nothing, if nil) in the context pane.
 func (a *App) showInContext(b *bean.Bean) {
+	a.ctxPane.showRun = false
+	a.setContextBean(b)
+}
+
+// setContextBean sets the bean of the context pane, whether it shows it or a run.
+func (a *App) setContextBean(b *bean.Bean) {
 	if b == nil {
 		a.ctx.setBean(nil, previewContext{})
 		return
@@ -961,7 +998,11 @@ func (a *App) drawPane(r layout.Rect) string {
 	if r.ID == a.ws.focus {
 		border = focusedPaneBorderStyle
 	}
-	return layout.Frame(p.title(), p.View(), r.W, r.H, border)
+	title := p.title()
+	if k := primaryKey(paneKeys()[r.ID]); k != "" {
+		title = "[" + k + "] " + title
+	}
+	return layout.Frame(title, p.View(), r.W, r.H, border)
 }
 
 // footer renders the notice, the layout hints and the focused pane's hints,
@@ -1217,13 +1258,12 @@ func (a *App) logStartFailure(l launcher, beanID string, err error) tea.Cmd {
 	}
 }
 
-// openLatestLog opens the latest run's full output in the user's editor.
-func (a *App) openLatestLog() tea.Cmd {
-	e := a.log.latest()
-	if e == nil || e.logPath == "" {
+// openLog opens a run's output in the user's editor.
+func (a *App) openLog(path string) tea.Cmd {
+	if path == "" {
 		return nil
 	}
-	c := exec.Command(getEditor(), e.logPath)
+	c := exec.Command(getEditor(), path)
 	a.quitting = true
 	return tea.ExecProcess(c, func(error) tea.Msg {
 		a.quitting = false
