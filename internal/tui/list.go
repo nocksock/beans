@@ -849,8 +849,8 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 	return title
 }
 
-// Footer renders the list's hints for the footer
-func (m listModel) Footer() string {
+// footer renders the list's hints for the footer
+func (m listModel) footer() string {
 	var help string
 
 	k := keymap.List

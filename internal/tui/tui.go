@@ -82,6 +82,7 @@ type openParentPickerMsg struct {
 type App struct {
 	state              viewState
 	ws                 workspace // pane layout and focus
+	panes              map[layout.ID]pane
 	list               listModel
 	ctx                contextModel
 	deps               depNavModel
@@ -142,7 +143,7 @@ func New(core *beancore.Core, cfg *config.Config) *App {
 	if err != nil {
 		keymap = DefaultKeyMap()
 	}
-	return &App{
+	a := &App{
 		state:       viewList,
 		ws:          newWorkspace(),
 		core:        core,
@@ -153,6 +154,8 @@ func New(core *beancore.Core, cfg *config.Config) *App {
 		deps:        newDepNavModel(resolver, cfg),
 		keyWarnings: warnings,
 	}
+	a.panes = a.newPanes()
+	return a
 }
 
 // Init initializes the application
@@ -782,7 +785,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 
 	case selectBeanMsg:
 		// Show the bean in the context pane and move there
-		a.ctx.setBean(msg.bean, a.list.previewContextFor(msg.bean))
+		a.showInContext(msg.bean)
 		a.ws.focusPane(paneContext)
 		return nil
 
@@ -878,19 +881,14 @@ func (a *App) handleLayoutKey(msg tea.KeyMsg) bool {
 // updatePanes sends keys to the focused pane. Other messages (e.g. the list's
 // filter results) go to the list, the only pane that has async work.
 func (a *App) updatePanes(msg tea.Msg) tea.Cmd {
-	var cmd tea.Cmd
 	if _, ok := msg.(tea.KeyMsg); ok {
-		switch a.ws.focus {
-		case paneContext:
-			a.ctx, cmd = a.ctx.Update(msg)
-			return cmd
-		case paneDepGraph:
-			a.deps, cmd = a.deps.Update(msg)
-			return cmd
-		}
+		return a.focusedPane().update(msg)
 	}
-	a.list, cmd = a.list.Update(msg)
-	return cmd
+	return a.panes[paneList].update(msg)
+}
+
+func (a *App) focusedPane() pane {
+	return a.panes[a.ws.focus]
 }
 
 // syncPanes brings the panes in line with the layout after an update: it
@@ -904,15 +902,7 @@ func (a *App) syncPanes() {
 
 	// Size first, so the panes below scroll for their actual height
 	for _, r := range a.ws.arrange(a.width, a.panesHeight()).Rects() {
-		w, h := max(r.W-2, 0), max(r.H-2, 0) // inside the frame
-		switch r.ID {
-		case paneList:
-			a.list.setSize(w, h)
-		case paneContext:
-			a.ctx.setSize(w, h)
-		case paneDepGraph:
-			a.deps.setSize(w, h)
-		}
+		a.panes[r.ID].setSize(max(r.W-2, 0), max(r.H-2, 0)) // inside the frame
 	}
 
 	depsShown := a.ws.isVisible(paneDepGraph)
@@ -921,13 +911,8 @@ func (a *App) syncPanes() {
 	}
 	a.depsShown = depsShown
 
-	switch a.ws.focus {
-	case paneList:
-		a.ctx.setBean(a.list.previewData())
-	case paneDepGraph:
-		if b := a.deps.selectedBean(); b != nil {
-			a.ctx.setBean(b, a.list.previewContextFor(b))
-		}
+	if source, ok := a.focusedPane().(selectionSource); ok {
+		a.showInContext(source.selection())
 	}
 
 }
@@ -936,11 +921,7 @@ func (a *App) syncPanes() {
 // after the beans were reloaded.
 func (a *App) refreshPanes() {
 	if b := a.ctx.bean; b != nil {
-		if fresh, ok := a.list.beansByID[b.ID]; ok {
-			a.ctx.setBean(fresh, a.list.previewContextFor(fresh))
-		} else {
-			a.ctx.setBean(nil, previewContext{})
-		}
+		a.showInContext(a.list.beansByID[b.ID])
 	}
 	if a.deps.root != nil && !a.deps.reload() {
 		// The root is gone; start over from the context's bean
@@ -949,6 +930,15 @@ func (a *App) refreshPanes() {
 			a.deps.focus(a.ctx.bean)
 		}
 	}
+}
+
+// showInContext shows b (or nothing, if nil) in the context pane.
+func (a *App) showInContext(b *bean.Bean) {
+	if b == nil {
+		a.ctx.setBean(nil, previewContext{})
+		return
+	}
+	a.ctx.setBean(b, a.list.previewContextFor(b))
 }
 
 // panesHeight is the height of the panes, above the footer.
@@ -970,36 +960,17 @@ func (a *App) mainView() string {
 
 // drawPane renders a pane in its frame, highlighted when focused.
 func (a *App) drawPane(r layout.Rect) string {
-	var title, body string
-	switch r.ID {
-	case paneList:
-		title, body = a.list.title(), a.list.View()
-	case paneContext:
-		title, body = a.ctx.title(), a.ctx.View()
-	case paneDepGraph:
-		title, body = a.deps.title(), a.deps.View()
-	case paneLog:
-		title, body = "Log", a.log.View(r.W-2, r.H-2)
-	}
+	p := a.panes[r.ID]
 	border := paneBorderStyle
 	if r.ID == a.ws.focus {
 		border = focusedPaneBorderStyle
 	}
-	return layout.Frame(title, body, r.W, r.H, border)
+	return layout.Frame(p.title(), p.View(), r.W, r.H, border)
 }
 
 // footer renders the notice, the layout hints and the focused pane's hints,
 // cut to the screen width.
 func (a *App) footer() string {
-	var pane string
-	switch a.ws.focus {
-	case paneList:
-		pane = a.list.Footer()
-	case paneContext:
-		pane = a.ctx.footer()
-	case paneDepGraph:
-		pane = a.deps.footer()
-	}
 	g, k := keymap.Global, keymap.Layout
 	line := a.list.noticeView() + hints(
 		groupHint("layout", k.NextPreset, k.PrevPreset),
@@ -1009,7 +980,7 @@ func (a *App) footer() string {
 		hint(k.ToggleLog, ""),
 		hint(g.Help, ""),
 		hint(g.Quit, ""),
-		helpStyle.Render("│")+"  "+pane,
+		helpStyle.Render("│")+"  "+a.focusedPane().footer(),
 	)
 	return ansi.Truncate(line, a.width, "…")
 }
@@ -1046,13 +1017,7 @@ func (a *App) chordBindings() []key.Binding {
 	switch a.state {
 	case viewList:
 		shared := append(allBindings(keymap.Global), allBindings(keymap.Layout)...)
-		switch a.ws.focus {
-		case paneContext:
-			return append(shared, allBindings(keymap.Context)...)
-		case paneDepGraph:
-			return append(shared, allBindings(keymap.DepGraph)...)
-		}
-		return append(shared, allBindings(keymap.List)...)
+		return append(shared, a.focusedPane().bindings()...)
 	case viewHelpOverlay:
 		return allBindings(keymap.Help)
 	case viewTagPicker, viewParentPicker, viewStatusPicker, viewTypePicker, viewBlockingPicker, viewPriorityPicker, viewSizePicker, viewLauncherPicker:
@@ -1083,7 +1048,7 @@ func (a *App) typingText() bool {
 func (a *App) canQuit() bool {
 	switch a.state {
 	case viewList:
-		return a.ws.focus != paneList || a.list.list.FilterState() != list.Filtering
+		return !a.focusedPane().typing()
 	case viewTagPicker:
 		return a.tagPicker.list.FilterState() != list.Filtering
 	case viewParentPicker:
