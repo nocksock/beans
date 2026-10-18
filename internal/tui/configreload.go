@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -39,12 +38,6 @@ func (a *App) reloadConfig() tea.Cmd {
 	a.core.ReplaceConfig(cfg)
 	if a.config != a.core.Config() {
 		*a.config = *cfg
-	}
-
-	if a.state == viewDetail {
-		if updated, err := a.resolver.Query().Bean(context.Background(), a.detail.bean.ID); err == nil && updated != nil {
-			a.detail = newDetailModel(updated, a.resolver, a.config, a.width, a.height)
-		}
 	}
 
 	if len(keyWarnings) > 0 {

@@ -146,106 +146,104 @@ func depNavIDs(m depNavModel) []string {
 	return ids
 }
 
-func TestDepNav(t *testing.T) {
+func TestDepGraphPane(t *testing.T) {
 	app, beans := newDepNavTestApp(t)
 	id := func(name string) string { return beans[name].ID }
 
-	t.Run("D in list opens the navigator", func(t *testing.T) {
-		_, cmd := app.Update(keyMsg("D"))
-		if cmd == nil {
-			t.Fatal("expected command from D key")
-		}
-		if _, ok := cmd().(openDepNavMsg); !ok {
-			t.Fatalf("got %#v, want openDepNavMsg", cmd())
-		}
-	})
+	pump(app, selectBeanMsg{bean: beans["focus"]})
+	pump(app, keyMsg("+"))
 
-	app.Update(openDepNavMsg{bean: beans["focus"]})
-
-	t.Run("shows open dependencies with cursor on focus", func(t *testing.T) {
-		if app.state != viewDepNav {
-			t.Fatalf("state = %v, want viewDepNav", app.state)
+	t.Run("+ on the context shows the graph rooted at its bean", func(t *testing.T) {
+		if !app.ws.isVisible(paneDepGraph) {
+			t.Fatalf("visible = %v, want the dependency graph", app.ws.visiblePanes())
 		}
 		want := []string{id("blocker"), id("focus"), id("blocked")}
-		if got := depNavIDs(app.depNav); !slices.Equal(got, want) {
+		if got := depNavIDs(app.deps); !slices.Equal(got, want) {
 			t.Errorf("rows = %v, want %v", got, want)
 		}
-		if b := app.depNav.selectedBean(); b == nil || b.ID != id("focus") {
+		if b := app.deps.selectedBean(); b == nil || b.ID != id("focus") {
 			t.Errorf("selected = %v, want focus", b)
 		}
 		view := app.View()
-		for _, s := range []string{"blocked by", "blocks", id("blocker")} {
+		for _, s := range []string{"blocked by", "blocks", id("blocker"), "Dependencies of " + id("focus")} {
 			if !strings.Contains(view, s) {
 				t.Errorf("view lacks %q", s)
 			}
 		}
 	})
 
+	pump(app, keyMsg("tab"))
+	if app.ws.focus != paneDepGraph {
+		t.Fatalf("focus = %v, want the dependency graph", app.ws.focus)
+	}
+
 	t.Run("A shows completed beans", func(t *testing.T) {
-		app.Update(keyMsg("A"))
+		pump(app, keyMsg("A"))
 		want := []string{id("blocker"), id("done"), id("focus"), id("blocked")}
-		if got := depNavIDs(app.depNav); !slices.Equal(got, want) {
+		if got := depNavIDs(app.deps); !slices.Equal(got, want) {
 			t.Errorf("rows = %v, want %v", got, want)
 		}
-		app.Update(keyMsg("A"))
+		pump(app, keyMsg("A"))
 	})
 
-	t.Run("cursor skips headings", func(t *testing.T) {
-		app.Update(keyMsg("k"))
-		if b := app.depNav.selectedBean(); b == nil || b.ID != id("blocker") {
+	t.Run("cursor skips headings and drives the context", func(t *testing.T) {
+		pump(app, keyMsg("k"))
+		if b := app.deps.selectedBean(); b == nil || b.ID != id("blocker") {
 			t.Fatalf("selected = %v, want blocker", b)
 		}
-		app.Update(keyMsg("k"))
-		if b := app.depNav.selectedBean(); b == nil || b.ID != id("blocker") {
+		if app.ctx.bean.ID != id("blocker") {
+			t.Errorf("context = %s, want blocker", app.ctx.bean.ID)
+		}
+		pump(app, keyMsg("k"))
+		if b := app.deps.selectedBean(); b == nil || b.ID != id("blocker") {
 			t.Errorf("selected = %v, want blocker to stay", b)
 		}
 	})
 
-	t.Run("enter opens detail and back returns to navigator", func(t *testing.T) {
-		_, cmd := app.Update(keyMsg("enter"))
-		app.Update(cmd())
-		if app.state != viewDetail || app.detail.bean.ID != id("blocker") {
-			t.Fatalf("state = %v, detail = %s; want detail of blocker", app.state, app.detail.bean.ID)
-		}
-		app.Update(backToListMsg{})
-		if app.state != viewDepNav {
-			t.Fatalf("state = %v, want viewDepNav", app.state)
-		}
-		if b := app.depNav.selectedBean(); b == nil || b.ID != id("blocker") {
-			t.Errorf("selected = %v, want blocker", b)
-		}
-	})
-
-	t.Run("D refocuses on the selected bean", func(t *testing.T) {
-		app.Update(keyMsg("D"))
-		if app.depNav.root.ID != id("blocker") {
-			t.Fatalf("root = %s, want blocker", app.depNav.root.ID)
+	t.Run("enter refocuses on the selected bean and moves to the context", func(t *testing.T) {
+		pump(app, keyMsg("enter"))
+		if app.deps.root.ID != id("blocker") {
+			t.Fatalf("root = %s, want blocker", app.deps.root.ID)
 		}
 		want := []string{id("blocker"), id("focus"), id("blocked")}
-		if got := depNavIDs(app.depNav); !slices.Equal(got, want) {
+		if got := depNavIDs(app.deps); !slices.Equal(got, want) {
 			t.Errorf("rows = %v, want %v", got, want)
 		}
-	})
-
-	t.Run("esc returns to the list", func(t *testing.T) {
-		_, cmd := app.Update(keyMsg("esc"))
-		app.Update(cmd())
-		if app.state != viewList {
-			t.Errorf("state = %v, want viewList", app.state)
+		if app.ws.focus != paneContext {
+			t.Errorf("focus = %v, want the context", app.ws.focus)
+		}
+		if app.ctx.bean.ID != id("blocker") {
+			t.Errorf("context = %s, want blocker", app.ctx.bean.ID)
 		}
 	})
 
-	t.Run("opened from detail, esc restores that detail", func(t *testing.T) {
-		app.Update(selectBeanMsg{bean: beans["blocked"]})
-		app.Update(openDepNavMsg{bean: beans["blocked"]})
-		app.Update(keyMsg("k"))
-		_, cmd := app.Update(keyMsg("enter"))
-		app.Update(cmd())
-		app.Update(backToListMsg{})
-		_, cmd = app.Update(keyMsg("esc"))
-		app.Update(cmd())
-		if app.state != viewDetail || app.detail.bean.ID != id("blocked") {
-			t.Errorf("state = %v, detail = %s; want detail of blocked", app.state, app.detail.bean.ID)
+	t.Run("esc returns to the graph", func(t *testing.T) {
+		pump(app, keyMsg("esc"))
+		if app.ws.focus != paneDepGraph {
+			t.Errorf("focus = %v, want the dependency graph", app.ws.focus)
+		}
+		pump(app, keyMsg("esc"))
+		if app.ws.focus != paneContext {
+			t.Errorf("focus = %v, want the context", app.ws.focus)
+		}
+	})
+
+	t.Run("D hides the graph", func(t *testing.T) {
+		pump(app, keyMsg("D"))
+		if app.ws.isVisible(paneDepGraph) {
+			t.Errorf("visible = %v, want no dependency graph", app.ws.visiblePanes())
+		}
+	})
+
+	t.Run("D in the list roots the graph at the list's bean", func(t *testing.T) {
+		pump(app, keyMsg("esc"))
+		if app.ws.focus != paneList {
+			t.Fatalf("focus = %v, want the list", app.ws.focus)
+		}
+		pump(app, keyMsg("D"))
+		selected, _ := app.list.previewData()
+		if app.deps.root == nil || app.deps.root.ID != selected.ID {
+			t.Errorf("root = %v, want the list's bean %s", app.deps.root, selected.ID)
 		}
 	})
 }

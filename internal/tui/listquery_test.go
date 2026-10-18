@@ -82,8 +82,8 @@ func TestListFilterQueryEscWhileTyping(t *testing.T) {
 
 	openQuery(app)
 	typeQuery(app, "size:huge")
-	if !strings.Contains(app.list.Footer(), `unknown size "huge"`) {
-		t.Errorf("footer should warn about the unknown value, got %q", app.list.Footer())
+	if !strings.Contains(app.footer(), `unknown size "huge"`) {
+		t.Errorf("footer should warn about the unknown value, got %q", app.footer())
 	}
 
 	press(app, "esc")

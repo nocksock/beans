@@ -161,26 +161,23 @@ func TestEditModalView(t *testing.T) {
 
 func TestEditKeysOpenPopupOrEditor(t *testing.T) {
 	tests := []struct {
-		name   string
-		detail bool
-		key    string
-		want   string
+		name    string
+		context bool
+		key     string
+		want    string
 	}{
 		{"list e", false, "e", "popup"},
 		{"list E", false, "E", "editor"},
-		{"detail e", true, "e", "popup"},
-		{"detail E", true, "E", "editor"},
+		{"context e", true, "e", "popup"},
+		{"context E", true, "E", "editor"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app, _ := newTestApp(t)
-			if tt.detail {
-				_, cmd := app.Update(keyMsg("v"))
-				if cmd != nil {
-					app.Update(cmd())
-				}
-				if app.state != viewDetail {
-					t.Fatalf("state = %v, want detail", app.state)
+			if tt.context {
+				app.Update(keyMsg("tab"))
+				if app.ws.focus != paneContext {
+					t.Fatalf("focus = %v, want context", app.ws.focus)
 				}
 			}
 			_, cmd := app.Update(keyMsg(tt.key))
@@ -248,22 +245,21 @@ func TestBeanEditedUnchangedDoesNotTouchBean(t *testing.T) {
 	}
 }
 
-func TestBeanEditedFromDetailRefreshesDetail(t *testing.T) {
+func TestBeanEditedFromContextRefreshesContext(t *testing.T) {
 	app, _ := newTestApp(t)
-	_, cmd := app.Update(keyMsg("v"))
-	app.Update(cmd())
-	target := app.detail.bean.ID
-	_, cmd = app.Update(keyMsg("e"))
+	app.Update(keyMsg("tab"))
+	target := app.ctx.bean.ID
+	_, cmd := app.Update(keyMsg("e"))
 	app.Update(cmd())
 
-	title := "Renamed in detail"
+	title := "Renamed in context"
 	msg := beanEditedMsg{beanID: target}
 	msg.input.Title = &title
-	app.Update(msg)
-	if app.state != viewDetail {
-		t.Fatalf("state = %v, want detail", app.state)
+	pump(app, msg)
+	if app.state != viewList || app.ws.focus != paneContext {
+		t.Fatalf("state = %v, focus = %v, want context pane", app.state, app.ws.focus)
 	}
-	if app.detail.bean.Title != title {
-		t.Errorf("detail title = %q, want %q", app.detail.bean.Title, title)
+	if app.ctx.bean.Title != title {
+		t.Errorf("context title = %q, want %q", app.ctx.bean.Title, title)
 	}
 }

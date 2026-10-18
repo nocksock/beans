@@ -10,7 +10,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/hmans/beans/internal/config"
 )
@@ -25,9 +24,10 @@ import (
 // "space" for the space bar. Keys separated by spaces form a chord ("g t").
 type KeyMap struct {
 	Global             GlobalKeyMap
+	Layout             LayoutKeyMap
 	List               ListKeyMap
-	Detail             DetailKeyMap
-	DepNav             DepNavKeyMap
+	Context            ContextKeyMap
+	DepGraph           DepGraphKeyMap
 	Help               HelpKeyMap
 	Picker             PickerKeyMap
 	TagEditor          TagEditorKeyMap
@@ -36,12 +36,24 @@ type KeyMap struct {
 	ConfigureLaunchers ConfigureLaunchersKeyMap
 }
 
-// GlobalKeyMap holds bindings available in the list and detail views.
+// GlobalKeyMap holds bindings available in every pane.
 type GlobalKeyMap struct {
 	Quit         key.Binding
 	ForceQuit    key.Binding // works everywhere
 	Help         key.Binding
 	ReloadConfig key.Binding
+	OpenLog      key.Binding
+}
+
+// LayoutKeyMap holds bindings that arrange the panes, available in every pane.
+type LayoutKeyMap struct {
+	NextPreset     key.Binding
+	PrevPreset     key.Binding
+	FocusNext      key.Binding
+	FocusPrev      key.Binding
+	ToggleContext  key.Binding
+	ToggleDepGraph key.Binding
+	ToggleLog      key.Binding
 }
 
 // ListKeyMap holds bindings for the bean list.
@@ -55,7 +67,6 @@ type ListKeyMap struct {
 	Filter    key.Binding
 
 	Open            key.Binding
-	View            key.Binding
 	Back            key.Binding
 	ToggleSelect    key.Binding
 	Collapse        key.Binding
@@ -77,32 +88,24 @@ type ListKeyMap struct {
 	ChangeParent    key.Binding
 	ManageBlocking  key.Binding
 	ManageBlockedBy key.Binding
-	Dependencies    key.Binding
 	Launch          key.Binding
 	Archive         key.Binding
 	ToggleArchived  key.Binding
 	ToggleScope     key.Binding
-	ToggleLog       key.Binding
-	OpenLog         key.Binding
 }
 
-// DetailKeyMap holds bindings for the bean detail view.
-type DetailKeyMap struct {
+// ContextKeyMap holds bindings for the context pane showing a bean.
+type ContextKeyMap struct {
 	ScrollUp     key.Binding
 	ScrollDown   key.Binding
-	ScrollLeft   key.Binding
-	ScrollRight  key.Binding
 	PageUp       key.Binding
 	PageDown     key.Binding
 	HalfPageUp   key.Binding
 	HalfPageDown key.Binding
-	FilterLinks  key.Binding
+	GoToStart    key.Binding
+	GoToEnd      key.Binding
+	Back         key.Binding
 
-	Back            key.Binding
-	PrevBean        key.Binding
-	NextBean        key.Binding
-	ToggleFocus     key.Binding
-	FollowLink      key.Binding
 	Edit            key.Binding
 	OpenEditor      key.Binding
 	ChangeStatus    key.Binding
@@ -113,16 +116,14 @@ type DetailKeyMap struct {
 	ChangeParent    key.Binding
 	ManageBlocking  key.Binding
 	ManageBlockedBy key.Binding
-	Dependencies    key.Binding
 	Launch          key.Binding
 	Archive         key.Binding
 }
 
-// DepNavKeyMap holds bindings for the dependency navigator.
-type DepNavKeyMap struct {
+// DepGraphKeyMap holds bindings for the dependency graph pane.
+type DepGraphKeyMap struct {
 	Up         key.Binding
 	Down       key.Binding
-	Open       key.Binding
 	Refocus    key.Binding
 	ToggleDone key.Binding
 	Back       key.Binding
@@ -206,6 +207,16 @@ func DefaultKeyMap() KeyMap {
 			ForceQuit:    bind("force quit", "ctrl+c"),
 			Help:         bind("help", "?"),
 			ReloadConfig: bind("reload config", "R"),
+			OpenLog:      bind("open log", "O"),
+		},
+		Layout: LayoutKeyMap{
+			NextPreset:     bind("next layout", "+", "="),
+			PrevPreset:     bind("previous layout", "-"),
+			FocusNext:      bind("next pane", "tab"),
+			FocusPrev:      bind("previous pane", "shift+tab"),
+			ToggleContext:  bind("details", "v"),
+			ToggleDepGraph: bind("dependencies", "D"),
+			ToggleLog:      bind("log", "L"),
 		},
 		List: ListKeyMap{
 			Up:        bind("up", "up", "k"),
@@ -217,7 +228,6 @@ func DefaultKeyMap() KeyMap {
 			Filter:    bind("filter", "/"),
 
 			Open:            bind("open", "enter"),
-			View:            bind("view", "v"),
 			Back:            bind("back", "esc", "backspace"),
 			ToggleSelect:    bind("select", " "),
 			Collapse:        bind("collapse", "h"),
@@ -239,30 +249,22 @@ func DefaultKeyMap() KeyMap {
 			ChangeParent:    bind("parent", "p"),
 			ManageBlocking:  bind("blocking", "b"),
 			ManageBlockedBy: bind("blocked by", "B"),
-			Dependencies:    bind("dependencies", "D"),
 			Launch:          bind("launch", "!"),
 			Archive:         bind("archive", "Y"),
 			ToggleArchived:  bind("show archived", "A"),
 			ToggleScope:     bind("show all scopes", "g s"),
-			ToggleLog:       bind("log", "L"),
-			OpenLog:         bind("open log", "O"),
 		},
-		Detail: DetailKeyMap{
+		Context: ContextKeyMap{
 			ScrollUp:     bind("scroll up", "up", "k"),
 			ScrollDown:   bind("scroll down", "down", "j"),
-			ScrollLeft:   bind("scroll left", "left"),
-			ScrollRight:  bind("scroll right", "right"),
 			PageUp:       bind("page up", "pgup"),
 			PageDown:     bind("page down", "pgdown", " ", "f"),
 			HalfPageUp:   bind("½ page up", "u", "ctrl+u"),
 			HalfPageDown: bind("½ page down", "d", "ctrl+d"),
-			FilterLinks:  bind("filter", "/"),
+			GoToStart:    bind("top", "home", "g"),
+			GoToEnd:      bind("bottom", "end", "G"),
+			Back:         bind("back", "esc", "backspace"),
 
-			Back:            bind("back", "esc", "backspace"),
-			PrevBean:        bind("prev bean", "h"),
-			NextBean:        bind("next bean", "l"),
-			ToggleFocus:     bind("switch", "tab"),
-			FollowLink:      bind("go to", "enter"),
 			Edit:            bind("edit", "e"),
 			OpenEditor:      bind("$EDITOR", "E"),
 			ChangeStatus:    bind("status", "s"),
@@ -273,15 +275,13 @@ func DefaultKeyMap() KeyMap {
 			ChangeParent:    bind("parent", "p"),
 			ManageBlocking:  bind("blocking", "b"),
 			ManageBlockedBy: bind("blocked by", "B"),
-			Dependencies:    bind("dependencies", "D"),
 			Launch:          bind("launch", "!"),
 			Archive:         bind("archive", "Y"),
 		},
-		DepNav: DepNavKeyMap{
+		DepGraph: DepGraphKeyMap{
 			Up:         bind("up", "up", "k"),
 			Down:       bind("down", "down", "j"),
-			Open:       bind("open", "enter"),
-			Refocus:    bind("focus", "D"),
+			Refocus:    bind("open", "enter"),
 			ToggleDone: bind("show done", "A"),
 			Back:       bind("back", "esc", "backspace"),
 		},
@@ -376,18 +376,19 @@ func normalizeKeys(keys []string) []string {
 }
 
 // conflicts lists keys bound to more than one action within a context (the
-// list and detail views include the global bindings), and keys that are also
-// the start of a chord there.
+// panes include the global and layout bindings), and keys that are also the
+// start of a chord there.
 func (km KeyMap) conflicts() []string {
 	root := reflect.ValueOf(km)
-	global := root.FieldByName("Global")
+	shared := append(contextBindings(root.FieldByName("Global"), "global."),
+		contextBindings(root.FieldByName("Layout"), "layout.")...)
 
 	var warnings []string
 	for i := 0; i < root.NumField(); i++ {
 		ctxName := configName(root.Type().Field(i).Name)
 		bindings := contextBindings(root.Field(i), "")
-		if ctxName == "list" || ctxName == "detail" || ctxName == "depNav" {
-			bindings = append(contextBindings(global, "global."), bindings...)
+		if paneContexts[ctxName] {
+			bindings = append(append([]namedBinding(nil), shared...), bindings...)
 		}
 
 		owners := map[string][]string{}
@@ -413,6 +414,10 @@ func (km KeyMap) conflicts() []string {
 	}
 	return warnings
 }
+
+// paneContexts are the contexts of panes, where the global and layout
+// bindings apply too.
+var paneContexts = map[string]bool{"list": true, "context": true, "depGraph": true}
 
 type namedBinding struct {
 	name    string
@@ -529,21 +534,6 @@ func listKeyMap(up, down, prevPage, nextPage, goToStart, goToEnd, filter key.Bin
 func pickerListKeyMap() list.KeyMap {
 	k := keymap.Picker
 	return listKeyMap(k.Up, k.Down, k.PrevPage, k.NextPage, k.GoToStart, k.GoToEnd, k.Filter)
-}
-
-// detailViewportKeyMap returns the bubbles viewport key map for the detail body.
-func detailViewportKeyMap() viewport.KeyMap {
-	k := keymap.Detail
-	return viewport.KeyMap{
-		PageDown:     k.PageDown,
-		PageUp:       k.PageUp,
-		HalfPageUp:   k.HalfPageUp,
-		HalfPageDown: k.HalfPageDown,
-		Up:           k.ScrollUp,
-		Down:         k.ScrollDown,
-		Left:         k.ScrollLeft,
-		Right:        k.ScrollRight,
-	}
 }
 
 // --- Help rendering ---

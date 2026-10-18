@@ -169,16 +169,17 @@ keybinding:
 
 - Bindings are grouped by context; the names mirror the TUI's Go key maps in lowerCamel (`ListKeyMap.ChangeStatus` → `list.changeStatus`). Unknown names are an error.
 - An override replaces all default keys of that action. Keys use bubbletea's names (`ctrl+c`, `enter`, `esc`, `shift+tab`, `pgdown`, …); use `space` for the space bar.
-- Keys bound to several actions of one context (`global` counts as part of `list`, `detail` and `depNav`) are reported as a warning in the footer.
+- Keys bound to several actions of one context (`global` and `layout` count as part of `list`, `context` and `depGraph`) are reported as a warning in the footer.
 - The tag editor and the create dialog have text inputs: printable keys bound there can't be typed anymore.
 - Footers and the help overlay show your bindings. Key bindings are reloaded with the rest of the config (`R`, or automatically when a config file changes).
 
 | Context | Actions (default keys) |
 |---------|------------------------|
-| `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`) |
-| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `dependencies` (`D`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleScope` (`g s`), `toggleLog` (`L`), `openLog` (`O`) |
-| `detail` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `scrollLeft` (`left`), `scrollRight` (`right`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `filterLinks` (`/`), `back` (`esc` `backspace`), `prevBean` (`h`), `nextBean` (`l`), `toggleFocus` (`tab`), `followLink` (`enter`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `dependencies` (`D`), `launch` (`!`), `archive` (`Y`) |
-| `depNav` | `up` (`up` `k`), `down` (`down` `j`), `open` (`enter`), `refocus` (`D`), `toggleDone` (`A`), `back` (`esc` `backspace`) |
+| `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`), `openLog` (`O`) |
+| `layout` | `nextPreset` (`+` `=`), `prevPreset` (`-`), `focusNext` (`tab`), `focusPrev` (`shift+tab`), `toggleContext` (`v`), `toggleDepGraph` (`D`), `toggleLog` (`L`) |
+| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleScope` (`g s`) |
+| `context` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `back` (`esc` `backspace`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `changeSize` (`S`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
+| `depGraph` | `up` (`up` `k`), `down` (`down` `j`), `refocus` (`enter`), `toggleDone` (`A`), `back` (`esc` `backspace`) |
 | `help` | `close` (`?` `esc`) |
 | `picker` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `h` `pgup` `b` `u`), `nextPage` (`right` `l` `pgdown` `f` `d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `confirm` (`enter`), `cancel` (`esc` `backspace`), `toggle` (`space`, blocking picker) |
 | `tagEditor` | `up` (`up` `ctrl+p`), `down` (`down` `ctrl+n`), `toggle` (`space` `tab`), `apply` (`enter`), `cancel` (`esc`) |
@@ -224,6 +225,13 @@ You might specifically be interested in the interactive TUI:
 ```bash
 beans tui
 ```
+
+The TUI is made of panes, lazygit-style: the bean list, the details of the selected bean, its dependency graph and the log. The focused pane has a highlighted frame.
+
+- `enter` on a bean shows it in the details pane and moves focus there; `tab`/`shift+tab` cycle through the panes and `esc` goes back.
+- `+` and `-` step through layout presets, which depend on the focused pane: from the list, `+` hides the details, then the log; from the details, `+` swaps the list for the dependency graph, then shows the details alone.
+- `v`, `D` and `L` toggle the details, the dependency graph and the log anywhere. In the dependency graph, moving the cursor shows that bean in the details; `enter` makes it the graph's root and moves focus to the details.
+- In terminals narrower than 120 columns, the list and the details don't fit side by side, so only the focused one is shown.
 
 Press `/` in the list to filter. The query combines free text with field filters and a sort order:
 

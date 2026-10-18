@@ -25,6 +25,10 @@ var (
 				Foreground(ui.ColorMuted).
 				Padding(0, 1)
 
+	// Pane frames; the focused pane stands out
+	paneBorderStyle        = lipgloss.NewStyle().Foreground(ui.ColorMuted)
+	focusedPaneBorderStyle = lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true)
+
 	// Help text style
 	helpStyle = lipgloss.NewStyle().
 			Foreground(ui.ColorMuted)

@@ -69,7 +69,7 @@ func (m helpOverlayModel) View() string {
 		keyStyle := lipgloss.NewStyle().
 			Foreground(ui.ColorPrimary).
 			Bold(true).
-			Width(12).
+			Width(14).
 			Render(key)
 		return keyStyle + helpDescStyle.Render(desc)
 	}
@@ -77,19 +77,23 @@ func (m helpOverlayModel) View() string {
 	var content strings.Builder
 	content.WriteString(title + "\n\n")
 
-	g, l, d := keymap.Global, keymap.List, keymap.Detail
+	g, lk, l, d := keymap.Global, keymap.Layout, keymap.List, keymap.DepGraph
 	for _, sc := range []struct {
 		keys []string
 		desc string
 	}{
+		{append(lk.NextPreset.Keys(), lk.PrevPreset.Keys()...), "Next / previous layout"},
+		{append(lk.FocusNext.Keys(), lk.FocusPrev.Keys()...), "Next / previous pane"},
+		{lk.ToggleContext.Keys(), "Toggle details pane"},
+		{lk.ToggleDepGraph.Keys(), "Toggle dependencies pane"},
+		{lk.ToggleLog.Keys(), "Toggle log pane"},
 		{l.Open.Keys(), "Open children (or details)"},
-		{l.View.Keys(), "View details"},
-		{l.Back.Keys(), "Back up a level"},
+		{l.Back.Keys(), "Back up a level / previous pane"},
+		{d.Refocus.Keys(), "Root graph at bean and open it (dependencies)"},
 		{l.Create.Keys(), "Create new bean"},
 		{l.CreateChild.Keys(), "Create child bean"},
 		{l.Launch.Keys(), "Launch with tool"},
-		{l.ToggleLog.Keys(), "Toggle log panel"},
-		{l.OpenLog.Keys(), "Open latest log output"},
+		{g.OpenLog.Keys(), "Open latest log output"},
 		{l.Edit.Keys(), "Edit bean"},
 		{l.OpenEditor.Keys(), "Edit in $EDITOR"},
 		{l.ChangeStatus.Keys(), "Change status"},
@@ -101,15 +105,12 @@ func (m helpOverlayModel) View() string {
 		{l.ChangeParent.Keys(), "Set parent"},
 		{l.ManageBlocking.Keys(), "Manage blocking"},
 		{l.ManageBlockedBy.Keys(), "Manage blocked by"},
-		{l.Dependencies.Keys(), "Dependency chains"},
 		{l.Archive.Keys(), "Archive (all completed in list)"},
 		{l.ToggleArchived.Keys(), "Show / hide archived"},
 		{l.ToggleScope.Keys(), "Show all scopes / this scope only"},
 		{l.Filter.Keys(), "Filter (text, field:value, sort:field)"},
 		{l.FilterByTag.Keys(), "Filter by tag"},
-		{l.Collapse.Keys(), "Collapse item"},
-		{l.Expand.Keys(), "Expand item"},
-		{append(d.PrevBean.Keys(), d.NextBean.Keys()...), "Prev / next bean (details)"},
+		{append(l.Collapse.Keys(), l.Expand.Keys()...), "Collapse / expand item"},
 		{l.ToggleCollapse.Keys(), "Toggle collapse"},
 		{l.CollapseAll.Keys(), "Collapse all"},
 		{g.ReloadConfig.Keys(), "Reload config"},

@@ -81,6 +81,7 @@ func selectID(t *testing.T, app *App, id string) {
 	for i, it := range app.list.list.Items() {
 		if it.(beanItem).bean.ID == id {
 			app.list.list.Select(i)
+			app.syncPanes()
 			return
 		}
 	}
@@ -121,7 +122,7 @@ func TestDrillDownNavigation(t *testing.T) {
 		t.Error("breadcrumb should show milestone and epic")
 	}
 
-	// Enter on a leaf opens the detail view instead
+	// Enter on a leaf shows it in the context pane instead
 	if msg, ok := press(app, "enter").(selectBeanMsg); !ok || msg.bean.ID != h.task.ID {
 		t.Errorf("enter on leaf should select it, got %#v", msg)
 	}
@@ -140,11 +141,12 @@ func TestDrillDownNavigation(t *testing.T) {
 	}
 }
 
-func TestDrillDownViewKeyOpensDetail(t *testing.T) {
+func TestTabFocusesContextOfBeanWithChildren(t *testing.T) {
 	app, _, h := newHierarchyApp(t, 160)
 	selectID(t, app, h.milestone.ID)
-	if msg, ok := press(app, "v").(selectBeanMsg); !ok || msg.bean.ID != h.milestone.ID {
-		t.Errorf("v should open the detail view for beans with children, got %#v", msg)
+	press(app, "tab")
+	if app.ws.focus != paneContext || app.ctx.bean.ID != h.milestone.ID {
+		t.Errorf("tab should focus the context showing the milestone, focus = %v", app.ws.focus)
 	}
 }
 
@@ -186,7 +188,8 @@ func TestTwoColumnView(t *testing.T) {
 		wantPreview bool
 	}{
 		{"narrow terminal is single column", 100, false},
-		{"threshold", twoColumnMinWidth, true},
+		{"just too narrow", 119, false},
+		{"threshold", 120, true},
 		{"wide terminal", 200, true},
 	}
 	for _, tt := range tests {
@@ -200,11 +203,10 @@ func TestTwoColumnView(t *testing.T) {
 			}
 
 			lines := strings.Split(view, "\n")
-			if got, want := len(lines), app.height-1; got != want {
+			if got, want := len(lines), app.height; got != want {
 				t.Errorf("view has %d lines, want %d", got, want)
 			}
-			// Footer is allowed to overflow (as before); the panes must not
-			for i, line := range lines[:len(lines)-1] {
+			for i, line := range lines {
 				if w := lipgloss.Width(line); w > tt.width {
 					t.Errorf("line %d is %d wide, terminal is %d", i, w, tt.width)
 				}
@@ -295,50 +297,36 @@ func TestBreadcrumbTitle(t *testing.T) {
 	}
 }
 
-func TestDetailBrowsePrevNext(t *testing.T) {
-	app, _, _ := newHierarchyApp(t, 160)
-	ids := listedIDs(app)
-
-	// browse sends a key in the detail view and feeds the browse request back
-	browse := func(key string) {
-		t.Helper()
-		msg := press(app, key)
-		if _, ok := msg.(browseBeanMsg); !ok {
-			t.Fatalf("%s should request browsing, got %#v", key, msg)
-		}
-		app.Update(msg)
+func TestEnterFocusesContext(t *testing.T) {
+	app, _, h := newHierarchyApp(t, 160)
+	selectID(t, app, h.loose.ID)
+	pump(app, keyMsg("enter"))
+	if app.ws.focus != paneContext || app.ctx.bean.ID != h.loose.ID {
+		t.Fatalf("focus = %v, context = %v; want the context showing the leaf", app.ws.focus, app.ctx.bean)
 	}
 
-	selectID(t, app, ids[0])
-	app.Update(selectBeanMsg{bean: app.list.list.SelectedItem().(beanItem).bean})
-
-	tests := []struct {
-		key  string
-		want string
-	}{
-		{"h", ids[0]}, // stays at the start
-		{"l", ids[1]},
-		{"l", ids[2]},
-		{"h", ids[1]},
-		{"l", ids[2]},
-		{"l", ids[3]},
-		{"l", ids[3]}, // stays at the end
-	}
-	for i, tt := range tests {
-		browse(tt.key)
-		if got := app.detail.bean.ID; got != tt.want {
-			t.Errorf("step %d (%s): detail shows %s, want %s", i, tt.key, got, tt.want)
-		}
-		if got := selectedID(app); got != tt.want {
-			t.Errorf("step %d (%s): list cursor on %s, want %s", i, tt.key, got, tt.want)
-		}
+	// Keys scroll the context instead of moving the list cursor
+	pump(app, keyMsg("j"))
+	if got := selectedID(app); got != h.loose.ID {
+		t.Errorf("list cursor moved to %s while the context had focus", got)
 	}
 
-	// Browsing doesn't build up history: esc goes straight back to the list
-	press(app, "esc")
-	app.Update(backToListMsg{})
-	if app.state != viewList {
-		t.Errorf("esc after browsing should return to the list, state = %v", app.state)
+	pump(app, keyMsg("esc"))
+	if app.ws.focus != paneList {
+		t.Errorf("esc should return focus to the list, focus = %v", app.ws.focus)
+	}
+}
+
+func TestNarrowContextFocusShowsItFullWidth(t *testing.T) {
+	app, _, h := newHierarchyApp(t, 100)
+	selectID(t, app, h.loose.ID)
+	if strings.Contains(ansi.Strip(app.View()), "Loose body") {
+		t.Fatal("narrow list view should not show the context")
+	}
+	pump(app, keyMsg("enter"))
+	view := ansi.Strip(app.View())
+	if !strings.Contains(view, "Loose body") {
+		t.Errorf("focused context should show in a narrow terminal:\n%s", view)
 	}
 }
 

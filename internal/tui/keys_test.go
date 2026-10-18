@@ -81,8 +81,8 @@ func TestNewKeyMap(t *testing.T) {
 				if got := km.List.ChangeStatus.Help(); got.Key != "x/ctrl+s" || got.Desc != "status" {
 					t.Errorf("help = %+v", got)
 				}
-				if got := km.Detail.ChangeStatus.Keys(); !slices.Equal(got, []string{"s"}) {
-					t.Errorf("detail keys = %v, want untouched", got)
+				if got := km.Context.ChangeStatus.Keys(); !slices.Equal(got, []string{"s"}) {
+					t.Errorf("context keys = %v, want untouched", got)
 				}
 			},
 		},
@@ -124,8 +124,13 @@ func TestNewKeyMap(t *testing.T) {
 		},
 		{
 			name:      "conflict with a global binding",
-			overrides: config.Keybindings{"detail": {"edit": {"q"}}},
-			wantWarns: []string{`detail: "q" is bound to global.quit, edit`},
+			overrides: config.Keybindings{"context": {"edit": {"q"}}},
+			wantWarns: []string{`context: "q" is bound to global.quit, edit`},
+		},
+		{
+			name:      "conflict with a layout binding",
+			overrides: config.Keybindings{"depGraph": {"toggleDone": {"L"}}},
+			wantWarns: []string{`depGraph: "L" is bound to layout.toggleLog, toggleDone`},
 		},
 		{
 			name:      "same key in different contexts is fine",
@@ -325,7 +330,8 @@ func TestFooterShowsReboundKeys(t *testing.T) {
 		"list":   {"changeStatus": {"x"}, "archive": {}},
 		"global": {"quit": {"ctrl+q"}},
 	})
-	footer := app.list.Footer()
+	app.Update(tea.WindowSizeMsg{Width: 1000, Height: 40})
+	footer := app.footer()
 	for _, want := range []string{"x", "status", "ctrl+q", "quit"} {
 		if !strings.Contains(footer, want) {
 			t.Errorf("footer should contain %q:\n%s", want, footer)
@@ -391,13 +397,13 @@ func TestReboundToggleArchived(t *testing.T) {
 }
 
 func TestReboundToggleLog(t *testing.T) {
-	app := newKeymapTestApp(t, config.Keybindings{"list": {"toggleLog": {"ctrl+l"}}})
+	app := newKeymapTestApp(t, config.Keybindings{"layout": {"toggleLog": {"ctrl+l"}}})
 	app.Update(runes("L"))
-	if app.log.visible {
-		t.Error("the default key should no longer toggle the log panel")
+	if !app.ws.isVisible(paneLog) {
+		t.Error("the default key should no longer toggle the log pane")
 	}
 	app.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
-	if !app.log.visible {
-		t.Error("the rebound key should toggle the log panel")
+	if app.ws.isVisible(paneLog) {
+		t.Error("the rebound key should toggle the log pane")
 	}
 }

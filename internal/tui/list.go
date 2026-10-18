@@ -168,13 +168,13 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	}
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
-	l.Title = "Beans"
+	// The pane frame shows the title; the title bar only shows the filter input
+	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.KeyMap = mainListKeyMap()
 	l.Styles.Title = listTitleStyle
-	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 1, 1)
 
 	qi := textinput.New()
 	qi.Prompt = "/"
@@ -373,9 +373,14 @@ func (m *listModel) previewData() (*bean.Bean, previewContext) {
 	if !ok {
 		return nil, previewContext{}
 	}
-	return item.bean, previewContext{
-		parent:     m.beansByID[item.bean.Parent],
-		childCount: m.childCounts[item.bean.ID],
+	return item.bean, m.previewContextFor(item.bean)
+}
+
+// previewContextFor returns the relationship context of b among the loaded beans
+func (m *listModel) previewContextFor(b *bean.Bean) previewContext {
+	return previewContext{
+		parent:     m.beansByID[b.Parent],
+		childCount: m.childCounts[b.ID],
 	}
 }
 
@@ -426,15 +431,6 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		// Reserve space for border and footer
-		m.list.SetSize(msg.Width-2, msg.Height-4)
-		// Recalculate responsive columns
-		m.cols = ui.CalculateResponsiveColumns(msg.Width, m.hasTags)
-		m.updateDelegate()
-
 	case beansLoadedMsg:
 		items := make([]list.Item, len(msg.items))
 		// Check if any beans have tags
@@ -530,19 +526,12 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				}
 				return m, nil
 			case key.Matches(msg, k.Open):
-				// Drill into beans with children, open leaf beans
+				// Drill into beans with children, show leaf beans in the context pane
 				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					if item.hasChildren {
 						m.drillInto(item.bean.ID)
 						return m, m.loadBeans
 					}
-					return m, func() tea.Msg {
-						return selectBeanMsg{bean: item.bean}
-					}
-				}
-			case key.Matches(msg, k.View):
-				// Open full detail view
-				if item, ok := m.list.SelectedItem().(beanItem); ok {
 					return m, func() tea.Msg {
 						return selectBeanMsg{bean: item.bean}
 					}
@@ -725,10 +714,6 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
-			case key.Matches(msg, k.Dependencies):
-				if item, ok := m.list.SelectedItem().(beanItem); ok {
-					return m, func() tea.Msg { return openDepNavMsg{bean: item.bean} }
-				}
 			case key.Matches(msg, k.Create):
 				// Open create modal
 				return m, func() tea.Msg {
@@ -870,6 +855,17 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 	return m, cmd
 }
 
+// setSize sizes the list to fill a pane of width x height (inside its frame).
+func (m *listModel) setSize(width, height int) {
+	if width == m.width && height == m.height {
+		return
+	}
+	m.width, m.height = width, height
+	m.list.SetSize(width, height)
+	m.cols = ui.CalculateResponsiveColumns(width, m.hasTags)
+	m.updateDelegate()
+}
+
 // updateDelegate updates the list delegate with current responsive columns
 func (m *listModel) updateDelegate() {
 	delegate := itemDelegate{
@@ -884,30 +880,17 @@ func (m *listModel) updateDelegate() {
 	m.list.SetDelegate(delegate)
 }
 
+// View renders the list content at the size set by setSize.
 func (m listModel) View() string {
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v\n\nPress q to quit.", m.err)
 	}
-
-	if m.width == 0 {
-		return "Loading..."
-	}
-
-	return m.viewContent() + "\n" + m.Footer()
+	return m.list.View()
 }
 
-// viewContent renders the bordered list without the footer
-// (m.height-2 lines tall, m.width wide).
-func (m listModel) viewContent() string {
-	m.list.Title = m.breadcrumbTitle(m.width - 6)
-
-	border := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ui.ColorMuted).
-		Width(m.width - 2).
-		Height(m.height - 4)
-
-	return border.Render(m.list.View())
+// title is the pane title, e.g. "Beans › Parent › Child [tag: x]".
+func (m listModel) title() string {
+	return m.breadcrumbTitle(m.width - 4)
 }
 
 // breadcrumbTitle renders the list title, e.g. "Beans › Parent › Child [tag: x]",
@@ -946,15 +929,16 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 	return title
 }
 
-// Footer renders the help/status line below the list
-func (m listModel) Footer() string {
+// footer renders the list's hints for the footer, or the filter query input
+// while it is being edited
+func (m listModel) footer() string {
 	if m.editingQuery() {
 		return m.queryFooter()
 	}
 
 	var help string
 
-	g, k := keymap.Global, keymap.List
+	k := keymap.List
 
 	// esc goes up a level when drilled in
 	var backHelp string
@@ -995,15 +979,12 @@ func (m listModel) Footer() string {
 			hint(k.Launch, ""),
 			hint(k.EditTags, ""),
 			hint(k.Back, "clear selection"),
-			hint(g.Help, ""),
-			hint(g.Quit, ""),
 		)
 	} else if m.hasActiveFilter() {
 		help = hints(
 			backHelp,
 			hint(k.ToggleSelect, ""),
 			hint(k.Open, ""),
-			hint(k.View, ""),
 			hint(k.Create, ""),
 			hint(k.Edit, ""),
 			hint(k.OpenEditor, ""),
@@ -1016,20 +997,15 @@ func (m listModel) Footer() string {
 			hint(k.ChangeParent, ""),
 			hint(k.ManageBlocking, ""),
 			hint(k.ManageBlockedBy, ""),
-			hint(k.Dependencies, ""),
 			hint(k.Launch, ""),
-			hint(k.ToggleLog, ""),
 			hint(k.Filter, "edit filter"),
 			hint(k.Back, "clear filter"),
-			hint(g.Help, ""),
-			hint(g.Quit, ""),
 		)
 	} else {
 		help = hints(
 			backHelp,
 			hint(k.ToggleSelect, ""),
 			hint(k.Open, ""),
-			hint(k.View, ""),
 			hint(k.Create, ""),
 			hint(k.Edit, ""),
 			hint(k.OpenEditor, ""),
@@ -1042,29 +1018,28 @@ func (m listModel) Footer() string {
 			hint(k.ChangeParent, ""),
 			hint(k.ManageBlocking, ""),
 			hint(k.ManageBlockedBy, ""),
-			hint(k.Dependencies, ""),
 			hint(k.Launch, ""),
-			hint(k.ToggleLog, ""),
 			hint(k.Archive, ""),
 			hint(k.ToggleArchived, archivedHelp),
 			scopeHelp,
 			groupHint("fold", k.Collapse, k.Expand, k.ToggleCollapse),
 			hint(k.Filter, ""),
-			hint(g.Help, ""),
-			hint(g.Quit, ""),
 		)
 	}
 
-	var noticePrefix string
-	if m.notice != "" {
-		color := ui.ColorSuccess
-		if m.noticeIsErr {
-			color = ui.ColorDanger
-		}
-		noticePrefix = lipgloss.NewStyle().Foreground(color).Bold(true).Render(m.notice) + "  "
-	}
+	return selectionPrefix + help
+}
 
-	return noticePrefix + selectionPrefix + help
+// noticeView renders the transient footer notice, if any.
+func (m listModel) noticeView() string {
+	if m.notice == "" {
+		return ""
+	}
+	color := ui.ColorSuccess
+	if m.noticeIsErr {
+		color = ui.ColorDanger
+	}
+	return lipgloss.NewStyle().Foreground(color).Bold(true).Render(m.notice) + "  "
 }
 
 // queryFooter renders the filter query input with any warnings about ignored tokens

@@ -11,21 +11,21 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph"
 	"github.com/hmans/beans/internal/graph/model"
 	launcherexec "github.com/hmans/beans/internal/launcher"
+	"github.com/hmans/beans/internal/tui/layout"
 )
 
 // viewState represents which view is currently active
 type viewState int
 
 const (
-	viewList viewState = iota
-	viewDetail
+	viewList viewState = iota // the panes, with no modal open
 	viewTagPicker
 	viewParentPicker
 	viewStatusPicker
@@ -43,21 +43,7 @@ const (
 	viewConfigWriteError
 	viewTagEditor
 	viewArchiveConfirm
-	viewDepNav
 )
-
-// Two-column layout constants
-const (
-	twoColumnMinWidth = 120 // minimum terminal width for the list + preview layout
-	previewMaxWidth   = 80  // preview pane width cap (bean bodies are written for ~80 columns)
-	listMinWidth      = 40  // list pane never gets narrower than this
-)
-
-// paneWidths returns the (list, preview) widths for the two-column layout.
-func paneWidths(totalWidth int) (int, int) {
-	preview := min(previewMaxWidth, totalWidth-listMinWidth)
-	return totalWidth - preview, preview
-}
 
 // beansChangedMsg is sent when beans change on disk (via file watcher)
 type beansChangedMsg struct{}
@@ -92,10 +78,11 @@ type openParentPickerMsg struct {
 // App is the main TUI application model
 type App struct {
 	state              viewState
+	ws                 workspace // pane layout and focus
+	panes              map[layout.ID]pane
 	list               listModel
-	detail             detailModel
-	depNav             depNavModel
-	preview            previewModel
+	ctx                contextModel
+	deps               depNavModel
 	tagPicker          tagPickerModel
 	parentPicker       parentPickerModel
 	statusPicker       statusPickerModel
@@ -114,7 +101,6 @@ type App struct {
 	configureLaunchers configureLaunchersModel
 	configWriteError   configWriteErrorModel
 	log                logPanelModel
-	history            []detailModel // stack of previous detail views for back navigation
 	core               *beancore.Core
 	resolver           *graph.Resolver
 	config             *config.Config
@@ -128,12 +114,9 @@ type App struct {
 	// Modal state - tracks view behind modal pickers
 	previousState viewState
 
-	// Dependency navigator state - the view it was opened from, and whether
-	// the detail view was opened from it (so going back returns to it)
-	depNavOrigin     viewState
-	detailFromDepNav bool
-	depNavHistory    int         // detail history depth when the navigator opened a bean
-	depNavDetail     detailModel // detail view the navigator was opened from
+	// depsShown is whether the dependency graph was visible after the last
+	// update, to root it at the context's bean when it appears
+	depsShown bool
 
 	// Editor state - tracks bean being edited to update updated_at on save
 	editingBeanID      string
@@ -157,15 +140,19 @@ func New(core *beancore.Core, cfg *config.Config) *App {
 	if err != nil {
 		keymap = DefaultKeyMap()
 	}
-	return &App{
+	a := &App{
 		state:       viewList,
+		ws:          newWorkspace(),
 		core:        core,
 		resolver:    resolver,
 		config:      cfg,
 		list:        newListModel(resolver, cfg),
-		preview:     newPreviewModel(cfg),
+		ctx:         newContextModel(cfg),
+		deps:        newDepNavModel(resolver, cfg),
 		keyWarnings: warnings,
 	}
+	a.panes = a.newPanes()
+	return a
 }
 
 // Init initializes the application
@@ -176,14 +163,20 @@ func (a *App) Init() tea.Cmd {
 	return a.list.Init()
 }
 
-// Update handles messages
+// Update handles messages, then fits the panes to the resulting layout
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	cmd := a.update(msg)
+	a.syncPanes()
+	return a, cmd
+}
+
+func (a *App) update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		var pending bool
 		if msg, pending = a.resolveChord(keyMsg); pending {
-			return a, nil
+			return nil
 		}
 	}
 
@@ -191,116 +184,104 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
-		// The list is sized for its pane; other views get the full size
-		cmd = a.resizeList()
+		// Panes are sized by syncPanes; modals get the full size
 		if a.state == viewList {
-			return a, cmd
+			return nil
 		}
 
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keymap.Global.ForceQuit):
-			return a, tea.Quit
+			return tea.Quit
 		case key.Matches(msg, keymap.Global.Help):
 			// Open help overlay if not already showing it (and not in a picker/modal)
-			if a.state == viewList || a.state == viewDetail {
+			if a.state == viewList {
 				a.previousState = a.state
 				a.helpOverlay = newHelpOverlayModel(a.width, a.height)
 				a.state = viewHelpOverlay
-				return a, a.helpOverlay.Init()
+				return a.helpOverlay.Init()
 			}
 		case key.Matches(msg, keymap.Global.Quit):
 			if a.canQuit() {
-				return a, tea.Quit
+				return tea.Quit
 			}
 		case key.Matches(msg, keymap.Global.ReloadConfig):
-			if (a.state == viewList || a.state == viewDetail) && a.canQuit() {
-				return a, func() tea.Msg { return reloadConfigMsg{} }
-			}
-		case key.Matches(msg, keymap.List.ToggleLog):
 			if a.state == viewList && a.canQuit() {
-				a.log.visible = !a.log.visible
-				return a, a.resizeList()
+				return func() tea.Msg { return reloadConfigMsg{} }
 			}
-		case key.Matches(msg, keymap.List.OpenLog):
+		case key.Matches(msg, keymap.Global.OpenLog):
 			if a.state == viewList && a.canQuit() {
-				return a, a.openLatestLog()
+				return a.openLatestLog()
 			}
 		}
+		if a.state == viewList && !a.typingText() && a.handleLayoutKey(msg) {
+			return nil
+		}
+
+	case beansLoadedMsg:
+		// Always for the list, even with a modal open
+		a.list, cmd = a.list.Update(msg)
+		a.refreshPanes()
+		return cmd
 
 	case beansChangedMsg:
 		// Beans changed on disk - refresh
-		if a.state == viewDepNav && !a.depNav.reload() {
-			a.state = a.depNavOrigin
-		}
-		if a.state == viewDetail {
-			// Try to reload the current bean via GraphQL
-			updatedBean, err := a.resolver.Query().Bean(context.Background(), a.detail.bean.ID)
-			if err != nil || updatedBean == nil {
-				// Bean was deleted - return to list
-				a.state = viewList
-				a.history = nil
-			} else {
-				// Recreate detail view with fresh bean data
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-			}
-		}
 		// Trigger list refresh
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case configChangedMsg, reloadConfigMsg:
-		return a, a.reloadConfig()
+		return a.reloadConfig()
 
 	case clearNoticeMsg:
 		if msg.seq == a.noticeSeq {
 			a.list.notice = ""
 		}
-		return a, nil
+		return nil
 
 	case openTagPickerMsg:
 		// Collect all tags with their counts
 		tags := a.collectTagsWithCounts()
 		if len(tags) == 0 {
 			// No tags in system, don't open picker
-			return a, nil
+			return nil
 		}
 		a.tagPicker = newTagPickerModel(tags, a.width, a.height)
 		a.state = viewTagPicker
-		return a, a.tagPicker.Init()
+		return a.tagPicker.Init()
 
 	case tagSelectedMsg:
 		a.state = viewList
 		a.list.setTagFilter(msg.tag)
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case openParentPickerMsg:
 		// Check if all bean types can have parents
 		for _, beanType := range msg.beanTypes {
 			if beancore.ValidParentTypes(beanType) == nil {
 				// At least one bean type (e.g., milestone) cannot have parents - don't open the picker
-				return a, nil
+				return nil
 			}
 		}
 		a.previousState = a.state // Remember where we came from for the modal background
 		a.parentPicker = newParentPickerModel(msg.beanIDs, msg.beanTitle, msg.beanTypes, msg.currentParent, a.resolver, a.config, a.width, a.height)
 		a.state = viewParentPicker
-		return a, a.parentPicker.Init()
+		return a.parentPicker.Init()
 
 	case closeParentPickerMsg:
 		// Return to previous view and refresh in case beans changed while picker was open
 		a.state = a.previousState
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case openStatusPickerMsg:
 		a.previousState = a.state
 		a.statusPicker = newStatusPickerModel(msg.beanIDs, msg.beanTitle, msg.currentStatus, a.config, a.width, a.height)
 		a.state = viewStatusPicker
-		return a, a.statusPicker.Init()
+		return a.statusPicker.Init()
 
 	case closeStatusPickerMsg:
 		// Return to previous view and refresh in case beans changed while picker was open
 		a.state = a.previousState
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case statusSelectedMsg:
 		// Update all beans' status via GraphQL mutations
@@ -317,24 +298,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 		// Clear selection after batch edit
 		clear(a.list.selectedBeans)
-		if a.state == viewDetail && len(msg.beanIDs) == 1 {
-			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
-			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-			}
-		}
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case openTypePickerMsg:
 		a.previousState = a.state
 		a.typePicker = newTypePickerModel(msg.beanIDs, msg.beanTitle, msg.currentType, a.config, a.width, a.height)
 		a.state = viewTypePicker
-		return a, a.typePicker.Init()
+		return a.typePicker.Init()
 
 	case closeTypePickerMsg:
 		// Return to previous view and refresh in case beans changed while picker was open
 		a.state = a.previousState
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case typeSelectedMsg:
 		// Update all beans' type via GraphQL mutations
@@ -351,24 +326,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 		// Clear selection after batch edit
 		clear(a.list.selectedBeans)
-		if a.state == viewDetail && len(msg.beanIDs) == 1 {
-			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
-			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-			}
-		}
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case openSizePickerMsg:
 		a.previousState = a.state
 		a.sizePicker = newSizePickerModel(msg.beanIDs, msg.beanTitle, msg.currentSize, a.width, a.height)
 		a.state = viewSizePicker
-		return a, a.sizePicker.Init()
+		return a.sizePicker.Init()
 
 	case closeSizePickerMsg:
 		// Return to previous view and refresh in case beans changed while picker was open
 		a.state = a.previousState
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case sizeSelectedMsg:
 		// Update all beans' size via GraphQL mutations
@@ -385,24 +354,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 		// Clear selection after batch edit
 		clear(a.list.selectedBeans)
-		if a.state == viewDetail && len(msg.beanIDs) == 1 {
-			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
-			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-			}
-		}
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case openPriorityPickerMsg:
 		a.previousState = a.state
 		a.priorityPicker = newPriorityPickerModel(msg.beanIDs, msg.beanTitle, msg.currentPriority, a.config, a.width, a.height)
 		a.state = viewPriorityPicker
-		return a, a.priorityPicker.Init()
+		return a.priorityPicker.Init()
 
 	case closePriorityPickerMsg:
 		// Return to previous view and refresh in case beans changed while picker was open
 		a.state = a.previousState
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case prioritySelectedMsg:
 		// Update all beans' priority via GraphQL mutations
@@ -419,17 +382,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 		// Clear selection after batch edit
 		clear(a.list.selectedBeans)
-		if a.state == viewDetail && len(msg.beanIDs) == 1 {
-			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
-			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-			}
-		}
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case closeHelpMsg:
 		a.state = a.previousState
-		return a, nil
+		return nil
 
 	case openTagEditorMsg:
 		var beans []*bean.Bean
@@ -439,16 +396,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if len(beans) == 0 {
-			return a, nil
+			return nil
 		}
 		a.previousState = a.state
 		a.tagEditor = newTagEditorModel(beans, msg.beanTitle, a.collectTagsWithCounts(), a.width, a.height)
 		a.state = viewTagEditor
-		return a, a.tagEditor.Init()
+		return a.tagEditor.Init()
 
 	case closeTagEditorMsg:
 		a.state = a.previousState
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case tagsConfirmedMsg:
 		// Apply tag changes to each bean via GraphQL mutations
@@ -472,24 +429,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 		// Clear selection after batch edit
 		clear(a.list.selectedBeans)
-		if a.state == viewDetail && len(msg.beanIDs) == 1 {
-			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
-			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-			}
-		}
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case openBlockingPickerMsg:
 		a.previousState = a.state
 		a.blockingPicker = newBlockingPickerModel(msg.beanID, msg.beanTitle, msg.blockedBy, msg.currentIDs, a.resolver, a.config, a.width, a.height)
 		a.state = viewBlockingPicker
-		return a, a.blockingPicker.Init()
+		return a.blockingPicker.Init()
 
 	case closeBlockingPickerMsg:
 		// Return to previous view and refresh in case beans changed while picker was open
 		a.state = a.previousState
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case blockingConfirmedMsg:
 		// Apply all blocking changes via GraphQL mutations
@@ -513,13 +464,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Return to previous view and refresh
 		a.state = a.previousState
-		if a.state == viewDetail {
-			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanID)
-			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-			}
-		}
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case archiveCompletedMsg:
 		var ids []string
@@ -530,7 +475,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if len(ids) == 0 {
-			return a, nil
+			return nil
 		}
 		a.previousState = a.state
 		a.archiveConfirm = newArchiveConfirmModel(ids,
@@ -538,18 +483,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			"All completed and scrapped beans will be moved to archived.",
 			a.width, a.height)
 		a.state = viewArchiveConfirm
-		return a, nil
+		return nil
 
 	case archiveBeanMsg:
 		b, err := a.resolver.Query().Bean(context.Background(), msg.beanID)
 		if err != nil || b == nil {
-			return a, nil
+			return nil
 		}
 		if a.config.IsArchived(b.Status) {
-			return a, nil
+			return nil
 		}
 		if a.config.IsArchiveStatus(b.Status) {
-			return a, func() tea.Msg { return archiveConfirmedMsg{beanIDs: []string{b.ID}} }
+			return func() tea.Msg { return archiveConfirmedMsg{beanIDs: []string{b.ID}} }
 		}
 		a.previousState = a.state
 		a.archiveConfirm = newArchiveConfirmModel([]string{b.ID},
@@ -557,11 +502,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fmt.Sprintf("%s is %q, not completed. It will be archived anyway.", b.ID, b.Status),
 			a.width, a.height)
 		a.state = viewArchiveConfirm
-		return a, nil
+		return nil
 
 	case closeArchiveConfirmMsg:
 		a.state = a.previousState
-		return a, nil
+		return nil
 
 	case archiveConfirmedMsg:
 		status := config.StatusArchived
@@ -572,37 +517,28 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.previousState = viewList
 				a.launcherError = newLauncherErrorModel("Archive", err, a.width, a.height)
 				a.state = viewLauncherError
-				return a, a.list.loadBeans
-			}
-		}
-		// Archiving from the detail view stays there, showing the new status
-		fromDetail := a.state == viewDetail || (a.state == viewArchiveConfirm && a.previousState == viewDetail)
-		if fromDetail && len(msg.beanIDs) == 1 {
-			if updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0]); updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-				a.state = viewDetail
-				return a, a.list.loadBeans
+				return a.list.loadBeans
 			}
 		}
 		a.state = viewList
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case openCreateModalMsg:
 		a.previousState = a.state
 		a.createModal = newCreateModalModel(a.config, a.width, a.height, msg.parentID, msg.parentTitle).withPrefill(msg.prefill)
 		a.createModal.prefixes = a.config.AvailablePrefixes()
 		a.state = viewCreateModal
-		return a, a.createModal.Init()
+		return a.createModal.Init()
 
 	case closeCreateModalMsg:
 		a.state = a.previousState
-		return a, nil
+		return nil
 
 	case openEditModalMsg:
 		a.previousState = a.state
 		a.createModal = newEditModalModel(a.config, a.width, a.height, msg.bean)
 		a.state = viewCreateModal
-		return a, a.createModal.Init()
+		return a.createModal.Init()
 
 	case beanEditedMsg:
 		// Save only the changed fields; an unchanged form doesn't touch the bean
@@ -612,21 +548,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if _, err := a.resolver.Mutation().UpdateBean(context.Background(), msg.beanID, input); err != nil {
 				a.launcherError = newLauncherErrorModel("Edit Bean", err, a.width, a.height)
 				a.state = viewLauncherError
-				return a, nil
+				return nil
 			}
 		}
 		updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanID)
 		if updatedBean == nil {
-			return a, a.list.loadBeans
-		}
-		if a.state == viewDetail {
-			a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
+			return a.list.loadBeans
 		}
 		a.list.cursorTarget = updatedBean.ID
 		if !msg.openEditor {
-			return a, a.list.loadBeans
+			return a.list.loadBeans
 		}
-		return a, tea.Batch(
+		return tea.Batch(
 			a.list.loadBeans,
 			func() tea.Msg {
 				return openEditorMsg{beanID: updatedBean.ID, beanPath: updatedBean.Path}
@@ -666,15 +599,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Show error to user
 			a.launcherError = newLauncherErrorModel("Create Bean", err, a.width, a.height)
 			a.state = viewLauncherError
-			return a, nil
+			return nil
 		}
 		// Return to list, move the cursor to the new bean, and optionally open it in the editor
 		a.state = viewList
 		a.list.cursorTarget = createdBean.ID
 		if !msg.openEditor {
-			return a, a.list.loadBeans
+			return a.list.loadBeans
 		}
-		return a, tea.Batch(
+		return tea.Batch(
 			a.list.loadBeans,
 			func() tea.Msg {
 				return openEditorMsg{beanID: createdBean.ID, beanPath: createdBean.Path}
@@ -694,7 +627,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		c := exec.Command(editor, fullPath)
 		a.quitting = true
-		return a, tea.ExecProcess(c, func(err error) tea.Msg {
+		return tea.ExecProcess(c, func(err error) tea.Msg {
 			a.quitting = false
 			return editorFinishedMsg{err: err}
 		})
@@ -720,9 +653,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Clear editing state
 			a.editingBeanID = ""
 			a.editingBeanModTime = time.Time{}
-			return a, a.list.loadBeans
+			return a.list.loadBeans
 		}
-		return a, nil
+		return nil
 
 	case parentSelectedMsg:
 		// Set the new parent via GraphQL mutation for all beans
@@ -741,14 +674,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = a.previousState
 		// Clear selection after batch edit
 		clear(a.list.selectedBeans)
-		if a.state == viewDetail && len(msg.beanIDs) == 1 {
-			// Refresh the bean to show updated parent
-			updatedBean, _ := a.resolver.Query().Bean(context.Background(), msg.beanIDs[0])
-			if updatedBean != nil {
-				a.detail = newDetailModel(updatedBean, a.resolver, a.config, a.width, a.height)
-			}
-		}
-		return a, a.list.loadBeans
+		return a.list.loadBeans
 
 	case openLauncherPickerMsg:
 		// Discover available launchers based on bean count
@@ -769,7 +695,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.previousState = a.state
 				a.noLaunchersMulti = newNoLaunchersMultiModel(a.width, a.height)
 				a.state = viewNoLaunchersMulti
-				return a, nil
+				return nil
 			}
 
 			// Check if any launchers are configured at all
@@ -783,33 +709,33 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.previousState = a.state
 				a.configureLaunchers = newConfigureLaunchersModel(firstBeanID, msg.beanTitle, a.width, a.height)
 				a.state = viewConfigureLaunchers
-				return a, a.configureLaunchers.Init()
+				return a.configureLaunchers.Init()
 			}
 
 			// Launchers configured but none available
 			a.previousState = a.state
 			a.noLaunchers = newNoLaunchersModel(a.width, a.height)
 			a.state = viewNoLaunchers
-			return a, nil
+			return nil
 		}
 
 		// Open launcher picker
 		a.previousState = a.state
 		a.launcherPicker = newLauncherPickerModel(launchers, msg.beanIDs, msg.beanTitle, a.width, a.height)
 		a.state = viewLauncherPicker
-		return a, a.launcherPicker.Init()
+		return a.launcherPicker.Init()
 
 	case launcherSelectedMsg:
 		// Close the launcher picker first
 		a.state = a.previousState
 
 		if len(msg.beanIDs) == 0 {
-			return a, nil
+			return nil
 		}
 
 		if !msg.launcher.background {
 			// Foreground launchers get the terminal, so only one bean can run
-			return a, a.runLauncher(msg.launcher, msg.beanIDs[0], msg.beanTitle)
+			return a.runLauncher(msg.launcher, msg.beanIDs[0], msg.beanTitle)
 		}
 
 		// Background launchers run for every bean in parallel
@@ -817,17 +743,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, id := range msg.beanIDs {
 			cmds = append(cmds, a.runLauncherInBackground(msg.launcher, id, msg.beanTitle))
 		}
-		cmds = append(cmds, a.resizeList())
-		return a, tea.Batch(cmds...)
+		return tea.Batch(cmds...)
 
 	case closeLauncherPickerMsg:
 		a.state = a.previousState
-		return a, nil
+		return nil
 
 	case launchFinishedMsg:
 		a.log.finish(msg.id, msg.exitCode, msg.err, time.Now())
-		// Failures show the panel, so the list may need to shrink
-		return a, a.resizeList()
+		return nil
 
 	case launchersConfiguredMsg:
 		// Append selected launchers to .beans.yml
@@ -835,92 +759,41 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if err := appendLaunchersToConfig(projectRoot, msg.launchers); err != nil {
 			// Show error modal
-			a.previousState = viewDetail
+			a.previousState = viewList
 			a.configWriteError = newConfigWriteErrorModel(err, a.width, a.height)
 			a.state = viewConfigWriteError
-			return a, nil
+			return nil
 		}
 
-		// Return to previous state (detail view), then reload config to pick
+		// Return to the previous state, then reload config to pick
 		// up the new launchers
 		a.state = a.previousState
-		return a, a.reloadConfig()
+		return a.reloadConfig()
 
 	case closeConfigureLaunchersMsg:
 		// User cancelled - return to previous state
 		a.state = a.previousState
-		return a, nil
+		return nil
 
-	case openDepNavMsg:
-		a.depNavOrigin = a.state
-		a.depNavDetail = a.detail
-		a.detailFromDepNav = false
-		a.depNav = newDepNavModel(msg.bean, a.resolver, a.config, a.width, a.height)
-		a.state = viewDepNav
-		return a, a.depNav.Init()
-
-	case closeDepNavMsg:
-		a.state = a.depNavOrigin
-		if a.state == viewDetail {
-			// The navigator may have opened other beans; restore the original one
-			a.detail = a.depNavDetail
-			if b, err := a.resolver.Query().Bean(context.Background(), a.detail.bean.ID); err == nil && b != nil {
-				a.detail = newDetailModel(b, a.resolver, a.config, a.width, a.height)
-			}
-		}
-		return a, a.list.loadBeans
+	case closeTagPickerMsg:
+		a.state = viewList
+		return nil
 
 	case selectBeanMsg:
-		// Push current detail view to history if we're already viewing a bean
-		if a.state == viewDetail {
-			a.history = append(a.history, a.detail)
-		}
-		if a.state == viewDepNav {
-			// Going back from this detail view returns to the navigator
-			a.depNavHistory = len(a.history)
-			a.detailFromDepNav = true
-		}
-		a.state = viewDetail
-		a.detail = newDetailModel(msg.bean, a.resolver, a.config, a.width, a.height)
-		return a, a.detail.Init()
+		// Show the bean in the context pane and move there
+		a.showInContext(msg.bean)
+		a.ws.focusPane(paneContext)
+		return nil
 
-	case browseBeanMsg:
-		if a.state == viewDetail {
-			a.browseBean(msg.delta)
-		}
-		return a, nil
-
-	case backToListMsg:
-		// Return to the dependency navigator if the detail view came from it
-		if a.state == viewDetail && a.detailFromDepNav && len(a.history) == a.depNavHistory {
-			a.detailFromDepNav = false
-			if !a.depNav.reload() {
-				a.state = a.depNavOrigin
-				return a, nil
-			}
-			a.state = viewDepNav
-			return a, nil
-		}
-		// Pop from history if available, otherwise go to list
-		if len(a.history) > 0 {
-			a.detail = a.history[len(a.history)-1]
-			a.history = a.history[:len(a.history)-1]
-			// Stay in viewDetail state
-		} else {
-			a.state = viewList
-			return a, nil
-		}
-		return a, nil
+	case focusBackMsg:
+		a.ws.back()
+		return nil
 	}
 
 	// Forward all messages to the current view
 	switch a.state {
 	case viewList:
-		a.list, cmd = a.list.Update(msg)
-	case viewDetail:
-		a.detail, cmd = a.detail.Update(msg)
-	case viewDepNav:
-		a.depNav, cmd = a.depNav.Update(msg)
+		cmd = a.updatePanes(msg)
 	case viewTagPicker:
 		a.tagPicker, cmd = a.tagPicker.Update(msg)
 	case viewParentPicker:
@@ -949,19 +822,19 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Any key dismisses error modal
 		if _, ok := msg.(tea.KeyMsg); ok {
 			a.state = a.previousState
-			return a, nil
+			return nil
 		}
 	case viewNoLaunchers:
 		// Any key dismisses no-launchers modal
 		if _, ok := msg.(tea.KeyMsg); ok {
 			a.state = a.previousState
-			return a, nil
+			return nil
 		}
 	case viewNoLaunchersMulti:
 		// Any key dismisses no multi-bean launchers modal
 		if _, ok := msg.(tea.KeyMsg); ok {
 			a.state = a.previousState
-			return a, nil
+			return nil
 		}
 	case viewConfigureLaunchers:
 		a.configureLaunchers, cmd = a.configureLaunchers.Update(msg)
@@ -969,81 +842,147 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Any key dismisses error modal
 		if _, ok := msg.(tea.KeyMsg); ok {
 			a.state = a.previousState
-			return a, nil
+			return nil
 		}
 	}
 
-	return a, cmd
-}
-
-// browseBean replaces the detail view with the bean delta positions away from
-// the current one in the list's visible order, moving the list cursor along.
-// It does nothing at the ends of the list or when the bean isn't listed.
-func (a *App) browseBean(delta int) {
-	items := a.list.list.VisibleItems()
-	for i, it := range items {
-		if bi, ok := it.(beanItem); ok && bi.bean.ID == a.detail.bean.ID {
-			j := i + delta
-			if j < 0 || j >= len(items) {
-				return
-			}
-			next, ok := items[j].(beanItem)
-			if !ok {
-				return
-			}
-			a.list.list.Select(j)
-			a.detail = newDetailModel(next.bean, a.resolver, a.config, a.width, a.height)
-			return
-		}
-	}
-}
-
-// isTwoColumnMode returns true if the terminal is wide enough for list + preview
-func (a *App) isTwoColumnMode() bool {
-	return a.width >= twoColumnMinWidth
-}
-
-// resizeList sizes the list for the full width, or the left pane in two-column
-// mode, leaving room for the log panel when it's shown
-func (a *App) resizeList() tea.Cmd {
-	width := a.width
-	if a.isTwoColumnMode() {
-		width, _ = paneWidths(a.width)
-	}
-	height := a.height
-	if a.logPanelShown() {
-		height -= logPanelHeight
-	}
-	var cmd tea.Cmd
-	a.list, cmd = a.list.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	return cmd
 }
 
-// logPanelShown returns true if the log panel is toggled on and the terminal
-// is tall enough to fit it below the list
-func (a *App) logPanelShown() bool {
-	return a.log.visible && a.height >= 3*logPanelHeight
+// handleLayoutKey handles the keys arranging the panes. It returns false for
+// other keys.
+func (a *App) handleLayoutKey(msg tea.KeyMsg) bool {
+	k := keymap.Layout
+	switch {
+	case key.Matches(msg, k.NextPreset):
+		a.ws.cyclePreset(1)
+	case key.Matches(msg, k.PrevPreset):
+		a.ws.cyclePreset(-1)
+	case key.Matches(msg, k.FocusNext):
+		a.ws.cycleFocus(1)
+	case key.Matches(msg, k.FocusPrev):
+		a.ws.cycleFocus(-1)
+	case key.Matches(msg, k.ToggleContext):
+		a.ws.toggle(paneContext)
+	case key.Matches(msg, k.ToggleDepGraph):
+		a.ws.toggle(paneDepGraph)
+	case key.Matches(msg, k.ToggleLog):
+		a.ws.toggle(paneLog)
+	default:
+		return false
+	}
+	return true
 }
 
-// listView renders the list, with the preview pane beside it when there's room
-// and the log panel below it when shown
-func (a *App) listView() string {
-	if a.list.err != nil || a.list.width == 0 {
+// updatePanes sends keys to the focused pane. Other messages (e.g. the list's
+// filter results) go to the list, the only pane that has async work.
+func (a *App) updatePanes(msg tea.Msg) tea.Cmd {
+	if _, ok := msg.(tea.KeyMsg); ok {
+		return a.focusedPane().update(msg)
+	}
+	return a.panes[paneList].update(msg)
+}
+
+func (a *App) focusedPane() pane {
+	return a.panes[a.ws.focus]
+}
+
+// syncPanes brings the panes in line with the layout after an update: it
+// shows the log when a run asks for it, sizes the panes to their areas, roots
+// a newly shown dependency graph at the context's bean, and points the
+// context at the focused list or dependency graph's bean.
+func (a *App) syncPanes() {
+	if a.log.takeReveal() {
+		a.ws.show(paneLog)
+	}
+
+	// Size first, so the panes below scroll for their actual height
+	for _, r := range a.ws.arrange(a.width, a.panesHeight()).Rects() {
+		a.panes[r.ID].setSize(max(r.W-2, 0), max(r.H-2, 0)) // inside the frame
+	}
+
+	depsShown := a.ws.isVisible(paneDepGraph)
+	if depsShown && !a.depsShown && a.ctx.bean != nil {
+		a.deps.focus(a.ctx.bean)
+	}
+	a.depsShown = depsShown
+
+	if source, ok := a.focusedPane().(selectionSource); ok {
+		a.showInContext(source.selection())
+	}
+
+}
+
+// refreshPanes re-reads the beans shown in the context and dependency graph
+// after the beans were reloaded.
+func (a *App) refreshPanes() {
+	if b := a.ctx.bean; b != nil {
+		a.showInContext(a.list.beansByID[b.ID])
+	}
+	if a.deps.root != nil && !a.deps.reload() {
+		// The root is gone; start over from the context's bean
+		a.deps.root = nil
+		if a.ctx.bean != nil {
+			a.deps.focus(a.ctx.bean)
+		}
+	}
+}
+
+// showInContext shows b (or nothing, if nil) in the context pane.
+func (a *App) showInContext(b *bean.Bean) {
+	if b == nil {
+		a.ctx.setBean(nil, previewContext{})
+		return
+	}
+	a.ctx.setBean(b, a.list.previewContextFor(b))
+}
+
+// panesHeight is the height of the panes, above the footer.
+func (a *App) panesHeight() int {
+	return max(a.height-1, 0)
+}
+
+// mainView renders the panes and the footer.
+func (a *App) mainView() string {
+	if a.list.err != nil {
 		return a.list.View()
 	}
-
-	body := a.list.viewContent()
-	if a.isTwoColumnMode() {
-		_, previewWidth := paneWidths(a.width)
-		a.preview.setBean(a.list.previewData())
-		right := a.preview.View(previewWidth, lipgloss.Height(body))
-		body = lipgloss.JoinHorizontal(lipgloss.Top, body, right)
+	if a.width == 0 {
+		return "Loading..."
 	}
-	if a.logPanelShown() {
-		body += "\n" + a.log.View(a.width)
-	}
+	panes := a.ws.arrange(a.width, a.panesHeight()).Render(a.drawPane)
+	return panes + "\n" + a.footer()
+}
 
-	return body + "\n" + a.list.Footer()
+// drawPane renders a pane in its frame, highlighted when focused.
+func (a *App) drawPane(r layout.Rect) string {
+	p := a.panes[r.ID]
+	border := paneBorderStyle
+	if r.ID == a.ws.focus {
+		border = focusedPaneBorderStyle
+	}
+	return layout.Frame(p.title(), p.View(), r.W, r.H, border)
+}
+
+// footer renders the notice, the layout hints and the focused pane's hints,
+// or just the pane's text input while typing, cut to the screen width.
+func (a *App) footer() string {
+	if a.focusedPane().typing() {
+		// The pane's text input (e.g. the list's filter query) takes the line
+		return ansi.Truncate(a.focusedPane().footer(), a.width, "…")
+	}
+	g, k := keymap.Global, keymap.Layout
+	line := a.list.noticeView() + hints(
+		groupHint("layout", k.NextPreset, k.PrevPreset),
+		hint(k.FocusNext, "pane"),
+		hint(k.ToggleContext, ""),
+		hint(k.ToggleDepGraph, ""),
+		hint(k.ToggleLog, ""),
+		hint(g.Help, ""),
+		hint(g.Quit, ""),
+		helpStyle.Render("│")+"  "+a.focusedPane().footer(),
+	)
+	return ansi.Truncate(line, a.width, "…")
 }
 
 // resolveChord tracks chord keys (see KeyMap). It returns pending=true while a
@@ -1077,11 +1016,8 @@ func (a *App) chordBindings() []key.Binding {
 
 	switch a.state {
 	case viewList:
-		return append(allBindings(keymap.Global), allBindings(keymap.List)...)
-	case viewDetail:
-		return append(allBindings(keymap.Global), allBindings(keymap.Detail)...)
-	case viewDepNav:
-		return append(allBindings(keymap.Global), allBindings(keymap.DepNav)...)
+		shared := append(allBindings(keymap.Global), allBindings(keymap.Layout)...)
+		return append(shared, a.focusedPane().bindings()...)
 	case viewHelpOverlay:
 		return allBindings(keymap.Help)
 	case viewTagPicker, viewParentPicker, viewStatusPicker, viewTypePicker, viewBlockingPicker, viewPriorityPicker, viewSizePicker, viewLauncherPicker:
@@ -1112,9 +1048,7 @@ func (a *App) typingText() bool {
 func (a *App) canQuit() bool {
 	switch a.state {
 	case viewList:
-		return !a.list.editingQuery()
-	case viewDetail:
-		return a.detail.linkList.FilterState() != list.Filtering
+		return !a.focusedPane().typing()
 	case viewTagPicker:
 		return a.tagPicker.list.FilterState() != list.Filtering
 	case viewParentPicker:
@@ -1129,7 +1063,7 @@ func (a *App) canQuit() bool {
 		return a.priorityPicker.list.FilterState() != list.Filtering
 	case viewSizePicker:
 		return a.sizePicker.list.FilterState() != list.Filtering
-	case viewHelpOverlay, viewDepNav:
+	case viewHelpOverlay:
 		return true
 	default:
 		// Text input modals (create, tag editor) and launcher dialogs
@@ -1165,11 +1099,7 @@ func (a *App) View() string {
 
 	switch a.state {
 	case viewList:
-		return a.listView()
-	case viewDetail:
-		return a.detail.View()
-	case viewDepNav:
-		return a.depNav.View()
+		return a.mainView()
 	case viewTagPicker:
 		return a.tagPicker.View()
 	case viewParentPicker:
@@ -1210,12 +1140,7 @@ func (a *App) View() string {
 
 // getBackgroundView returns the view to show behind modal pickers
 func (a *App) getBackgroundView() string {
-	switch a.previousState {
-	case viewDetail:
-		return a.detail.View()
-	default:
-		return a.listView()
-	}
+	return a.mainView()
 }
 
 // projectRoot returns the directory of the project's config file, falling back
