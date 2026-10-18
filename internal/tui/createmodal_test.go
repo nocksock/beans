@@ -2,6 +2,7 @@ package tui
 
 import (
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -79,7 +80,7 @@ func TestCreateModalSubmit(t *testing.T) {
 		{
 			name: "empty title with description creates untitled bean",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
-				m, _ = pressCreate(m, shiftTab)
+				m, _ = pressCreate(m, keyMsg("tab"))
 				m = typeIntoCreate(m, "just a body")
 				return pressCreate(m, ctrlS)
 			},
@@ -89,9 +90,9 @@ func TestCreateModalSubmit(t *testing.T) {
 			name: "selectors cycle type, status and priority",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
 				m = typeIntoCreate(m, "Bug")
-				// type: task -> milestone (wraps), then back to task, then bug (left twice)
+				// tab past the description; type: task -> milestone (wraps), then back to task, then bug (left twice)
 				return pressCreate(m,
-					keyMsg("tab"), keyMsg("l"), keyMsg("h"), keyMsg("h"), keyMsg("h"),
+					keyMsg("tab"), keyMsg("tab"), keyMsg("l"), keyMsg("h"), keyMsg("h"), keyMsg("h"),
 					keyMsg("tab"), keyMsg("h"),
 					keyMsg("tab"), keyMsg("k"),
 					keyMsg("enter"))
@@ -102,7 +103,7 @@ func TestCreateModalSubmit(t *testing.T) {
 			name: "enter in description inserts newline, ctrl+s creates",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
 				m = typeIntoCreate(m, "With body")
-				m, _ = pressCreate(m, shiftTab)
+				m, _ = pressCreate(m, keyMsg("tab"))
 				m = typeIntoCreate(m, "line1")
 				m, _ = pressCreate(m, keyMsg("enter"))
 				m = typeIntoCreate(m, "line2")
@@ -120,7 +121,7 @@ func TestCreateModalSubmit(t *testing.T) {
 		{
 			name: "e on selector creates and opens editor",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
-				return pressCreate(typeIntoCreate(m, "Edit me"), keyMsg("tab"), keyMsg("e"))
+				return pressCreate(typeIntoCreate(m, "Edit me"), keyMsg("tab"), keyMsg("tab"), keyMsg("e"))
 			},
 			wantTitle: "Edit me", wantType: "task", wantStatus: "draft", wantPrio: "normal", wantEditor: true,
 		},
@@ -185,6 +186,7 @@ func TestCreateModalKeysReachFormThroughApp(t *testing.T) {
 		app.Update(keyMsg(string(r)))
 	}
 	app.Update(keyMsg("tab"))
+	app.Update(keyMsg("tab"))
 	app.Update(keyMsg("l"))
 	if app.createModal.focus != createFieldType {
 		t.Fatalf("focus = %v, want type", app.createModal.focus)
@@ -200,8 +202,10 @@ func TestCreateModalKeysReachFormThroughApp(t *testing.T) {
 }
 
 func TestCreateModalView(t *testing.T) {
-	view := typeIntoCreate(newTestCreateModal(), "My title").View()
-	for _, want := range []string{"Create New Bean", "My title", "Type", "task", "Status", "draft", "Priority", "normal", "Description"} {
+	m := typeIntoCreate(newTestCreateModal(), "My title")
+	m.prefixes = []string{"beans"}
+	view := m.View()
+	for _, want := range []string{"Create New Bean", "My title", "Prefix", "beans", "Type", "task", "Status", "draft", "Priority", "normal"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q", want)
 		}
@@ -226,5 +230,110 @@ func TestCreateModalPrefill(t *testing.T) {
 	}
 	if !strings.Contains(m.View(), "Tags: idea") {
 		t.Error("form should show the prefilled tags")
+	}
+}
+
+func TestCreateModalFocusOrder(t *testing.T) {
+	tests := []struct {
+		name     string
+		prefixes []string
+		want     []createField
+	}{
+		{
+			name:     "tab walks the fields in visual order",
+			prefixes: []string{"beans", "other"},
+			want: []createField{createFieldBody, createFieldPrefix, createFieldType,
+				createFieldStatus, createFieldPriority, createFieldSize, createFieldTitle},
+		},
+		{
+			name:     "a single prefix is skipped",
+			prefixes: []string{"beans"},
+			want: []createField{createFieldBody, createFieldType,
+				createFieldStatus, createFieldPriority, createFieldSize, createFieldTitle},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTestCreateModal()
+			m.prefixes = tt.prefixes
+			var got []createField
+			for range tt.want {
+				m, _ = pressCreate(m, keyMsg("tab"))
+				got = append(got, m.focus)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("focus order = %v, want %v", got, tt.want)
+			}
+			m, _ = pressCreate(m, shiftTab)
+			if m.focus != createFieldSize {
+				t.Errorf("shift+tab from title: focus = %v, want size", m.focus)
+			}
+		})
+	}
+}
+
+// TestFormViewLayout checks that the text fields render without labels and
+// that the selector row sits below the description, in both forms
+func TestFormViewLayout(t *testing.T) {
+	create := typeIntoCreate(newTestCreateModal(), "title")
+	create, _ = pressCreate(create, keyMsg("tab"))
+	create = typeIntoCreate(create, "body")
+	create.prefixes = []string{"beans", "other"}
+	tests := []struct {
+		name   string
+		view   string
+		labels []string
+	}{
+		{"create", create.View(), []string{"Prefix", "Type", "Status", "Priority", "Size"}},
+		{"edit", newTestEditModal(40).View(), []string{"Type", "Status", "Priority", "Size"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, label := range []string{"Title", "ID prefix"} {
+				if strings.Contains(tt.view, label) {
+					t.Errorf("view should not contain the %q label", label)
+				}
+			}
+			if descriptionLabel.MatchString(tt.view) {
+				t.Error("view should not contain the \"Description\" label")
+			}
+			if strings.Index(tt.view, "body") > strings.Index(tt.view, "Type") {
+				t.Error("selector row should come after the description")
+			}
+			row := labelRow(tt.view, "Type")
+			for _, label := range tt.labels {
+				if !strings.Contains(row, label) {
+					t.Errorf("selector row %q missing %q", row, label)
+				}
+			}
+		})
+	}
+}
+
+// descriptionLabel matches a "Description" label on a line of its own, as
+// opposed to the description placeholder
+var descriptionLabel = regexp.MustCompile(`Description\s+│`)
+
+// labelRow returns the rendered line containing the given text
+func labelRow(view, text string) string {
+	for _, line := range strings.Split(view, "\n") {
+		if strings.Contains(line, text) {
+			return line
+		}
+	}
+	return ""
+}
+
+func TestCreateModalColumnsFitMinimumWidth(t *testing.T) {
+	m := newCreateModalModel(config.Default(), 40, 40, "", "")
+	m.prefixes = []string{"project-x", "beans"}
+	row := labelRow(m.View(), "Prefix")
+	for _, label := range []string{"Type", "Status", "Priority", "Size"} {
+		if !strings.Contains(row, label) {
+			t.Errorf("at minimum width the selector row %q should still hold %q", row, label)
+		}
+	}
+	if !strings.Contains(labelRow(m.View(), "project-x"), "md") {
+		t.Error("prefix value should share its line with the size value")
 	}
 }

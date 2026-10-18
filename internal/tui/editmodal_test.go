@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/config"
@@ -68,21 +70,21 @@ func TestEditModalSubmitOnlyChangedFields(t *testing.T) {
 		{
 			name: "status changed, save & edit",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
-				return pressCreate(m, keyMsg("tab"), keyMsg("tab"), keyMsg("l"), keyMsg("e"))
+				return pressCreate(m, keyMsg("tab"), keyMsg("tab"), keyMsg("tab"), keyMsg("l"), keyMsg("e"))
 			},
 			title: "<nil>", body: "<nil>", typ: "<nil>", status: "draft", prio: "<nil>", wantEditor: true,
 		},
 		{
 			name: "selector cycled back is unchanged",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
-				return pressCreate(m, keyMsg("tab"), keyMsg("l"), keyMsg("h"), keyMsg("enter"))
+				return pressCreate(m, keyMsg("tab"), keyMsg("tab"), keyMsg("l"), keyMsg("h"), keyMsg("enter"))
 			},
 			title: "<nil>", body: "<nil>", typ: "<nil>", status: "<nil>", prio: "<nil>",
 		},
 		{
 			name: "body changed",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
-				m, _ = pressCreate(m, shiftTab)
+				m, _ = pressCreate(m, keyMsg("tab"))
 				m = typeIntoCreate(m, "x")
 				return pressCreate(m, ctrlS)
 			},
@@ -144,6 +146,21 @@ func TestEditModalBodyGrowsWithHeight(t *testing.T) {
 	}
 	if got := newTestCreateModal().body.Height(); got != 5 {
 		t.Errorf("create modal body height = %d, want 5", got)
+	}
+}
+
+// TestEditModalFillsHeight checks that editModalChromeHeight matches the
+// rendered chrome: the form never overflows the terminal, even with an error
+// shown at the narrowest width, and uses the height at full width
+func TestEditModalFillsHeight(t *testing.T) {
+	m := newTestEditModal(60)
+	if got := lipgloss.Height(m.View()); got < 60-editModalSlackHeight || got > 60 {
+		t.Errorf("edit modal height = %d, want %d..60", got, 60-editModalSlackHeight)
+	}
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 40, Height: 60})
+	m.errorMessage = "A bean needs a title or a description"
+	if got := lipgloss.Height(m.View()); got > 60 {
+		t.Errorf("narrow edit modal with error: height = %d, want at most 60", got)
 	}
 }
 

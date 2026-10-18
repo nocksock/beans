@@ -59,13 +59,22 @@ type beanEditedMsg struct {
 	openEditor bool // open the bean in $EDITOR after saving
 }
 
+// editModalSlackHeight is the number of rows kept free below the edit form
+// for the error line and a wrapped help line
+const editModalSlackHeight = 4
+
 // editModalChromeHeight is the number of rows the edit form needs besides the
 // description field (modal border and padding, header, title, selectors, help)
-const editModalChromeHeight = 24
+// plus the slack
+const editModalChromeHeight = 18 + editModalSlackHeight
 
-// selectorColumnsMinWidth is the width the type, status, priority and size
-// selectors need side by side
-const selectorColumnsMinWidth = 13 + 15 + 12 + 6
+// selectorColumnWidths are the widths of the type, status, priority and size
+// columns: their longest values ("milestone", "in-progress", "deferred") plus
+// the selector padding
+var selectorColumnWidths = []int{13, 15, 12, 6}
+
+// selectorPadding is the room a selector adds around its value for the arrows
+const selectorPadding = 4
 
 // editModalMinBodyHeight is the minimum height of the description field when editing
 const editModalMinBodyHeight = 5
@@ -73,14 +82,15 @@ const editModalMinBodyHeight = 5
 // createField identifies a focusable field in the create form
 type createField int
 
+// The order is the tab order, which follows the layout
 const (
 	createFieldTitle createField = iota
+	createFieldBody
 	createFieldPrefix
 	createFieldType
 	createFieldStatus
 	createFieldPriority
 	createFieldSize
-	createFieldBody
 	createFieldCount
 )
 
@@ -212,8 +222,38 @@ func indexByName[T any](items []T, nameOf func(T) string, name string) int {
 	return 0
 }
 
+// modalWidth is 60% of the terminal, between 52 columns and 72, but always
+// wide enough for the selector row
 func (m createModalModel) modalWidth() int {
-	return max(52, min(72, m.width*60/100))
+	minWidth := 6 + sum(m.selectorColumns()) // modal border and padding
+	return max(minWidth, min(72, m.width*60/100))
+}
+
+func sum(ns []int) int {
+	total := 0
+	for _, n := range ns {
+		total += n
+	}
+	return total
+}
+
+// selectorColumns returns the width of each selector column, with the prefix
+// column first when creating
+func (m createModalModel) selectorColumns() []int {
+	if m.isEdit() {
+		return selectorColumnWidths
+	}
+	return append([]int{m.prefixColumnWidth()}, selectorColumnWidths...)
+}
+
+// prefixColumnWidth fits the longest prefix with its selector padding, and at
+// least the "Prefix" label with a gap
+func (m createModalModel) prefixColumnWidth() int {
+	longest := len("(none)")
+	for _, p := range m.prefixes {
+		longest = max(longest, len(p))
+	}
+	return max(len("Prefix")+2, longest+selectorPadding)
 }
 
 // selectedSize returns the chosen size, or "" for the default size so that
@@ -475,29 +515,20 @@ func (m createModalModel) View() string {
 
 	t := m.types[m.typeIdx]
 	s := m.statuses[m.statusIdx]
-	typeField := label(createFieldType, "Type") + "\n" +
-		selector(createFieldType, ui.RenderTypeText(t.Name, t.Color))
-	statusField := label(createFieldStatus, "Status") + "\n" +
-		selector(createFieldStatus, ui.RenderStatusTextWithColor(s.Name, s.Color, s.Archive))
 	p := m.priorities[m.priorityIdx]
-	priorityField := label(createFieldPriority, "Priority") + "\n" +
-		selector(createFieldPriority, ui.RenderPriorityText(p.Name, p.Color))
 	sz := m.sizes[m.sizeIdx]
-	sizeField := label(createFieldSize, "Size") + "\n" +
-		selector(createFieldSize, ui.RenderSizeText(sz.Name, sz.Color))
-	// Columns fit their longest values ("milestone", "in-progress", "deferred");
-	// extra room is shared between them, and size takes the rest.
-	extra := max(0, fieldWidth-selectorColumnsMinWidth) / 3
-	selectors := lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Width(13+extra).Render(typeField),
-		lipgloss.NewStyle().Width(15+extra).Render(statusField),
-		lipgloss.NewStyle().Width(12+extra).Render(priorityField),
-		sizeField,
-	)
-
+	fields := []string{
+		label(createFieldType, "Type") + "\n" +
+			selector(createFieldType, ui.RenderTypeText(t.Name, t.Color)),
+		label(createFieldStatus, "Status") + "\n" +
+			selector(createFieldStatus, ui.RenderStatusTextWithColor(s.Name, s.Color, s.Archive)),
+		label(createFieldPriority, "Priority") + "\n" +
+			selector(createFieldPriority, ui.RenderPriorityText(p.Name, p.Color)),
+		label(createFieldSize, "Size") + "\n" +
+			selector(createFieldSize, ui.RenderSizeText(sz.Name, sz.Color)),
+	}
 	// The prefix always renders when creating, so the layout doesn't depend on
 	// how many prefixes there are; with only one it can't be changed
-	var prefixRow string
 	if !m.isEdit() {
 		prefix := m.prefixes[m.prefixIdx]
 		if prefix == "" {
@@ -507,8 +538,16 @@ func (m createModalModel) View() string {
 		if m.prefixSelectable() {
 			value = selector(createFieldPrefix, prefix)
 		}
-		prefixRow = label(createFieldPrefix, "ID prefix") + " " + value + "\n\n"
+		fields = append([]string{label(createFieldPrefix, "Prefix") + "\n" + value}, fields...)
 	}
+	// Columns fit their longest values; extra room is shared between them,
+	// and the last column takes the rest
+	widths := m.selectorColumns()
+	extra := max(0, fieldWidth-sum(widths)) / len(widths)
+	for i := range fields[:len(fields)-1] {
+		fields[i] = lipgloss.NewStyle().Width(widths[i] + extra).Render(fields[i])
+	}
+	selectors := lipgloss.JoinHorizontal(lipgloss.Top, fields...)
 
 	// Help text depends on the focused field
 	k := keymap.CreateModal
@@ -532,12 +571,12 @@ func (m createModalModel) View() string {
 	}
 	help = hints(help, hint(k.NextField, ""), hint(k.Cancel, ""))
 
-	// Assemble content
+	// Assemble content: the placeholders and the focused border identify the
+	// text fields, so they have no labels
 	content := header + "\n\n" +
-		label(createFieldTitle, "Title") + "\n" + box(createFieldTitle, m.textInput.View()) + "\n\n" +
-		prefixRow +
-		selectors + "\n\n" +
-		label(createFieldBody, "Description") + "\n" + box(createFieldBody, m.body.View()) + "\n\n"
+		box(createFieldTitle, m.textInput.View()) + "\n\n" +
+		box(createFieldBody, m.body.View()) + "\n\n" +
+		selectors + "\n\n"
 	if m.errorMessage != "" {
 		content += lipgloss.NewStyle().Foreground(ui.ColorDanger).Render(m.errorMessage) + "\n"
 	}
