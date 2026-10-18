@@ -2,7 +2,6 @@ package tui
 
 import (
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/tui/layout"
@@ -43,7 +42,7 @@ func (p listPane) update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 func (p listPane) bindings() []key.Binding { return allBindings(keymap.List) }
-func (p listPane) typing() bool            { return p.list.FilterState() == list.Filtering }
+func (p listPane) typing() bool            { return p.editingQuery() }
 func (p listPane) selection() *bean.Bean {
 	b, _ := p.previewData()
 	return b

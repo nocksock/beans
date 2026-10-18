@@ -42,6 +42,7 @@ type Config struct {
 
 type ResolverRoot interface {
 	Bean() BeanResolver
+	BeanCommit() BeanCommitResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 }
@@ -58,6 +59,8 @@ type ComplexityRoot struct {
 		Body           func(childComplexity int) int
 		Children       func(childComplexity int, filter *model.BeanFilter) int
 		CreatedAt      func(childComplexity int) int
+		Diff           func(childComplexity int, commit string) int
+		History        func(childComplexity int, limit *int) int
 		ID             func(childComplexity int) int
 		Parent         func(childComplexity int) int
 		ParentID       func(childComplexity int) int
@@ -71,6 +74,14 @@ type ComplexityRoot struct {
 		Title          func(childComplexity int) int
 		Type           func(childComplexity int) int
 		UpdatedAt      func(childComplexity int) int
+	}
+
+	BeanCommit struct {
+		Author  func(childComplexity int) int
+		Date    func(childComplexity int) int
+		Diff    func(childComplexity int) int
+		Hash    func(childComplexity int) int
+		Subject func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -102,6 +113,11 @@ type BeanResolver interface {
 	Blocking(ctx context.Context, obj *bean.Bean, filter *model.BeanFilter) ([]*bean.Bean, error)
 	Parent(ctx context.Context, obj *bean.Bean) (*bean.Bean, error)
 	Children(ctx context.Context, obj *bean.Bean, filter *model.BeanFilter) ([]*bean.Bean, error)
+	History(ctx context.Context, obj *bean.Bean, limit *int) ([]*model.BeanCommit, error)
+	Diff(ctx context.Context, obj *bean.Bean, commit string) (string, error)
+}
+type BeanCommitResolver interface {
+	Diff(ctx context.Context, obj *model.BeanCommit) (string, error)
 }
 type MutationResolver interface {
 	CreateBean(ctx context.Context, input model.CreateBeanInput) (*bean.Bean, error)
@@ -194,6 +210,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Bean.CreatedAt(childComplexity), true
+	case "Bean.diff":
+		if e.complexity.Bean.Diff == nil {
+			break
+		}
+
+		args, err := ec.field_Bean_diff_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Bean.Diff(childComplexity, args["commit"].(string)), true
+	case "Bean.history":
+		if e.complexity.Bean.History == nil {
+			break
+		}
+
+		args, err := ec.field_Bean_history_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Bean.History(childComplexity, args["limit"].(*int)), true
 	case "Bean.id":
 		if e.complexity.Bean.ID == nil {
 			break
@@ -272,6 +310,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Bean.UpdatedAt(childComplexity), true
+
+	case "BeanCommit.author":
+		if e.complexity.BeanCommit.Author == nil {
+			break
+		}
+
+		return e.complexity.BeanCommit.Author(childComplexity), true
+	case "BeanCommit.date":
+		if e.complexity.BeanCommit.Date == nil {
+			break
+		}
+
+		return e.complexity.BeanCommit.Date(childComplexity), true
+	case "BeanCommit.diff":
+		if e.complexity.BeanCommit.Diff == nil {
+			break
+		}
+
+		return e.complexity.BeanCommit.Diff(childComplexity), true
+	case "BeanCommit.hash":
+		if e.complexity.BeanCommit.Hash == nil {
+			break
+		}
+
+		return e.complexity.BeanCommit.Hash(childComplexity), true
+	case "BeanCommit.subject":
+		if e.complexity.BeanCommit.Subject == nil {
+			break
+		}
+
+		return e.complexity.BeanCommit.Subject(childComplexity), true
 
 	case "Mutation.addBlockedBy":
 		if e.complexity.Mutation.AddBlockedBy == nil {
@@ -542,6 +611,28 @@ func (ec *executionContext) field_Bean_children_args(ctx context.Context, rawArg
 		return nil, err
 	}
 	args["filter"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Bean_diff_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "commit", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["commit"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Bean_history_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
 	return args, nil
 }
 
@@ -1277,6 +1368,10 @@ func (ec *executionContext) fieldContext_Bean_blockedBy(ctx context.Context, fie
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -1360,6 +1455,10 @@ func (ec *executionContext) fieldContext_Bean_blocking(ctx context.Context, fiel
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -1442,6 +1541,10 @@ func (ec *executionContext) fieldContext_Bean_parent(_ context.Context, field gr
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -1514,6 +1617,10 @@ func (ec *executionContext) fieldContext_Bean_children(ctx context.Context, fiel
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -1528,6 +1635,245 @@ func (ec *executionContext) fieldContext_Bean_children(ctx context.Context, fiel
 	if fc.Args, err = ec.field_Bean_children_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Bean_history(ctx context.Context, field graphql.CollectedField, obj *bean.Bean) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Bean_history,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Bean().History(ctx, obj, fc.Args["limit"].(*int))
+		},
+		nil,
+		ec.marshalNBeanCommit2ᚕᚖgithubᚗcomᚋhmansᚋbeansᚋinternalᚋgraphᚋmodelᚐBeanCommitᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Bean_history(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Bean",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hash":
+				return ec.fieldContext_BeanCommit_hash(ctx, field)
+			case "author":
+				return ec.fieldContext_BeanCommit_author(ctx, field)
+			case "date":
+				return ec.fieldContext_BeanCommit_date(ctx, field)
+			case "subject":
+				return ec.fieldContext_BeanCommit_subject(ctx, field)
+			case "diff":
+				return ec.fieldContext_BeanCommit_diff(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BeanCommit", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Bean_history_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Bean_diff(ctx context.Context, field graphql.CollectedField, obj *bean.Bean) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Bean_diff,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Bean().Diff(ctx, obj, fc.Args["commit"].(string))
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Bean_diff(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Bean",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Bean_diff_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BeanCommit_hash(ctx context.Context, field graphql.CollectedField, obj *model.BeanCommit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BeanCommit_hash,
+		func(ctx context.Context) (any, error) {
+			return obj.Hash, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BeanCommit_hash(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BeanCommit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BeanCommit_author(ctx context.Context, field graphql.CollectedField, obj *model.BeanCommit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BeanCommit_author,
+		func(ctx context.Context) (any, error) {
+			return obj.Author, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BeanCommit_author(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BeanCommit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BeanCommit_date(ctx context.Context, field graphql.CollectedField, obj *model.BeanCommit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BeanCommit_date,
+		func(ctx context.Context) (any, error) {
+			return obj.Date, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BeanCommit_date(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BeanCommit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BeanCommit_subject(ctx context.Context, field graphql.CollectedField, obj *model.BeanCommit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BeanCommit_subject,
+		func(ctx context.Context) (any, error) {
+			return obj.Subject, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BeanCommit_subject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BeanCommit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BeanCommit_diff(ctx context.Context, field graphql.CollectedField, obj *model.BeanCommit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BeanCommit_diff,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.BeanCommit().Diff(ctx, obj)
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BeanCommit_diff(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BeanCommit",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -1597,6 +1943,10 @@ func (ec *executionContext) fieldContext_Mutation_createBean(ctx context.Context
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -1680,6 +2030,10 @@ func (ec *executionContext) fieldContext_Mutation_updateBean(ctx context.Context
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -1804,6 +2158,10 @@ func (ec *executionContext) fieldContext_Mutation_setParent(ctx context.Context,
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -1887,6 +2245,10 @@ func (ec *executionContext) fieldContext_Mutation_addBlocking(ctx context.Contex
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -1970,6 +2332,10 @@ func (ec *executionContext) fieldContext_Mutation_removeBlocking(ctx context.Con
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -2053,6 +2419,10 @@ func (ec *executionContext) fieldContext_Mutation_addBlockedBy(ctx context.Conte
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -2136,6 +2506,10 @@ func (ec *executionContext) fieldContext_Mutation_removeBlockedBy(ctx context.Co
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -2219,6 +2593,10 @@ func (ec *executionContext) fieldContext_Query_bean(ctx context.Context, field g
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -2302,6 +2680,10 @@ func (ec *executionContext) fieldContext_Query_beans(ctx context.Context, field 
 				return ec.fieldContext_Bean_parent(ctx, field)
 			case "children":
 				return ec.fieldContext_Bean_children(ctx, field)
+			case "history":
+				return ec.fieldContext_Bean_history(ctx, field)
+			case "diff":
+				return ec.fieldContext_Bean_diff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bean", field.Name)
 		},
@@ -3881,7 +4263,7 @@ func (ec *executionContext) unmarshalInputBeanFilter(ctx context.Context, obj an
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"search", "status", "excludeStatus", "type", "excludeType", "priority", "excludePriority", "size", "excludeSize", "tags", "excludeTags", "hasParent", "parentId", "hasBlocking", "blockingId", "isBlocked", "noParent", "noBlocking"}
+	fieldsInOrder := [...]string{"search", "idPrefix", "status", "excludeStatus", "type", "excludeType", "priority", "excludePriority", "size", "excludeSize", "tags", "excludeTags", "hasParent", "parentId", "hasBlocking", "blockingId", "isBlocked", "noParent", "noBlocking"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -3895,6 +4277,13 @@ func (ec *executionContext) unmarshalInputBeanFilter(ctx context.Context, obj an
 				return it, err
 			}
 			it.Search = data
+		case "idPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDPrefix = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
@@ -4027,7 +4416,7 @@ func (ec *executionContext) unmarshalInputCreateBeanInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"title", "type", "status", "priority", "size", "tags", "body", "parent", "blocking", "blockedBy"}
+	fieldsInOrder := [...]string{"title", "type", "status", "priority", "size", "tags", "body", "parent", "blocking", "blockedBy", "prefix"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4104,6 +4493,13 @@ func (ec *executionContext) unmarshalInputCreateBeanInput(ctx context.Context, o
 				return it, err
 			}
 			it.BlockedBy = data
+		case "prefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("prefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Prefix = data
 		}
 	}
 
@@ -4542,6 +4938,168 @@ func (ec *executionContext) _Bean(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Bean_children(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "history":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Bean_history(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "diff":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Bean_diff(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var beanCommitImplementors = []string{"BeanCommit"}
+
+func (ec *executionContext) _BeanCommit(ctx context.Context, sel ast.SelectionSet, obj *model.BeanCommit) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, beanCommitImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BeanCommit")
+		case "hash":
+			out.Values[i] = ec._BeanCommit_hash(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "author":
+			out.Values[i] = ec._BeanCommit_author(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "date":
+			out.Values[i] = ec._BeanCommit_date(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "subject":
+			out.Values[i] = ec._BeanCommit_subject(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "diff":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._BeanCommit_diff(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -5173,6 +5731,60 @@ func (ec *executionContext) marshalNBean2ᚖgithubᚗcomᚋhmansᚋbeansᚋinter
 	return ec._Bean(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNBeanCommit2ᚕᚖgithubᚗcomᚋhmansᚋbeansᚋinternalᚋgraphᚋmodelᚐBeanCommitᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BeanCommit) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNBeanCommit2ᚖgithubᚗcomᚋhmansᚋbeansᚋinternalᚋgraphᚋmodelᚐBeanCommit(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBeanCommit2ᚖgithubᚗcomᚋhmansᚋbeansᚋinternalᚋgraphᚋmodelᚐBeanCommit(ctx context.Context, sel ast.SelectionSet, v *model.BeanCommit) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BeanCommit(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -5254,6 +5866,22 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v any) (time.Time, error) {
+	res, err := graphql.UnmarshalTime(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel ast.SelectionSet, v time.Time) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalTime(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) unmarshalNTime2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
@@ -5578,6 +6206,24 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt(*v)
 	return res
 }
 

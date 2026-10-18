@@ -91,6 +91,7 @@ type ListKeyMap struct {
 	Launch          key.Binding
 	Archive         key.Binding
 	ToggleArchived  key.Binding
+	ToggleScope     key.Binding
 }
 
 // ContextKeyMap holds bindings for the context pane showing a bean.
@@ -251,6 +252,7 @@ func DefaultKeyMap() KeyMap {
 			Launch:          bind("launch", "!"),
 			Archive:         bind("archive", "Y"),
 			ToggleArchived:  bind("show archived", "A"),
+			ToggleScope:     bind("show all scopes", "g s"),
 		},
 		Context: ContextKeyMap{
 			ScrollUp:     bind("scroll up", "up", "k"),

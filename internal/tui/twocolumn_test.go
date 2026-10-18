@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/charmbracelet/bubbles/textinput"
 	"strings"
 	"testing"
 
@@ -270,12 +271,12 @@ func TestBreadcrumbTitle(t *testing.T) {
 	tests := []struct {
 		name     string
 		roots    []*bean.Bean
-		tag      string
+		query    string
 		maxWidth int
 		want     string
 	}{
 		{"top level", nil, "", 80, "Beans"},
-		{"top level with tag", nil, "idea", 80, "Beans [tag: idea]"},
+		{"top level with query", nil, "tag:idea  size:sm", 80, "Beans [tag:idea size:sm]"},
 		{"nested fits", roots, "", 80, "Beans › Milestone 0.4.0 › Two-column layout › Preview pane"},
 		{"outer levels elided", roots, "", 45, "Beans › … › Two-column layout › Preview pane"},
 		{"only innermost fits", roots, "", 25, "Beans › … › Preview pane"},
@@ -283,7 +284,8 @@ func TestBreadcrumbTitle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := listModel{rootBeans: tt.roots, tagFilter: tt.tag}
+			m := listModel{rootBeans: tt.roots, queryInput: textinput.New()}
+			m.queryInput.SetValue(tt.query)
 			got := m.breadcrumbTitle(tt.maxWidth)
 			if got != tt.want {
 				t.Errorf("breadcrumbTitle(%d) = %q, want %q", tt.maxWidth, got, tt.want)
@@ -329,8 +331,9 @@ func TestNarrowContextFocusShowsItFullWidth(t *testing.T) {
 }
 
 func TestBreadcrumbTitleShowArchived(t *testing.T) {
-	m := listModel{tagFilter: "idea", showArchived: true}
-	if got, want := m.breadcrumbTitle(80), "Beans [tag: idea] [+archived]"; got != want {
+	m := listModel{queryInput: textinput.New(), showArchived: true}
+	m.queryInput.SetValue("tag:idea")
+	if got, want := m.breadcrumbTitle(80), "Beans [tag:idea] [+archived]"; got != want {
 		t.Errorf("breadcrumbTitle = %q, want %q", got, want)
 	}
 }

@@ -79,6 +79,34 @@ func (r *beanResolver) Children(ctx context.Context, obj *bean.Bean, filter *mod
 	return ApplyFilter(result, filter, r.Core), nil
 }
 
+// History is the resolver for the history field.
+func (r *beanResolver) History(ctx context.Context, obj *bean.Bean, limit *int) ([]*model.BeanCommit, error) {
+	n := 0
+	if limit != nil {
+		n = *limit
+	}
+	file := r.historyFile(obj)
+	commits, err := file.Log(ctx, n)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.BeanCommit, len(commits))
+	for i, c := range commits {
+		result[i] = &model.BeanCommit{Commit: c, File: file}
+	}
+	return result, nil
+}
+
+// Diff is the resolver for the diff field.
+func (r *beanResolver) Diff(ctx context.Context, obj *bean.Bean, commit string) (string, error) {
+	return r.historyFile(obj).Diff(ctx, commit)
+}
+
+// Diff is the resolver for the diff field.
+func (r *beanCommitResolver) Diff(ctx context.Context, obj *model.BeanCommit) (string, error) {
+	return obj.File.Diff(ctx, obj.Hash)
+}
+
 // CreateBean is the resolver for the createBean field.
 func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBeanInput) (*bean.Bean, error) {
 	var title string
@@ -100,6 +128,7 @@ func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBea
 	}
 
 	b := &bean.Bean{
+		ID:        r.newBeanID(input.Prefix),
 		Slug:      slug,
 		Title:     title,
 		Type:      "task", // default
@@ -360,6 +389,9 @@ func (r *queryResolver) Beans(ctx context.Context, filter *model.BeanFilter) ([]
 // Bean returns BeanResolver implementation.
 func (r *Resolver) Bean() BeanResolver { return &beanResolver{r} }
 
+// BeanCommit returns BeanCommitResolver implementation.
+func (r *Resolver) BeanCommit() BeanCommitResolver { return &beanCommitResolver{r} }
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
@@ -367,5 +399,6 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
 type beanResolver struct{ *Resolver }
+type beanCommitResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

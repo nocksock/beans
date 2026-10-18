@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -28,8 +29,10 @@ type beanCreatedMsg struct {
 	status     string // optional status (empty uses draft)
 	priority   string // optional priority (empty uses the default)
 	size       string // optional size (empty uses the default)
+	tags       []string
 	body       string // optional markdown body
 	parentID   string // optional parent ID for the new bean
+	prefix     string // ID prefix for the new bean
 	openEditor bool   // open the new bean in $EDITOR after creating it
 }
 
@@ -40,6 +43,7 @@ type closeCreateModalMsg struct{}
 type openCreateModalMsg struct {
 	parentID    string // optional parent ID for the new bean
 	parentTitle string // display title of the parent (for UI)
+	prefill     beanPrefill
 }
 
 // openEditModalMsg requests opening the form to edit an existing bean
@@ -71,6 +75,7 @@ type createField int
 
 const (
 	createFieldTitle createField = iota
+	createFieldPrefix
 	createFieldType
 	createFieldStatus
 	createFieldPriority
@@ -87,6 +92,8 @@ type createModalModel struct {
 	statuses    []config.StatusConfig
 	priorities  []config.PriorityConfig
 	sizes       []config.SizeConfig
+	prefixes    []string // ID prefixes to choose from; the first is the default
+	prefixIdx   int
 	typeIdx     int
 	statusIdx   int
 	priorityIdx int
@@ -96,6 +103,7 @@ type createModalModel struct {
 	height      int
 	parentID    string // optional parent ID for the new bean
 	parentTitle string // display title of the parent (for UI)
+	tags        []string
 
 	// Edit mode: set when the form edits an existing bean instead of creating one
 	beanID       string
@@ -157,6 +165,7 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 		statuses:    cfg.Statuses(),
 		priorities:  config.DefaultPriorities,
 		sizes:       config.DefaultSizes,
+		prefixes:    []string{cfg.Beans.Prefix},
 		width:       width,
 		height:      height,
 		parentID:    parentID,
@@ -168,6 +177,29 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 	m.sizeIdx = indexByName(m.sizes, func(s config.SizeConfig) string { return s.Name }, config.DefaultSize)
 	m.resize()
 	return m
+}
+
+// withPrefill preselects the given fields; empty or unknown values keep the defaults
+func (m createModalModel) withPrefill(p beanPrefill) createModalModel {
+	prefill := func(idx *int, names []string, name string) {
+		if i := slices.Index(names, name); name != "" && i >= 0 {
+			*idx = i
+		}
+	}
+	prefill(&m.typeIdx, namesOf(m.types, func(t config.TypeConfig) string { return t.Name }), p.Type)
+	prefill(&m.statusIdx, namesOf(m.statuses, func(s config.StatusConfig) string { return s.Name }), p.Status)
+	prefill(&m.priorityIdx, namesOf(m.priorities, func(p config.PriorityConfig) string { return p.Name }), p.Priority)
+	prefill(&m.sizeIdx, namesOf(m.sizes, func(s config.SizeConfig) string { return s.Name }), p.Size)
+	m.tags = p.Tags
+	return m
+}
+
+func namesOf[T any](items []T, nameOf func(T) string) []string {
+	names := make([]string, len(items))
+	for i, item := range items {
+		names[i] = nameOf(item)
+	}
+	return names
 }
 
 // indexByName returns the index of the item with the given name, or 0 if not found
@@ -207,6 +239,21 @@ func (m createModalModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
+// moveFocus moves focus by delta fields, skipping fields that can't be changed
+func (m *createModalModel) moveFocus(delta createField) tea.Cmd {
+	f := (m.focus + delta + createFieldCount) % createFieldCount
+	if f == createFieldPrefix && !m.prefixSelectable() {
+		f = (f + delta + createFieldCount) % createFieldCount
+	}
+	return m.setFocus(f)
+}
+
+// prefixSelectable reports whether the prefix field can be changed: only when
+// creating, with several prefixes to choose from.
+func (m createModalModel) prefixSelectable() bool {
+	return !m.isEdit() && len(m.prefixes) > 1
+}
+
 // setFocus moves focus to the given field, (un)focusing the text inputs accordingly
 func (m *createModalModel) setFocus(f createField) tea.Cmd {
 	m.focus = (f + createFieldCount) % createFieldCount
@@ -238,8 +285,10 @@ func (m createModalModel) submit(openEditor bool) tea.Cmd {
 		status:     m.statuses[m.statusIdx].Name,
 		priority:   m.priorities[m.priorityIdx].Name,
 		size:       m.selectedSize(),
+		tags:       m.tags,
 		body:       body,
 		parentID:   m.parentID,
+		prefix:     m.prefixes[m.prefixIdx],
 		openEditor: openEditor,
 	}
 	return func() tea.Msg { return msg }
@@ -294,6 +343,8 @@ func (m createModalModel) trySubmit(openEditor bool) (createModalModel, tea.Cmd)
 // cycle moves the selection of the focused selector field by delta
 func (m *createModalModel) cycle(delta int) {
 	switch m.focus {
+	case createFieldPrefix:
+		m.prefixIdx = (m.prefixIdx + delta + len(m.prefixes)) % len(m.prefixes)
 	case createFieldType:
 		m.typeIdx = (m.typeIdx + delta + len(m.types)) % len(m.types)
 	case createFieldStatus:
@@ -307,7 +358,7 @@ func (m *createModalModel) cycle(delta int) {
 
 func (m createModalModel) isSelectorFocused() bool {
 	switch m.focus {
-	case createFieldType, createFieldStatus, createFieldPriority, createFieldSize:
+	case createFieldPrefix, createFieldType, createFieldStatus, createFieldPriority, createFieldSize:
 		return true
 	}
 	return false
@@ -329,9 +380,9 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 		case key.Matches(msg, k.Cancel):
 			return m, func() tea.Msg { return closeCreateModalMsg{} }
 		case key.Matches(msg, k.NextField):
-			return m, m.setFocus(m.focus + 1)
+			return m, m.moveFocus(1)
 		case key.Matches(msg, k.PrevField):
-			return m, m.setFocus(m.focus - 1)
+			return m, m.moveFocus(-1)
 		case key.Matches(msg, k.Submit):
 			return m.trySubmit(false)
 		case key.Matches(msg, k.SubmitAndEdit):
@@ -391,6 +442,9 @@ func (m createModalModel) View() string {
 	} else {
 		header = lipgloss.NewStyle().Bold(true).Render("Create New Bean")
 	}
+	if len(m.tags) > 0 {
+		header += "\n" + lipgloss.NewStyle().Foreground(ui.ColorMuted).Render("Tags: "+strings.Join(m.tags, ", "))
+	}
 
 	label := func(f createField, text string) string {
 		style := lipgloss.NewStyle().Foreground(ui.ColorMuted)
@@ -441,6 +495,21 @@ func (m createModalModel) View() string {
 		sizeField,
 	)
 
+	// The prefix always renders when creating, so the layout doesn't depend on
+	// how many prefixes there are; with only one it can't be changed
+	var prefixRow string
+	if !m.isEdit() {
+		prefix := m.prefixes[m.prefixIdx]
+		if prefix == "" {
+			prefix = "(none)"
+		}
+		value := lipgloss.NewStyle().Foreground(ui.ColorMuted).Render("  " + prefix)
+		if m.prefixSelectable() {
+			value = selector(createFieldPrefix, prefix)
+		}
+		prefixRow = label(createFieldPrefix, "ID prefix") + " " + value + "\n\n"
+	}
+
 	// Help text depends on the focused field
 	k := keymap.CreateModal
 	verb := "create"
@@ -466,6 +535,7 @@ func (m createModalModel) View() string {
 	// Assemble content
 	content := header + "\n\n" +
 		label(createFieldTitle, "Title") + "\n" + box(createFieldTitle, m.textInput.View()) + "\n\n" +
+		prefixRow +
 		selectors + "\n\n" +
 		label(createFieldBody, "Description") + "\n" + box(createFieldBody, m.body.View()) + "\n\n"
 	if m.errorMessage != "" {

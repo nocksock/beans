@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/hmans/beans/internal/bean"
@@ -42,6 +41,7 @@ var (
 	listSort        string
 	listFull        bool
 	listInclude     []string
+	listAll         bool
 )
 
 // hiddenByDefaultStatuses are statuses excluded from `beans list` unless
@@ -118,6 +118,7 @@ Search Syntax (--search/-S):
 			ExcludeSize:     listNoSize,
 			Tags:            listTag,
 			ExcludeTags:     listNoTag,
+			IDPrefix:        listIDPrefix(cfg, listAll),
 		}
 
 		// Add search filter if provided
@@ -158,7 +159,7 @@ Search Syntax (--search/-S):
 		beans = slices.DeleteFunc(beans, func(b *bean.Bean) bool { return slices.Contains(hidden, b.Status) })
 
 		// Sort beans
-		sortBeans(beans, listSort, cfg)
+		bean.SortBy(beans, listSort, bean.DefaultSortDesc(listSort), bean.SortOrdersFrom(cfg))
 
 		// JSON output (flat list)
 		if listJSON {
@@ -187,7 +188,7 @@ Search Syntax (--search/-S):
 
 		// Create sort function for tree building
 		sortFn := func(b []*bean.Bean) {
-			sortBeans(b, listSort, cfg)
+			bean.SortBy(b, listSort, bean.DefaultSortDesc(listSort), bean.SortOrdersFrom(cfg))
 		}
 
 		// Build tree
@@ -227,103 +228,14 @@ Search Syntax (--search/-S):
 	},
 }
 
-func sortBeans(beans []*bean.Bean, sortBy string, cfg *config.Config) {
-	statusNames := cfg.StatusNames()
-	priorityNames := cfg.PriorityNames()
-	typeNames := cfg.TypeNames()
-
-	switch sortBy {
-	case "created":
-		sort.Slice(beans, func(i, j int) bool {
-			if beans[i].CreatedAt == nil && beans[j].CreatedAt == nil {
-				return beans[i].ID < beans[j].ID
-			}
-			if beans[i].CreatedAt == nil {
-				return false
-			}
-			if beans[j].CreatedAt == nil {
-				return true
-			}
-			return beans[i].CreatedAt.After(*beans[j].CreatedAt)
-		})
-	case "updated":
-		sort.Slice(beans, func(i, j int) bool {
-			if beans[i].UpdatedAt == nil && beans[j].UpdatedAt == nil {
-				return beans[i].ID < beans[j].ID
-			}
-			if beans[i].UpdatedAt == nil {
-				return false
-			}
-			if beans[j].UpdatedAt == nil {
-				return true
-			}
-			return beans[i].UpdatedAt.After(*beans[j].UpdatedAt)
-		})
-	case "status":
-		// Build status order from configured statuses
-		statusOrder := make(map[string]int)
-		for i, s := range statusNames {
-			statusOrder[s] = i
-		}
-		sort.Slice(beans, func(i, j int) bool {
-			oi, oj := statusOrder[beans[i].Status], statusOrder[beans[j].Status]
-			if oi != oj {
-				return oi < oj
-			}
-			return beans[i].ID < beans[j].ID
-		})
-	case "priority":
-		// Build priority order from configured priorities
-		priorityOrder := make(map[string]int)
-		for i, p := range priorityNames {
-			priorityOrder[p] = i
-		}
-		// Find normal priority index for beans without priority
-		normalIdx := len(priorityNames)
-		for i, p := range priorityNames {
-			if p == "normal" {
-				normalIdx = i
-				break
-			}
-		}
-		sort.Slice(beans, func(i, j int) bool {
-			pi := normalIdx
-			if beans[i].Priority != "" {
-				if order, ok := priorityOrder[beans[i].Priority]; ok {
-					pi = order
-				}
-			}
-			pj := normalIdx
-			if beans[j].Priority != "" {
-				if order, ok := priorityOrder[beans[j].Priority]; ok {
-					pj = order
-				}
-			}
-			if pi != pj {
-				return pi < pj
-			}
-			return beans[i].ID < beans[j].ID
-		})
-	case "size":
-		sizeOrder := make(map[string]int)
-		for i, s := range cfg.SizeNames() {
-			sizeOrder[s] = i
-		}
-		sort.Slice(beans, func(i, j int) bool {
-			si, sj := sizeOrder[config.EffectiveSize(beans[i].Size)], sizeOrder[config.EffectiveSize(beans[j].Size)]
-			if si != sj {
-				return si < sj
-			}
-			return beans[i].ID < beans[j].ID
-		})
-	case "id":
-		sort.Slice(beans, func(i, j int) bool {
-			return beans[i].ID < beans[j].ID
-		})
-	default:
-		// Default: sort by status order, then priority, then type order, then title (same as TUI)
-		bean.SortByStatusPriorityAndType(beans, statusNames, priorityNames, typeNames)
+// listIDPrefix returns the ID prefix `beans list` is limited to: the config's
+// scope (see config.Config.Scope), unless all is set.
+func listIDPrefix(cfg *config.Config, all bool) *string {
+	scope := cfg.Scope()
+	if all || scope == "" {
+		return nil
 	}
+	return &scope
 }
 
 func init() {
@@ -348,6 +260,7 @@ func init() {
 	listCmd.Flags().BoolVar(&listIsBlocked, "is-blocked", false, "Filter beans that are blocked by an active (not completed/scrapped) bean")
 	listCmd.Flags().BoolVar(&listUnblocked, "unblocked", false, "Filter beans not blocked by any active bean (ready to start)")
 	listCmd.MarkFlagsMutuallyExclusive("is-blocked", "unblocked")
+	listCmd.Flags().BoolVarP(&listAll, "all", "a", false, "Include beans outside this directory's scope (beans with other ID prefixes in a cascading config)")
 	listCmd.Flags().BoolVarP(&listQuiet, "quiet", "q", false, "Only output IDs (one per line)")
 	listCmd.Flags().StringVar(&listSort, "sort", "", "Sort by: created, updated, status, priority, size, id (default: status, priority, type, title)")
 	listCmd.Flags().BoolVar(&listFull, "full", false, "Include bean body in JSON output")

@@ -119,6 +119,16 @@ Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans`
 - **Merging**: the closest config wins. Nested settings merge key by key; lists of named items (like `launchers`) merge by `name` (same name replaces, new names are added); other lists are replaced.
 - **Paths**: relative paths resolve against the config file that declared them. Set `beans.path` in a subdirectory config to give it its own beans directory. If no config sets it, `.beans` next to the nearest config is used.
 
+#### Scoped lists
+
+When a config inherits from a cascading parent and shares its beans directory, lists only show the beans for that config's prefix. In the example above, `beans list` and `beans tui` inside `packages/api` show only `api-*` beans. That includes beans of nested prefixes like `api-v2-*`.
+
+- The cascade root (`repo/`) is not scoped and lists every bean.
+- `beans list --all` and the TUI's `g s` key show beans of every prefix. The TUI title shows the active scope, e.g. `[api-*]`.
+- In the TUI, an out-of-scope parent is shown dimmed above its in-scope children.
+- Looking up a bean by ID (`beans show repo-a1b2`) works from anywhere.
+- When a directory covers several prefixes (the root covers `repo-` and `api-`), the TUI's create dialog lets you choose the new bean's ID prefix. `createBean` in GraphQL takes a `prefix` too.
+
 ### Custom Statuses
 
 The builtin statuses (`in-progress`, `todo`, `draft`, `completed`, `scrapped`) are always available. You can add your own statuses in `.beans.yml`, grouped below the builtin status they are a kind of:
@@ -167,7 +177,7 @@ keybinding:
 |---------|------------------------|
 | `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`), `openLog` (`O`) |
 | `layout` | `nextPreset` (`+` `=`), `prevPreset` (`-`), `focusNext` (`tab`), `focusPrev` (`shift+tab`), `toggleContext` (`v`), `toggleDepGraph` (`D`), `toggleLog` (`L`) |
-| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`) |
+| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleScope` (`g s`) |
 | `context` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `back` (`esc` `backspace`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `changeSize` (`S`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
 | `depGraph` | `up` (`up` `k`), `down` (`down` `j`), `refocus` (`enter`), `toggleDone` (`A`), `back` (`esc` `backspace`) |
 | `help` | `close` (`?` `esc`) |
@@ -222,6 +232,18 @@ The TUI is made of panes, lazygit-style: the bean list, the details of the selec
 - `+` and `-` step through layout presets, which depend on the focused pane: from the list, `+` hides the details, then the log; from the details, `+` swaps the list for the dependency graph, then shows the details alone.
 - `v`, `D` and `L` toggle the details, the dependency graph and the log anywhere. In the dependency graph, moving the cursor shows that bean in the details; `enter` makes it the graph's root and moves focus to the details.
 - In terminals narrower than 120 columns, the list and the details don't fit side by side, so only the focused one is shown.
+
+Press `/` in the list to filter. The query combines free text with field filters and a sort order:
+
+```
+login type:bug size:sm size:lg -status:completed sort:created
+```
+
+- Words without a colon fuzzy-match the title and ID.
+- `field:value` filters by `status`, `type`, `priority`, `size` or `tag`. Repeating a field matches any of its values; different fields must all match. A leading `-` excludes.
+- `sort:field[:asc|desc]` sorts siblings by `status`, `priority`, `type`, `size`, `created`, `updated`, `title` or `id` (`created`/`updated` default to newest first).
+- Unknown fields or values are ignored and shown as a warning. `enter` applies the query, `esc` clears it.
+- While a filter is active, `c`/`C` prefill the new bean's type, status, priority and size from it (the last value wins if a field is repeated) and add all its `tag:` values, so the new bean shows up in the filtered list.
 
 **But the real power of Beans** comes from letting your coding agent manage your tasks for you.
 

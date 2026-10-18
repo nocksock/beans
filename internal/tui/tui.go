@@ -56,9 +56,6 @@ type tagSelectedMsg struct {
 	tag string
 }
 
-// clearFilterMsg is sent to clear any active filter
-type clearFilterMsg struct{}
-
 // openEditorMsg requests opening the editor for a bean
 type openEditorMsg struct {
 	beanID   string
@@ -528,7 +525,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 
 	case openCreateModalMsg:
 		a.previousState = a.state
-		a.createModal = newCreateModalModel(a.config, a.width, a.height, msg.parentID, msg.parentTitle)
+		a.createModal = newCreateModalModel(a.config, a.width, a.height, msg.parentID, msg.parentTitle).withPrefill(msg.prefill)
+		a.createModal.prefixes = a.config.AvailablePrefixes()
 		a.state = viewCreateModal
 		return a.createModal.Init()
 
@@ -591,9 +589,11 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if msg.body != "" {
 			input.Body = &msg.body
 		}
+		input.Tags = msg.tags
 		if msg.parentID != "" {
 			input.Parent = &msg.parentID
 		}
+		input.Prefix = &msg.prefix
 		createdBean, err := a.resolver.Mutation().CreateBean(context.Background(), input)
 		if err != nil {
 			// Show error to user
@@ -774,10 +774,6 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		// User cancelled - return to previous state
 		a.state = a.previousState
 		return nil
-
-	case clearFilterMsg:
-		a.list.clearFilter()
-		return a.list.loadBeans
 
 	case closeTagPickerMsg:
 		a.state = viewList
@@ -969,8 +965,12 @@ func (a *App) drawPane(r layout.Rect) string {
 }
 
 // footer renders the notice, the layout hints and the focused pane's hints,
-// cut to the screen width.
+// or just the pane's text input while typing, cut to the screen width.
 func (a *App) footer() string {
+	if a.focusedPane().typing() {
+		// The pane's text input (e.g. the list's filter query) takes the line
+		return ansi.Truncate(a.focusedPane().footer(), a.width, "…")
+	}
 	g, k := keymap.Global, keymap.Layout
 	line := a.list.noticeView() + hints(
 		groupHint("layout", k.NextPreset, k.PrevPreset),

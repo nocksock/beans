@@ -80,6 +80,8 @@ input CreateBeanInput {
   blocking: [String!]
   "Bean IDs that are blocking this bean"
   blockedBy: [String!]
+  "ID prefix for the generated ID (defaults to the configured prefix)"
+  prefix: String
 }
 
 """
@@ -150,6 +152,32 @@ type Bean {
   parent: Bean
   "Child beans (beans with this as parent)"
   children(filter: BeanFilter): [Bean!]!
+
+  # Git history
+  """
+  Git commits that touched this bean's file, newest first. Follows renames of
+  the slug part of the filename. Empty when the beans directory isn't in a git
+  repository or the bean was never committed.
+  """
+  history(limit: Int): [BeanCommit!]!
+  "Diff of this bean's file in the given commit (empty if the commit didn't touch it)"
+  diff(commit: String!): String!
+}
+
+"""
+A git commit that touched a bean's file
+"""
+type BeanCommit {
+  "Full commit hash"
+  hash: String!
+  "Author name"
+  author: String!
+  "Author date"
+  date: Time!
+  "First line of the commit message"
+  subject: String!
+  "Diff of the bean's file in this commit"
+  diff: String!
 }
 
 """
@@ -172,6 +200,8 @@ input BeanFilter {
   - "body:auth" - search only body field
   """
   search: String
+  "Include only beans whose ID starts with this prefix"
+  idPrefix: String
   "Include only beans with these statuses (OR logic). A builtin status also matches its custom statuses."
   status: [String!]
   "Exclude beans with these statuses. A builtin status also excludes its custom statuses."
