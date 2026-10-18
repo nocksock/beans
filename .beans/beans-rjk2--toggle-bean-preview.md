@@ -1,11 +1,13 @@
 ---
 # beans-rjk2
 title: toggle bean preview
-status: draft
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-17T14:02:13Z
-updated_at: 2026-10-17T14:02:13Z
+updated_at: 2026-10-18T11:14:58Z
 ---
 
 so we can have just the list.
+
+Done in beans-0ggp: `v` toggles the details pane (and `+` cycles to a list-only layout).

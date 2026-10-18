@@ -1,11 +1,11 @@
 ---
 # beans-0ggp
 title: overhaul ui
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-18T09:25:35Z
-updated_at: 2026-10-18T09:49:47Z
+updated_at: 2026-10-18T11:15:04Z
 ---
 
 Lazygit-style composable panes with `+`/`-` cycling through layout presets. Replaces the full-screen detail and depnav views.
@@ -175,3 +175,4 @@ where one task views the current task, and the other the one selected in depende
 2026-10-18 13:14: manual tmux check at 80x24, 100x40, 120x36, 200x45 ok
 2026-10-18 13:30: enter in dependency graph now also focuses details (user feedback)
 2026-10-18 13:50: pane interface (panes.go) replaces per-pane switches in App
+2026-10-18 14:10: merged dev in (filter query integration), merged into dev; related beans updated

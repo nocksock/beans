@@ -15,3 +15,9 @@ Follow-up of beans-0ggp. Add a navigable 'history' pane listing the git log of t
 ## Backend (from beans-so3o)
 
 Available via GraphQL: `bean(id) { history(limit: Int) { hash author date subject diff } }` and `bean(id) { diff(commit: "<hash>") }` (returns empty string if the commit didn't touch the bean). History is empty (not an error) outside git, for untracked beans and without commits. Uncommitted working-tree changes are not included; add a pseudo entry here if the pane wants them.
+
+## Notes from beans-0ggp
+
+- Add a pane by writing an adapter implementing `pane` (`internal/tui/panes.go`), registering it in `App.newPanes()`, and placing it in `layoutTree`/`presetCycles` (`presets.go`).
+- The context pane currently always shows a bean (`contextModel`); a different context (log detail / diff) means letting the context pane render per source, e.g. via the focused `selectionSource`.
+- The git history backend (beans-so3o) is merged: `internal/githistory`.

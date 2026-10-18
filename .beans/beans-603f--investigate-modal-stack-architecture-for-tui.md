@@ -59,3 +59,7 @@ Reshaped (R5): `type modal interface{ Update; View; Typing() bool; Bindings() }`
 ## Sequencing (review beans-9pxj)
 
 Step 4 of 5: last; after 5c6x, u7nb, r7wv have shrunk the state machine.
+
+## Update from beans-0ggp (2026-10-18)
+
+The full-screen detail and depnav views are gone: the base is now the pane workspace (`viewList` + `workspace.go`), with panes behind the `pane` interface in `panes.go`. The previousState/detail-history bugs mentioned above no longer exist; what remains is the modal half (17 modal states, close*Msg types). A `modal` interface could mirror `pane` (update/View/typing/bindings).
