@@ -42,6 +42,7 @@ var (
 	listSort        string
 	listFull        bool
 	listInclude     []string
+	listAll         bool
 )
 
 // hiddenByDefaultStatuses are statuses excluded from `beans list` unless
@@ -118,6 +119,7 @@ Search Syntax (--search/-S):
 			ExcludeSize:     listNoSize,
 			Tags:            listTag,
 			ExcludeTags:     listNoTag,
+			IDPrefix:        listIDPrefix(cfg, listAll),
 		}
 
 		// Add search filter if provided
@@ -225,6 +227,16 @@ Search Syntax (--search/-S):
 		fmt.Print(ui.RenderTree(tree, cfg, maxIDWidth, hasTags, termWidth))
 		return nil
 	},
+}
+
+// listIDPrefix returns the ID prefix `beans list` is limited to: the config's
+// scope (see config.Config.Scope), unless all is set.
+func listIDPrefix(cfg *config.Config, all bool) *string {
+	scope := cfg.Scope()
+	if all || scope == "" {
+		return nil
+	}
+	return &scope
 }
 
 func sortBeans(beans []*bean.Bean, sortBy string, cfg *config.Config) {
@@ -348,6 +360,7 @@ func init() {
 	listCmd.Flags().BoolVar(&listIsBlocked, "is-blocked", false, "Filter beans that are blocked by an active (not completed/scrapped) bean")
 	listCmd.Flags().BoolVar(&listUnblocked, "unblocked", false, "Filter beans not blocked by any active bean (ready to start)")
 	listCmd.MarkFlagsMutuallyExclusive("is-blocked", "unblocked")
+	listCmd.Flags().BoolVarP(&listAll, "all", "a", false, "Include beans outside this directory's scope (beans with other ID prefixes in a cascading config)")
 	listCmd.Flags().BoolVarP(&listQuiet, "quiet", "q", false, "Only output IDs (one per line)")
 	listCmd.Flags().StringVar(&listSort, "sort", "", "Sort by: created, updated, status, priority, size, id (default: status, priority, type, title)")
 	listCmd.Flags().BoolVar(&listFull, "full", false, "Include bean body in JSON output")

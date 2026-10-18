@@ -119,6 +119,16 @@ Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans`
 - **Merging**: the closest config wins. Nested settings merge key by key; lists of named items (like `launchers`) merge by `name` (same name replaces, new names are added); other lists are replaced.
 - **Paths**: relative paths resolve against the config file that declared them. Set `beans.path` in a subdirectory config to give it its own beans directory. If no config sets it, `.beans` next to the nearest config is used.
 
+#### Scoped lists
+
+When a config inherits from a cascading parent and shares its beans directory, lists only show the beans for that config's prefix. In the example above, `beans list` and `beans tui` inside `packages/api` show only `api-*` beans. That includes beans of nested prefixes like `api-v2-*`.
+
+- The cascade root (`repo/`) is not scoped and lists every bean.
+- `beans list --all` and the TUI's `g s` key show beans of every prefix. The TUI title shows the active scope, e.g. `[api-*]`.
+- In the TUI, an out-of-scope parent is shown dimmed above its in-scope children.
+- Looking up a bean by ID (`beans show repo-a1b2`) works from anywhere.
+- When a directory covers several prefixes (the root covers `repo-` and `api-`), the TUI's create dialog lets you choose the new bean's ID prefix. `createBean` in GraphQL takes a `prefix` too.
+
 ### Custom Statuses
 
 The builtin statuses (`in-progress`, `todo`, `draft`, `completed`, `scrapped`) are always available. You can add your own statuses in `.beans.yml`, grouped below the builtin status they are a kind of:
@@ -166,7 +176,7 @@ keybinding:
 | Context | Actions (default keys) |
 |---------|------------------------|
 | `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`) |
-| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `dependencies` (`D`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleLog` (`L`), `openLog` (`O`) |
+| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `view` (`v`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `dependencies` (`D`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleScope` (`g s`), `toggleLog` (`L`), `openLog` (`O`) |
 | `detail` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `scrollLeft` (`left`), `scrollRight` (`right`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `filterLinks` (`/`), `back` (`esc` `backspace`), `prevBean` (`h`), `nextBean` (`l`), `toggleFocus` (`tab`), `followLink` (`enter`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `dependencies` (`D`), `launch` (`!`), `archive` (`Y`) |
 | `depNav` | `up` (`up` `k`), `down` (`down` `j`), `open` (`enter`), `refocus` (`D`), `toggleDone` (`A`), `back` (`esc` `backspace`) |
 | `help` | `close` (`?` `esc`) |

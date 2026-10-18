@@ -104,6 +104,7 @@ func (m helpOverlayModel) View() string {
 		{l.Dependencies.Keys(), "Dependency chains"},
 		{l.Archive.Keys(), "Archive (all completed in list)"},
 		{l.ToggleArchived.Keys(), "Show / hide archived"},
+		{l.ToggleScope.Keys(), "Show all scopes / this scope only"},
 		{l.Filter.Keys(), "Filter"},
 		{l.FilterByTag.Keys(), "Filter by tag"},
 		{l.Collapse.Keys(), "Collapse item"},

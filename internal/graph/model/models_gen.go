@@ -18,6 +18,8 @@ type BeanFilter struct {
 	// - "title:login" - search only title field
 	// - "body:auth" - search only body field
 	Search *string `json:"search,omitempty"`
+	// Include only beans whose ID starts with this prefix
+	IDPrefix *string `json:"idPrefix,omitempty"`
 	// Include only beans with these statuses (OR logic). A builtin status also matches its custom statuses.
 	Status []string `json:"status,omitempty"`
 	// Exclude beans with these statuses. A builtin status also excludes its custom statuses.
@@ -76,6 +78,8 @@ type CreateBeanInput struct {
 	Blocking []string `json:"blocking,omitempty"`
 	// Bean IDs that are blocking this bean
 	BlockedBy []string `json:"blockedBy,omitempty"`
+	// ID prefix for the generated ID (defaults to the configured prefix)
+	Prefix *string `json:"prefix,omitempty"`
 }
 
 type Mutation struct {

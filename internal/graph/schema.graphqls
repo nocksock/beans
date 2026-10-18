@@ -80,6 +80,8 @@ input CreateBeanInput {
   blocking: [String!]
   "Bean IDs that are blocking this bean"
   blockedBy: [String!]
+  "ID prefix for the generated ID (defaults to the configured prefix)"
+  prefix: String
 }
 
 """
@@ -172,6 +174,8 @@ input BeanFilter {
   - "body:auth" - search only body field
   """
   search: String
+  "Include only beans whose ID starts with this prefix"
+  idPrefix: String
   "Include only beans with these statuses (OR logic). A builtin status also matches its custom statuses."
   status: [String!]
   "Exclude beans with these statuses. A builtin status also excludes its custom statuses."

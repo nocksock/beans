@@ -212,3 +212,50 @@ func TestHiddenStatuses(t *testing.T) {
 		})
 	}
 }
+
+func TestListIDPrefix(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := t.TempDir()
+	files := map[string]string{
+		".beans.yml":     "cascade: true\nbeans:\n  prefix: repo-\n",
+		"api/.beans.yml": "beans:\n  prefix: api-\n",
+	}
+	for rel, content := range files {
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		name string
+		dir  string
+		all  bool
+		want string // "" means no prefix filter
+	}{
+		{"cascade root is unscoped", ".", false, ""},
+		{"nested config is scoped", "api", false, "api-"},
+		{"--all disables scope", "api", true, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := config.LoadFromDirectory(filepath.Join(root, tt.dir))
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := listIDPrefix(cfg, tt.all)
+			if tt.want == "" {
+				if got != nil {
+					t.Errorf("listIDPrefix() = %q, want nil", *got)
+				}
+				return
+			}
+			if got == nil || *got != tt.want {
+				t.Errorf("listIDPrefix() = %v, want %q", got, tt.want)
+			}
+		})
+	}
+}

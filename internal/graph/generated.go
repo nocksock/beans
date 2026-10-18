@@ -3881,7 +3881,7 @@ func (ec *executionContext) unmarshalInputBeanFilter(ctx context.Context, obj an
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"search", "status", "excludeStatus", "type", "excludeType", "priority", "excludePriority", "size", "excludeSize", "tags", "excludeTags", "hasParent", "parentId", "hasBlocking", "blockingId", "isBlocked", "noParent", "noBlocking"}
+	fieldsInOrder := [...]string{"search", "idPrefix", "status", "excludeStatus", "type", "excludeType", "priority", "excludePriority", "size", "excludeSize", "tags", "excludeTags", "hasParent", "parentId", "hasBlocking", "blockingId", "isBlocked", "noParent", "noBlocking"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -3895,6 +3895,13 @@ func (ec *executionContext) unmarshalInputBeanFilter(ctx context.Context, obj an
 				return it, err
 			}
 			it.Search = data
+		case "idPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDPrefix = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
@@ -4027,7 +4034,7 @@ func (ec *executionContext) unmarshalInputCreateBeanInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"title", "type", "status", "priority", "size", "tags", "body", "parent", "blocking", "blockedBy"}
+	fieldsInOrder := [...]string{"title", "type", "status", "priority", "size", "tags", "body", "parent", "blocking", "blockedBy", "prefix"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4104,6 +4111,13 @@ func (ec *executionContext) unmarshalInputCreateBeanInput(ctx context.Context, o
 				return it, err
 			}
 			it.BlockedBy = data
+		case "prefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("prefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Prefix = data
 		}
 	}
 
