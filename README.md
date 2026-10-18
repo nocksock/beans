@@ -225,6 +225,17 @@ You might specifically be interested in the interactive TUI:
 beans tui
 ```
 
+Press `/` in the list to filter. The query combines free text with field filters and a sort order:
+
+```
+login type:bug size:sm size:lg -status:completed sort:created
+```
+
+- Words without a colon fuzzy-match the title and ID.
+- `field:value` filters by `status`, `type`, `priority`, `size` or `tag`. Repeating a field matches any of its values; different fields must all match. A leading `-` excludes.
+- `sort:field[:asc|desc]` sorts siblings by `status`, `priority`, `type`, `size`, `created`, `updated`, `title` or `id` (`created`/`updated` default to newest first).
+- Unknown fields or values are ignored and shown as a warning. `enter` applies the query, `esc` clears it.
+
 **But the real power of Beans** comes from letting your coding agent manage your tasks for you.
 
 Assuming you have integrated Beans into your coding agent correctly, it will already know how to create and manage beans for you. You can use the usual assortment of natural language inquiries. If you've just
