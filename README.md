@@ -290,7 +290,7 @@ launchers:
       fi
       
       # Open in new tmux pane
-      tmux split-window -h -c "$BEANS_ROOT/$WORKTREE_DIR"
+      tmux split-window -h -c "$BEANS_CONFIG_DIR/$WORKTREE_DIR"
       tmux send-keys "opencode -p 'Work on task $BEANS_ID'" Enter
   
   # Kitty terminal window launcher
@@ -308,7 +308,7 @@ launchers:
       fi
       
       # Open in new kitty window
-      kitty @ launch --type=window --cwd="$BEANS_ROOT/$WORKTREE_DIR" \
+      kitty @ launch --type=window --cwd="$BEANS_CONFIG_DIR/$WORKTREE_DIR" \
         opencode -p "Work on task $BEANS_ID"
 ```
 
@@ -338,7 +338,7 @@ launchers:
         git worktree add "$WORKTREE_DIR" -b "task/$BEANS_ID"
       fi
       
-      tmux split-window -h -c "$BEANS_ROOT/$WORKTREE_DIR"
+      tmux split-window -h -c "$BEANS_CONFIG_DIR/$WORKTREE_DIR"
       tmux send-keys "opencode -p 'Work on task $BEANS_ID'" Enter
 ```
 
@@ -426,6 +426,8 @@ Launchers receive these environment variables:
 - `BEANS_DIR`: Beans directory (e.g., `/path/to/project/.beans`)
 - `BEANS_ID`: Bean ID (e.g., `beans-abc123`)
 - `BEANS_TASK`: Bean title (e.g., `Fix login redirect`)
+
+Which directory to use: `BEANS_ROOT` is the bean's project, so use it for anything about the bean itself (opening the project in an editor, running its tests). `BEANS_CONFIG_DIR` is where the launcher and its scripts live, so use it, or relative paths, for helper scripts, `.worktrees/` and other paths the launcher's config owns. A launcher that joins paths onto `$BEANS_ROOT` (e.g. `$BEANS_ROOT/scripts/...`) breaks when a subproject inherits it. Tools such as `tmux new-window -c` silently fall back to your home directory when the path doesn't exist.
 
 ### CLI Usage
 
