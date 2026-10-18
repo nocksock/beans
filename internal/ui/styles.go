@@ -398,8 +398,8 @@ func ColumnLabel(name string) string {
 	return name
 }
 
-// RenderBeanRow renders a bean as a single row: status, title, tags
-// (optional), type, size (optional) and ID. Status and type are right-aligned.
+// RenderBeanRow renders a bean as a single row: status, type, title, tags
+// (optional), size (optional) and ID. Status and type are right-aligned.
 func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string {
 	// Epics group work rather than being worked on, so their status is left out
 	if typeName == "epic" {
@@ -536,11 +536,11 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 	titleLen := ansi.StringWidth(lead) + ansi.StringWidth(prioritySymbol) + ansi.StringWidth(displayTitle)
 	padding := strings.Repeat(" ", max(0, titleColWidth-titleLen))
 
-	row := cursor + statusCol + leadStyled + prioritySymbol + titleStyled + padding + " "
+	row := cursor + statusCol + typeCol + leadStyled + prioritySymbol + titleStyled + padding + " "
 	if cfg.ShowTags {
 		row += tagsCol
 	}
-	return row + typeCol + sizeCol + idCol
+	return row + sizeCol + idCol
 }
 
 // rowCaret is the indicator for rows with children, leading the tree prefix.

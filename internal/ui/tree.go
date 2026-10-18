@@ -178,11 +178,11 @@ func RenderTree(nodes []*TreeNode, cfg *config.Config, maxIDWidth int, hasTags b
 	padLeft := func(label string, width int) string {
 		return strings.Repeat(" ", max(0, width-1-len(label))) + headerCol.Render(label) + " "
 	}
-	header := padLeft("STATUS", ColWidthStatus) + pad("TITLE", titleWidth+1)
+	header := padLeft("STATUS", ColWidthStatus) + padLeft("TYPE", ColWidthType) + pad("TITLE", titleWidth+1)
 	if cols.ShowTags {
 		header += pad("TAGS", cols.Tags)
 	}
-	header += padLeft("TYPE", ColWidthType) + pad("SZ", ColWidthSize) + headerCol.Render("ID")
+	header += pad("SZ", ColWidthSize) + headerCol.Render("ID")
 	dividerWidth := termWidth - 1 // -1 to avoid wrapping on exact terminal width
 	sb.WriteString(header)
 	sb.WriteString("\n")

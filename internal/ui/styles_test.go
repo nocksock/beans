@@ -220,7 +220,7 @@ func TestScrollTitle(t *testing.T) {
 func TestRenderBeanRow_ColumnOrder(t *testing.T) {
 	cfg := BeanRowConfig{ShowSize: true, Size: "xl", MaxTitleWidth: 20, TreePrefix: "└─ "}
 	row := ansi.Strip(RenderBeanRow("abc123", "todo", "task", "Title", cfg))
-	want := []string{"todo", "└─ Title", "task", "xl", "abc123"}
+	want := []string{"todo", "task", "└─ Title", "xl", "abc123"}
 	last := -1
 	for _, w := range want {
 		i := strings.Index(row, w)
@@ -253,12 +253,10 @@ func TestTitleOverflow(t *testing.T) {
 func TestRenderBeanRow_LabelsRightAligned(t *testing.T) {
 	cfg := BeanRowConfig{MaxTitleWidth: 10}
 	row := ansi.Strip(RenderBeanRow("abc123", "in-progress", "feature", "Title", cfg))
-	want := strings.Repeat(" ", ColWidthStatus-1-len("active")) + "active Title"
+	want := strings.Repeat(" ", ColWidthStatus-1-len("active")) + "active " +
+		strings.Repeat(" ", ColWidthType-1-len("feat")) + "feat Title"
 	if !strings.HasPrefix(row, want) {
-		t.Errorf("status should be right-aligned as \"active\": %q", row)
-	}
-	if !strings.Contains(row, strings.Repeat(" ", ColWidthType-1-len("feat"))+"feat abc123") {
-		t.Errorf("type should be right-aligned as \"feat\" before the ID: %q", row)
+		t.Errorf("status and type should be right-aligned as \"active\" and \"feat\": %q", row)
 	}
 	if done := ansi.Strip(RenderBeanRow("x", "completed", "task", "T", cfg)); !strings.Contains(done, "done") {
 		t.Errorf("completed should show as done: %q", done)
