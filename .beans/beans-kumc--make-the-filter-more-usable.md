@@ -42,4 +42,4 @@ Whitespace-separated tokens typed after `/`:
 
 ## Work Log
 
-2026-10-18 00:00: Planned with user: TUI-only, field:value (OR same / AND different / - exclude), sort:field[:dir] token, own input -> GraphQL BeanFilter
+2026-10-18 09:19: Planned with user: TUI-only, field:value (OR same / AND different / - exclude), sort:field[:dir] token, own input -> GraphQL BeanFilter
