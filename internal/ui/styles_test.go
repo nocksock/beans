@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestRenderBeanRow_NarrowWidth(t *testing.T) {
@@ -146,14 +147,14 @@ func TestRenderBeanRow_Compact(t *testing.T) {
 	cfg := BeanRowConfig{StatusColor: "green", TypeColor: "blue"}
 
 	full := RenderBeanRow("abc123", "in-progress", "feature", "Title", cfg)
-	if !strings.Contains(full, "in-progress") || !strings.Contains(full, "feature") {
-		t.Errorf("full row should contain full names, got %q", full)
+	if !strings.Contains(full, "active") || !strings.Contains(full, "feat") {
+		t.Errorf("full row should contain the labels, got %q", full)
 	}
 
 	cfg.Compact = true
 	compact := RenderBeanRow("abc123", "in-progress", "feature", "Title", cfg)
-	if strings.Contains(compact, "in-progress") || strings.Contains(compact, "feature") {
-		t.Errorf("compact row should not contain full names, got %q", compact)
+	if strings.Contains(compact, "active") || strings.Contains(compact, "feat") {
+		t.Errorf("compact row should not contain the labels, got %q", compact)
 	}
 	if lipgloss.Width(compact) >= lipgloss.Width(full) {
 		t.Errorf("compact row (%d) should be narrower than full row (%d)", lipgloss.Width(compact), lipgloss.Width(full))
@@ -185,5 +186,81 @@ func TestRenderBeanRow_Size(t *testing.T) {
 				t.Errorf("row should contain size %q, got %q", tt.want, row)
 			}
 		})
+	}
+}
+
+func TestScrollTitle(t *testing.T) {
+	const title = "abcdefghijklmnop" // 16 runes
+	tests := []struct {
+		name  string
+		width int
+		shift int
+		want  string
+	}{
+		{"fits", 20, 0, title},
+		{"cut at the end", 10, 0, "abcdefg..."},
+		{"scrolled, cut at both ends", 10, 3, "...ghij..."},
+		{"scrolled to the end", 10, 6, "...jklmnop"},
+		{"shift clamped to the end", 10, 99, "...jklmnop"},
+		{"too narrow for dots", 3, 2, "abc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ScrollTitle(title, tt.width, tt.shift)
+			if got != tt.want {
+				t.Errorf("ScrollTitle(%d, %d) = %q, want %q", tt.width, tt.shift, got, tt.want)
+			}
+			if len([]rune(got)) > tt.width && tt.width < len(title) {
+				t.Errorf("%q is wider than %d", got, tt.width)
+			}
+		})
+	}
+}
+
+func TestRenderBeanRow_ColumnOrder(t *testing.T) {
+	cfg := BeanRowConfig{ShowSize: true, Size: "xl", MaxTitleWidth: 20, TreePrefix: "└─ "}
+	row := ansi.Strip(RenderBeanRow("abc123", "todo", "task", "Title", cfg))
+	want := []string{"todo", "└─ Title", "task", "xl", "abc123"}
+	last := -1
+	for _, w := range want {
+		i := strings.Index(row, w)
+		if i <= last {
+			t.Fatalf("%q out of order in %q", w, row)
+		}
+		last = i
+	}
+	if !strings.HasSuffix(row, "abc123") {
+		t.Errorf("the ID should come last: %q", row)
+	}
+
+	// Titles fill their column, so the IDs line up
+	other := ansi.Strip(RenderBeanRow("abc123", "todo", "task", "A much longer title", cfg))
+	if strings.Index(other, "abc123") != strings.Index(row, "abc123") {
+		t.Errorf("IDs don't line up:\n%s\n%s", row, other)
+	}
+}
+
+func TestTitleOverflow(t *testing.T) {
+	cfg := BeanRowConfig{MaxTitleWidth: 10, TreePrefix: "└─ "} // 7 left for the title
+	if got := TitleOverflow("abcdefghij", cfg); got != 3 {
+		t.Errorf("TitleOverflow = %d, want 3", got)
+	}
+	if got := TitleOverflow("abc", cfg); got != 0 {
+		t.Errorf("TitleOverflow of a fitting title = %d, want 0", got)
+	}
+}
+
+func TestRenderBeanRow_LabelsRightAligned(t *testing.T) {
+	cfg := BeanRowConfig{MaxTitleWidth: 10}
+	row := ansi.Strip(RenderBeanRow("abc123", "in-progress", "feature", "Title", cfg))
+	want := strings.Repeat(" ", ColWidthStatus-1-len("active")) + "active Title"
+	if !strings.HasPrefix(row, want) {
+		t.Errorf("status should be right-aligned as \"active\": %q", row)
+	}
+	if !strings.Contains(row, strings.Repeat(" ", ColWidthType-1-len("feat"))+"feat abc123") {
+		t.Errorf("type should be right-aligned as \"feat\" before the ID: %q", row)
+	}
+	if done := ansi.Strip(RenderBeanRow("x", "completed", "task", "T", cfg)); !strings.Contains(done, "done") {
+		t.Errorf("completed should show as done: %q", done)
 	}
 }

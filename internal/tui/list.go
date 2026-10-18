@@ -38,9 +38,10 @@ type itemDelegate struct {
 	hasTags        bool
 	width          int
 	cols           ui.ResponsiveColumns // cached responsive columns
-	idColWidth     int                  // ID column width (accounts for tree prefix)
+	idColWidth     int                  // ID column width: the longest ID
 	selectedBeans  map[string]bool      // marked beans for multi-select (shared with listModel)
 	collapsedBeans map[string]bool      // collapsed beans (shared with listModel)
+	titleScroll    *titleScroll         // the selected row's title scrolling (shared with listModel)
 }
 
 func newItemDelegate(cfg *config.Config) itemDelegate {
@@ -56,57 +57,52 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	if !ok {
 		return
 	}
+	selected := index == m.Index()
+	cfg := d.rowConfig(item, m.Width())
+	cfg.IsSelected = selected
+	if selected {
+		cfg.TitleShift = d.titleScroll.shift
+	}
+	fmt.Fprint(w, ui.RenderBeanRow(item.bean.ID, item.bean.Status, item.bean.Type, item.bean.DisplayTitle(), cfg))
+}
 
-	// Get colors from config
+// rowConfig is how item's row is rendered in a list of the given width.
+func (d itemDelegate) rowConfig(item beanItem, width int) ui.BeanRowConfig {
 	colors := d.cfg.GetBeanColors(item.bean.Status, item.bean.Type, item.bean.Priority)
 
-	// Calculate max title width using responsive columns
+	// The title takes the width the other columns leave
 	idWidth := d.cols.ID
 	if d.idColWidth > 0 {
 		idWidth = d.idColWidth
 	}
-	baseWidth := idWidth + d.cols.Status + d.cols.Type + ui.ColWidthSize + 4 // 4 for cursor + padding
+	baseWidth := d.cols.Type + d.cols.Status + ui.ColWidthSize + idWidth + 3 // cursor, space after the title, margin
 	if d.cols.ShowTags {
 		baseWidth += d.cols.Tags
 	}
-	maxTitleWidth := max(1, m.Width()-baseWidth) // 0 would disable truncation
 
-	isMarked := d.selectedBeans[item.bean.ID]
-	isCollapsed := d.collapsedBeans[item.bean.ID]
-
-	str := ui.RenderBeanRow(
-		item.bean.ID,
-		item.bean.Status,
-		item.bean.Type,
-		item.bean.DisplayTitle(),
-		ui.BeanRowConfig{
-			TitleMuted:    !item.bean.HasTitle(),
-			StatusColor:   colors.StatusColor,
-			TypeColor:     colors.TypeColor,
-			PriorityColor: colors.PriorityColor,
-			Priority:      item.bean.Priority,
-			Size:          item.bean.Size,
-			SizeColor:     ui.SizeColor(d.cfg, item.bean.Size),
-			ShowSize:      true,
-			IsArchive:     colors.IsArchive,
-			MaxTitleWidth: maxTitleWidth,
-			ShowCursor:    true,
-			IsSelected:    index == m.Index(),
-			IsMarked:      isMarked,
-			Tags:          item.bean.Tags,
-			ShowTags:      d.cols.ShowTags,
-			TagsColWidth:  d.cols.Tags,
-			MaxTags:       d.cols.MaxTags,
-			TreePrefix:    item.treePrefix,
-			Dimmed:        !item.matched,
-			IDColWidth:    d.idColWidth,
-			HasChildren:   item.hasChildren,
-			IsCollapsed:   isCollapsed,
-			Compact:       d.cols.Compact,
-		},
-	)
-
-	fmt.Fprint(w, str)
+	return ui.BeanRowConfig{
+		TitleMuted:    !item.bean.HasTitle(),
+		StatusColor:   colors.StatusColor,
+		TypeColor:     colors.TypeColor,
+		PriorityColor: colors.PriorityColor,
+		Priority:      item.bean.Priority,
+		Size:          item.bean.Size,
+		SizeColor:     ui.SizeColor(d.cfg, item.bean.Size),
+		ShowSize:      true,
+		IsArchive:     colors.IsArchive,
+		MaxTitleWidth: max(1, width-baseWidth), // 0 would disable truncation
+		ShowCursor:    true,
+		IsMarked:      d.selectedBeans[item.bean.ID],
+		Tags:          item.bean.Tags,
+		ShowTags:      d.cols.ShowTags,
+		TagsColWidth:  d.cols.Tags,
+		MaxTags:       d.cols.MaxTags,
+		TreePrefix:    item.treePrefix,
+		Dimmed:        !item.matched,
+		HasChildren:   item.hasChildren,
+		IsCollapsed:   d.collapsedBeans[item.bean.ID],
+		Compact:       d.cols.Compact,
+	}
 }
 
 // listModel is the model for the bean list view
@@ -121,7 +117,7 @@ type listModel struct {
 	// Responsive column state
 	hasTags    bool                 // whether any beans have tags
 	cols       ui.ResponsiveColumns // calculated responsive columns
-	idColWidth int                  // ID column width (accounts for tree depth)
+	idColWidth int                  // ID column width: the longest ID
 
 	// Active filters
 	query        query           // parsed filter query, see parseQuery
@@ -134,6 +130,9 @@ type listModel struct {
 
 	// Collapse/fold state
 	collapsedBeans map[string]bool // IDs of beans whose children are hidden
+
+	// Scrolling of the selected row's cut-off title (shared with the delegate)
+	titleScroll *titleScroll
 
 	// Hierarchical navigation: IDs of beans drilled into, outermost first.
 	// When non-empty, only descendants of the last entry are listed.
@@ -161,10 +160,12 @@ func mainListKeyMap() list.KeyMap {
 func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	selectedBeans := make(map[string]bool)
 	collapsedBeans := make(map[string]bool)
+	scroll := &titleScroll{}
 	delegate := itemDelegate{
 		cfg:            cfg,
 		selectedBeans:  selectedBeans,
 		collapsedBeans: collapsedBeans,
+		titleScroll:    scroll,
 	}
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
@@ -190,13 +191,14 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 		queryInput:     qi,
 		selectedBeans:  selectedBeans,
 		collapsedBeans: collapsedBeans,
+		titleScroll:    scroll,
 	}
 }
 
 // beansLoadedMsg is sent when beans are loaded
 type beansLoadedMsg struct {
 	items       []ui.FlatItem         // flattened tree items
-	idColWidth  int                   // calculated ID column width for tree
+	idColWidth  int                   // ID column width: the longest ID
 	rootBeans   []*bean.Bean          // resolved drill-down roots (may be shorter than rootStack if some vanished)
 	beansByID   map[string]*bean.Bean // all beans by ID
 	childCounts map[string]int        // number of children per bean ID
@@ -287,23 +289,16 @@ func (m listModel) loadBeans() tea.Msg {
 	tree := ui.BuildTree(filteredBeans, allBeans, sortFn)
 	items := ui.FlattenTreeWithCollapsed(tree, m.collapsedBeans)
 
-	// Calculate ID column width based on max ID length and tree depth
+	// The ID column fits the longest ID
 	maxIDLen := 0
 	for _, b := range allBeans {
 		if len(b.ID) > maxIDLen {
 			maxIDLen = len(b.ID)
 		}
 	}
-	maxDepth := ui.MaxTreeDepth(items)
-	// ID column = base ID width + caret (2 chars) + tree indent (3 chars per depth level)
-	idColWidth := maxIDLen + 4 // base padding + caret
-	if maxDepth > 0 {
-		idColWidth += maxDepth * 3 // 3 chars per depth level (├─ + space)
-	}
-
 	return beansLoadedMsg{
 		items:       items,
-		idColWidth:  idColWidth,
+		idColWidth:  maxIDLen,
 		rootBeans:   rootBeans,
 		beansByID:   beansByID,
 		childCounts: childCounts,
@@ -427,7 +422,17 @@ func (m listModel) updateQueryInput(msg tea.KeyMsg) (listModel, tea.Cmd) {
 	return m, tea.Batch(cmd, m.loadBeans)
 }
 
+// Update handles msg, then restarts the title scrolling if the cursor moved
+// to another bean.
 func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
+	if msg, ok := msg.(titleScrollMsg); ok {
+		return m, m.stepTitleScroll(msg)
+	}
+	m, cmd := m.handle(msg)
+	return m, tea.Batch(cmd, m.restartTitleScroll())
+}
+
+func (m listModel) handle(msg tea.Msg) (listModel, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -868,7 +873,12 @@ func (m *listModel) setSize(width, height int) {
 
 // updateDelegate updates the list delegate with current responsive columns
 func (m *listModel) updateDelegate() {
-	delegate := itemDelegate{
+	m.list.SetDelegate(m.delegate())
+}
+
+// delegate renders the rows with the current columns.
+func (m listModel) delegate() itemDelegate {
+	return itemDelegate{
 		cfg:            m.config,
 		hasTags:        m.hasTags,
 		width:          m.width,
@@ -876,8 +886,8 @@ func (m *listModel) updateDelegate() {
 		idColWidth:     m.idColWidth,
 		selectedBeans:  m.selectedBeans,
 		collapsedBeans: m.collapsedBeans,
+		titleScroll:    m.titleScroll,
 	}
-	m.list.SetDelegate(delegate)
 }
 
 // View renders the list content at the size set by setSize.

@@ -794,6 +794,11 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.ws.back()
 		return nil
 
+	case titleScrollMsg:
+		// Even behind a modal, so the scroll doesn't stall
+		a.list, cmd = a.list.Update(msg)
+		return cmd
+
 	case focusContextMsg:
 		a.ws.focusPane(paneContext)
 		return nil

@@ -240,24 +240,25 @@ func (m depNavModel) View() string {
 	}
 
 	cols := ui.CalculateResponsiveColumns(m.width, false)
-	idColWidth := cols.ID
+	idColWidth := 0 // the longest ID
 	for _, r := range m.rows {
 		if r.bean != nil {
-			// rows are indented by 2 (see renderRow), plus a space before the type
-			idColWidth = max(idColWidth, 2+len([]rune(r.prefix))+len(r.bean.ID)+1)
+			idColWidth = max(idColWidth, len(r.bean.ID))
 		}
 	}
-	maxTitleWidth := max(1, m.width-idColWidth-cols.Status-cols.Type-4)
+	// The title column, with the tree prefix, takes the width the other
+	// columns leave: cursor, type, status, space after the title, ID, margin
+	maxTitleWidth := max(1, m.width-cols.Type-cols.Status-idColWidth-3)
 
 	var lines []string
 	end := min(len(m.rows), m.offset+m.listHeight())
 	for i := m.offset; i < end; i++ {
-		lines = append(lines, m.renderRow(m.rows[i], i == m.cursor, idColWidth, maxTitleWidth, cols.Compact))
+		lines = append(lines, m.renderRow(m.rows[i], i == m.cursor, maxTitleWidth, cols.Compact))
 	}
 	return strings.Join(lines, "\n")
 }
 
-func (m depNavModel) renderRow(r depRow, selected bool, idColWidth, maxTitleWidth int, compact bool) string {
+func (m depNavModel) renderRow(r depRow, selected bool, maxTitleWidth int, compact bool) string {
 	if r.bean == nil {
 		if r.empty {
 			return "     " + ui.Muted.Render(r.text)
@@ -291,7 +292,6 @@ func (m depNavModel) renderRow(r depRow, selected bool, idColWidth, maxTitleWidt
 		IsMarked:      r.root,
 		TreePrefix:    prefix,
 		Dimmed:        r.repeat || r.cycle,
-		IDColWidth:    idColWidth,
 		Compact:       compact,
 	})
 }

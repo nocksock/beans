@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/hmans/beans/internal/config"
 )
 
@@ -273,7 +274,7 @@ type BeanRowConfig struct {
 	SizeColor     string
 	ShowSize      bool // Whether to show the size column
 	IsArchive     bool
-	MaxTitleWidth int  // 0 means no truncation
+	MaxTitleWidth int  // Width of the title column, including tree prefix and priority symbol; 0 means no truncation
 	ShowCursor    bool // Show selection cursor
 	IsSelected    bool
 	IsMarked      bool     // Marked for multi-select batch operations
@@ -281,10 +282,10 @@ type BeanRowConfig struct {
 	ShowTags      bool     // Whether to show tags column
 	TagsColWidth  int      // Width of tags column (0 = default)
 	MaxTags       int      // Max tags to show (0 = default of 1)
-	TreePrefix    string   // Tree prefix (e.g., "├─" or "  └─") to prepend to ID
+	TreePrefix    string   // Tree prefix (e.g., "├─" or "  └─") to prepend to the title
 	Dimmed        bool     // Render row dimmed (for unmatched ancestor beans in tree)
 	TitleMuted    bool     // Render the title muted (e.g. a body snippet shown for an untitled bean)
-	IDColWidth    int      // Width of ID column (0 = default of ColWidthID)
+	TitleShift    int      // How far a cut-off title is scrolled (see ScrollTitle)
 	HasChildren   bool     // Whether this bean has children (for caret indicator)
 	IsCollapsed   bool     // Whether this bean's children are collapsed
 	Compact       bool     // Show single-character type/status codes instead of full names
@@ -293,8 +294,8 @@ type BeanRowConfig struct {
 // Base column widths for bean lists (minimum sizes)
 const (
 	ColWidthID     = 12
-	ColWidthStatus = 14
-	ColWidthType   = 12
+	ColWidthStatus = 9  // the longest status label plus a space
+	ColWidthType   = 10 // the longest type label plus a space
 	ColWidthTags   = 24
 	ColWidthSize   = 3 // two-letter size plus a space
 
@@ -382,21 +383,36 @@ func CalculateResponsiveColumns(totalWidth int, hasTags bool) ResponsiveColumns 
 	return cols
 }
 
-// RenderBeanRow renders a bean as a single row with ID, Type, Status, Tags (optional), Title
-func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string {
-	// Column styles - use responsive widths if provided
-	idColWidth := ColWidthID
-	if cfg.IDColWidth > 0 {
-		idColWidth = cfg.IDColWidth
+// columnLabels are shorter names for statuses and types in bean rows
+var columnLabels = map[string]string{
+	"in-progress": "active",
+	"completed":   "done",
+	"feature":     "feat",
+}
+
+// ColumnLabel is the label of a status or type in bean rows.
+func ColumnLabel(name string) string {
+	if label, ok := columnLabels[name]; ok {
+		return label
 	}
-	typeStyle := lipgloss.NewStyle().Width(ColWidthType)
-	statusStyle := lipgloss.NewStyle().Width(ColWidthStatus)
+	return name
+}
+
+// RenderBeanRow renders a bean as a single row: status, title, tags
+// (optional), type, size (optional) and ID. Status and type are right-aligned.
+func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string {
+	// Status and type columns, each followed by a space
+	typeWidth, statusWidth := ColWidthType, ColWidthStatus
 	if cfg.Compact {
-		typeStyle = typeStyle.Width(ColWidthCompact)
-		statusStyle = statusStyle.Width(ColWidthCompact)
+		typeWidth, statusWidth = ColWidthCompact, ColWidthCompact
 		typeName = ShortCode(typeName)
 		status = ShortCode(status)
+	} else {
+		typeName = ColumnLabel(typeName)
+		status = ColumnLabel(status)
 	}
+	typeStyle := lipgloss.NewStyle().Width(typeWidth - 1).Align(lipgloss.Right).MarginRight(1)
+	statusStyle := lipgloss.NewStyle().Width(statusWidth - 1).Align(lipgloss.Right).MarginRight(1)
 
 	tagsColWidth := ColWidthTags
 	if cfg.TagsColWidth > 0 {
@@ -412,32 +428,27 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 	// Highlight style for marked rows
 	highlightStyle := lipgloss.NewStyle().Foreground(ColorWarning)
 
-	// Build ID column with manual padding
-	// (lipgloss Width() doesn't correctly handle Unicode box-drawing characters)
+	// The ID comes last
 	var idCol string
-	// Add caret indicator for items with children
-	var caret string
-	if cfg.HasChildren {
-		if cfg.IsCollapsed {
-			caret = "▸ " // Right-pointing triangle (collapsed)
-		} else {
-			caret = "▾ " // Down-pointing triangle (expanded)
-		}
+	switch {
+	case cfg.Dimmed:
+		idCol = Muted.Render(id)
+	case cfg.IsMarked:
+		idCol = highlightStyle.Render(id)
+	default:
+		idCol = ID.Render(id)
 	}
-	// Calculate visual width: caret (2 if present) + tree prefix (in runes) + ID length
-	visualWidth := len([]rune(caret)) + len([]rune(cfg.TreePrefix)) + len(id)
-	padding := ""
-	if idColWidth > visualWidth {
-		padding = strings.Repeat(" ", idColWidth-visualWidth)
-	}
-	if cfg.Dimmed {
-		idCol = Muted.Render(caret) + Muted.Render(cfg.TreePrefix) + Muted.Render(id) + padding
-	} else if cfg.IsMarked {
-		// Only highlight the ID when marked
-		idCol = highlightStyle.Render(caret) + highlightStyle.Render(cfg.TreePrefix) + highlightStyle.Render(id) + padding
-	} else {
-		caretStyled := Muted.Render(caret)
-		idCol = caretStyled + TreeLine.Render(cfg.TreePrefix) + ID.Render(id) + padding
+
+	caret := rowCaret(cfg)
+	lead := caret + cfg.TreePrefix
+	var leadStyled string
+	switch {
+	case cfg.Dimmed:
+		leadStyled = Muted.Render(lead)
+	case cfg.IsMarked:
+		leadStyled = highlightStyle.Render(lead)
+	default:
+		leadStyled = Muted.Render(caret) + TreeLine.Render(cfg.TreePrefix)
 	}
 
 	var typeCol string
@@ -483,26 +494,13 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 		}
 	}
 
-	// Priority symbol (prepended to title)
-	var prioritySymbol string
-	if !cfg.Dimmed {
-		prioritySymbol = RenderPrioritySymbol(cfg.Priority, cfg.PriorityColor)
-		if prioritySymbol != "" {
-			prioritySymbol += " "
-		}
-	}
-
-	// Title (truncate if needed, accounting for priority symbol width)
+	// The title column holds the lead, priority symbol and title. The title
+	// is cut to fit, scrolled by TitleShift.
+	prioritySymbol := rowPrioritySymbol(cfg)
+	titleColWidth := cfg.MaxTitleWidth
 	displayTitle := title
-	titleColWidth := cfg.MaxTitleWidth // Save original for padding
-	maxWidth := cfg.MaxTitleWidth
-	if maxWidth > 0 && prioritySymbol != "" {
-		maxWidth -= 2 // Account for symbol + space
-	}
-	if maxWidth > 3 && len(title) > maxWidth {
-		displayTitle = title[:maxWidth-3] + "..."
-	} else if maxWidth > 0 && maxWidth <= 3 && len(title) > maxWidth {
-		displayTitle = title[:maxWidth]
+	if titleColWidth > 0 {
+		displayTitle = ScrollTitle(title, titleSpace(cfg), cfg.TitleShift)
 	}
 
 	// Cursor and title styling
@@ -529,18 +527,76 @@ func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string
 		}
 	}
 
+	// Pad the title column so the columns after it line up
+	titleLen := ansi.StringWidth(lead) + ansi.StringWidth(prioritySymbol) + ansi.StringWidth(displayTitle)
+	padding := strings.Repeat(" ", max(0, titleColWidth-titleLen))
+
+	row := cursor + statusCol + leadStyled + prioritySymbol + titleStyled + padding + " "
 	if cfg.ShowTags {
-		// Pad title column to fixed width so tags align in a column
-		// Calculate padding needed: titleColWidth - (priority symbol width + title length)
-		titleLen := len(displayTitle)
-		if prioritySymbol != "" {
-			titleLen += 2 // symbol + space
-		}
-		padding := ""
-		if titleColWidth > titleLen {
-			padding = strings.Repeat(" ", titleColWidth-titleLen)
-		}
-		return cursor + idCol + typeCol + statusCol + sizeCol + prioritySymbol + titleStyled + padding + " " + tagsCol
+		row += tagsCol
 	}
-	return cursor + idCol + typeCol + statusCol + sizeCol + prioritySymbol + titleStyled
+	return row + typeCol + sizeCol + idCol
+}
+
+// rowCaret is the indicator for rows with children, leading the tree prefix.
+func rowCaret(cfg BeanRowConfig) string {
+	switch {
+	case !cfg.HasChildren:
+		return ""
+	case cfg.IsCollapsed:
+		return "▸ " // Right-pointing triangle (collapsed)
+	default:
+		return "▾ " // Down-pointing triangle (expanded)
+	}
+}
+
+// rowPrioritySymbol is the priority symbol and a space before the title, if any.
+func rowPrioritySymbol(cfg BeanRowConfig) string {
+	if cfg.Dimmed {
+		return ""
+	}
+	if symbol := RenderPrioritySymbol(cfg.Priority, cfg.PriorityColor); symbol != "" {
+		return symbol + " "
+	}
+	return ""
+}
+
+// titleSpace is the width left for the title text in the title column.
+func titleSpace(cfg BeanRowConfig) int {
+	lead := ansi.StringWidth(rowCaret(cfg) + cfg.TreePrefix)
+	return max(cfg.MaxTitleWidth-lead-ansi.StringWidth(rowPrioritySymbol(cfg)), 1)
+}
+
+// TitleOverflow is how far the title of a row rendered with cfg can be
+// scrolled by TitleShift, or 0 if it fits.
+func TitleOverflow(title string, cfg BeanRowConfig) int {
+	if cfg.MaxTitleWidth <= 0 {
+		return 0
+	}
+	return max(0, len([]rune(title))-titleSpace(cfg))
+}
+
+// ScrollTitle cuts title to width, marking cut-off text with "...". shift
+// scrolls it: 0 shows the start, TitleOverflow the end.
+func ScrollTitle(title string, width, shift int) string {
+	r := []rune(title)
+	if len(r) <= width {
+		return title
+	}
+	if width <= 3 {
+		return string(r[:width])
+	}
+	shift = max(0, min(shift, len(r)-width))
+	start, end := shift, shift+width
+	head, tail := "", ""
+	if start > 0 {
+		head, start = "...", start+3
+	}
+	if end < len(r) {
+		tail, end = "...", end-3
+	}
+	if start >= end {
+		return string(r[shift : shift+width])
+	}
+	return head + string(r[start:end]) + tail
 }

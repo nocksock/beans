@@ -99,15 +99,6 @@ Use "beans list --include archived" to see archived beans, and "beans delete" to
 
 // printBeanList prints a formatted list of beans
 func printBeanList(beans []*bean.Bean) {
-	// Calculate max ID width
-	maxIDWidth := 0
-	for _, b := range beans {
-		if len(b.ID) > maxIDWidth {
-			maxIDWidth = len(b.ID)
-		}
-	}
-	maxIDWidth += 2 // padding
-
 	// Check if any beans have tags
 	hasTags := false
 	for _, b := range beans {
@@ -131,7 +122,6 @@ func printBeanList(beans []*bean.Bean) {
 			IsSelected:    false,
 			Tags:          b.Tags,
 			ShowTags:      hasTags,
-			IDColWidth:    maxIDWidth,
 		})
 		fmt.Println(row)
 	}

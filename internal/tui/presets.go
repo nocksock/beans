@@ -17,11 +17,11 @@ const (
 // unfocused one is dropped. The log needs 18 rows.
 var layoutTree = layout.VSplit(
 	layout.HSplit(
-		layout.Leaf(paneList).Min(40),
+		layout.Leaf(paneList).Min(60),
 		layout.VSplit(
 			layout.Leaf(paneDepGraph).Min(6),
 			layout.Leaf(paneContext).Weight(2).Min(6),
-		).Min(80).Max(80).Drop(1), // bean bodies are written for ~80 columns
+		).Min(60).Drop(1),
 	).Min(10),
 	layout.Leaf(paneLog).Fixed(8).Drop(1),
 )
