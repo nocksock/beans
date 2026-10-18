@@ -45,3 +45,4 @@ Whitespace-separated tokens typed after `/`:
 2026-10-18 09:19: Planned with user: TUI-only, field:value (OR same / AND different / - exclude), sort:field[:dir] token, own input -> GraphQL BeanFilter
 2026-10-18 11:24: Added bean.SortBy shared by CLI; follow-up beans-44v3 for create prefill
 2026-10-18 11:29: Implemented parseQuery, query input in list, sort, tag picker token, README/help; all tests pass
+2026-10-18 11:41: Also implemented follow-up beans-44v3 (create prefill from filter) in this branch
