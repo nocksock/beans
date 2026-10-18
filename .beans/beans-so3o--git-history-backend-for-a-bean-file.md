@@ -1,11 +1,11 @@
 ---
 # beans-so3o
 title: Git history backend for a bean file
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-18T09:49:29Z
-updated_at: 2026-10-18T09:49:58Z
+updated_at: 2026-10-18T09:54:28Z
 parent: beans-7jm4
 ---
 
