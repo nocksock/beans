@@ -22,12 +22,14 @@ Decisions:
 - `enter` closes the dialog and replays the binding's first key (chord message for chords) through the app's normal key handling. No per-action wiring.
 
 Steps:
-- [ ] `keys.go`: polish terse help labels in `DefaultKeyMap` (filter, archive, open, refocus, open log, ...)
-- [ ] `keybinds.go`: `keybindRow`, pure `keybindRows(km, paneTitle, paneBindings)` and `filterRows(rows, query)` with table-driven tests
-- [ ] `keybinds.go`: `keybindsModel` with textinput filter, cursor that skips headers, `scroller` viewport, `runKeybindMsg`; Update/View tests
-- [ ] `tui.go`: host the new model in `viewHelpOverlay`, handle `runKeybindMsg` by replaying the key, report the filter input in `typingText`/`canQuit`; app-level replay test (plain key and chord)
-- [ ] Remove `help.go`/`help_test.go`, update README keybinding docs if the help overlay is mentioned
-- [ ] Manual check with `go run . --beans-path <tmp>`: open, filter, run `s`, run `g t`, close
+- [x] `keys.go`: polish terse help labels in `DefaultKeyMap` (filter, archive, open, refocus, open log, ...)
+- [x] `keybinds.go`: `keybindRow`, pure `keybindRows(km, paneTitle, paneBindings)` and `filterRows(rows, query)` with table-driven tests
+- [x] `keybinds.go`: `keybindsModel` with textinput filter, cursor that skips headers, `scroller` viewport, `runKeybindMsg`; Update/View tests
+- [x] `tui.go`: host the new model in `viewHelpOverlay`, handle `runKeybindMsg` by replaying the key, report the filter input in `typingText`/`canQuit`; app-level replay test (plain key and chord)
+- [x] Remove `help.go`/`help_test.go`, update README keybinding docs if the help overlay is mentioned
+- [x] Manual check with `go run . --beans-path <tmp>`: open, filter, run `s`, run `g t`, close
 
 ## Work Log
 2026-10-18 10:30: Planned the keybinds dialog with the user; spec in docs/specs/2026-10-18-keybinds-dialog-design.md
+2026-10-18 11:05: Implemented keybinds dialog (keybinds.go) with TDD, replaced help overlay, wired replay into the app
+2026-10-18 11:20: Polished binding labels, README keybinding docs, manual check in tmux: filter, run s, run g t
