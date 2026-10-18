@@ -21,13 +21,14 @@ the selected binding.
 - `/` focuses a filter input at the top. Typing narrows the rows: a row stays
   when its key label or description contains the query (case-insensitive,
   substring). Sections without rows disappear. The cursor is reset to the
-  first visible row on every change. `enter` in the filter leaves the input
-  with the filter applied, `esc` clears it and leaves the input. Movement
-  keys still move the cursor while filtering, so filter + `enter` runs the
-  first match without leaving the input first.
+  first visible row on every change. While the input has focus, printable
+  keys (including `j`, `k` and `?`) are typed; the arrow keys still move the
+  cursor, so filter + `enter` runs the first match without leaving the input.
+  `enter` runs the selected row; `esc` clears the filter and returns focus to
+  the rows.
 - `enter` on a row closes the dialog and runs the binding.
-- `esc` or `?` (the `help.close` binding) closes the dialog. In the filter
-  input these clear the filter first.
+- `esc` or `?` (the `help.close` binding) closes the dialog when the rows
+  have focus.
 - Footer: `enter run  / filter  esc close`.
 
 ## Running a binding
@@ -71,6 +72,6 @@ Table-driven unit tests, no bubbletea program needed:
   empty sections, empty query returns everything.
 - Cursor: skips headers up and down, clamps at the ends, resets on filter.
 - Update: enter yields `runKeybindMsg` with the first key; chords yield the
-  chord; `/` enters the filter; esc clears then closes.
+  chord; `/` enters the filter; esc clears the filter, then closes.
 - App: `runKeybindMsg` dispatches the key (e.g. opens the status picker) and
   the chord replay reaches the pane.
