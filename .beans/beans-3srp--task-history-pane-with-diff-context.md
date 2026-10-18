@@ -23,3 +23,10 @@ Available via GraphQL: `bean(id) { history(limit: Int) { hash author date subjec
 - Add a pane by writing an adapter implementing `pane` (`internal/tui/panes.go`), registering it in `App.newPanes()`, and placing it in `layoutTree`/`presetCycles` (`presets.go`).
 - The context pane currently always shows a bean (`contextModel`); a different context (log detail / diff) means letting the context pane render per source, e.g. via the focused `selectionSource`.
 - The git history backend (beans-so3o) is merged: `internal/githistory`.
+
+## Notes from beans-8pxh
+
+- The context pane (`contextPane` in `internal/tui/panes.go`) switches between a bean view and a run-output view (`logDetailModel`). For the diff view, add a source interface like `runSource` (e.g. `commitSource`), a third view in `contextPane`, and a case in `App.syncPanes`.
+- Reuse `scroller` (`internal/tui/scroller.go`) for the scrollable diff, as `logDetailModel` does.
+- Panes have number keys (`paneKeys()` in `presets.go`, `LayoutKeyMap.Focus*`); give the history pane the next one (5).
+- The log pane is focusable now; `unfocusable` is gone.
