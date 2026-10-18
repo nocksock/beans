@@ -1,10 +1,11 @@
 ---
 # beans-44v3
 title: Prefill create dialog from active TUI filter
-status: todo
+status: in-progress
 type: task
+priority: normal
 created_at: 2026-10-18T09:24:27Z
-updated_at: 2026-10-18T09:24:27Z
+updated_at: 2026-10-18T09:39:25Z
 blocked_by:
     - beans-kumc
 ---
