@@ -29,6 +29,11 @@ models:
       # Resolved so beans without a size report the default size
       size:
         resolver: true
+  BeanCommit:
+    model: github.com/hmans/beans/internal/graph/model.BeanCommit
+    fields:
+      diff:
+        resolver: true
   # Map ID scalar to string
   ID:
     model:

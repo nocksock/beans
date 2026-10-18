@@ -152,6 +152,32 @@ type Bean {
   parent: Bean
   "Child beans (beans with this as parent)"
   children(filter: BeanFilter): [Bean!]!
+
+  # Git history
+  """
+  Git commits that touched this bean's file, newest first. Follows renames of
+  the slug part of the filename. Empty when the beans directory isn't in a git
+  repository or the bean was never committed.
+  """
+  history(limit: Int): [BeanCommit!]!
+  "Diff of this bean's file in the given commit (empty if the commit didn't touch it)"
+  diff(commit: String!): String!
+}
+
+"""
+A git commit that touched a bean's file
+"""
+type BeanCommit {
+  "Full commit hash"
+  hash: String!
+  "Author name"
+  author: String!
+  "Author date"
+  date: Time!
+  "First line of the commit message"
+  subject: String!
+  "Diff of the bean's file in this commit"
+  diff: String!
 }
 
 """
