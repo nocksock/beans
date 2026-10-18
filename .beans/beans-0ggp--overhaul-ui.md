@@ -69,17 +69,17 @@ VSplit(
 
 ## Implementation steps
 
-- [ ] `layout` package: node types, size distribution, collapsing, narrow-width drop, chrome rendering, with table-driven tests
-- [ ] Pane interface and `presets.go` (tree and cycles)
-- [ ] `workspace.go`: focus, focus stack, toggles, preset cycling, msg routing, with tests
-- [ ] `listPane` adapter (strip border/footer); App renders via workspace
-- [ ] `contextPane` (preview + viewport + bean actions); delete detail view and `history`
-- [ ] `depGraphPane` (strip chrome, selection drives context, enter re-roots); delete `viewDepNav`
-- [ ] `logPane` with height param; `L` via workspace
-- [ ] `Layout` keymap group, merge Detail/DepNav into `Bean` group, help overlay, config override names
-- [ ] Update existing tests (list, depnav, twocolumn, keys, tui)
-- [ ] Manual tmux check at 80/120/200 cols with a test `--beans-path`
-- [ ] README/docs for the new keys
+- [x] `layout` package: node types, size distribution, collapsing, narrow-width drop, chrome rendering, with table-driven tests
+- [x] Pane interface and `presets.go` (tree and cycles)
+- [x] `workspace.go`: focus, focus stack, toggles, preset cycling, msg routing, with tests
+- [x] `listPane` adapter (strip border/footer); App renders via workspace
+- [x] `contextPane` (preview + viewport + bean actions); delete detail view and `history`
+- [x] `depGraphPane` (strip chrome, selection drives context, enter re-roots); delete `viewDepNav`
+- [x] `logPane` with height param; `L` via workspace
+- [x] `Layout` keymap group, merge Detail/DepNav into `Bean` group, help overlay, config override names
+- [x] Update existing tests (list, depnav, twocolumn, keys, tui)
+- [x] Manual tmux check at 80/120/200 cols with a test `--beans-path`
+- [x] README/docs for the new keys
 
 ## Follow-ups (blocked by this bean, under epic beans-7jm4)
 
@@ -167,3 +167,9 @@ where one task views the current task, and the other the one selected in depende
 ## Work Log
 2026-10-18 11:00: Brainstormed design with user; plan written into bean
 2026-10-18 11:05: Created follow-ups 8pxh, so3o, 3srp, iuva; status in-progress
+2026-10-18 11:40: layout package (arrange, drop, frame) with tests committed
+2026-10-18 12:20: workspace + presets committed (63d7f7c)
+2026-10-18 13:10: panes wired into App, detail/depnav views removed, tests + README updated (f344467)
+2026-10-18 13:12: deviation: Detail/DepNav keymaps became `context`/`depGraph` groups (not one shared `Bean` group); pane `back` bindings live per pane so esc in the list keeps its drill-out meaning
+2026-10-18 13:13: log is skipped by tab (unfocusable) until beans-8pxh makes it navigable
+2026-10-18 13:14: manual tmux check at 80x24, 100x40, 120x36, 200x45 ok
