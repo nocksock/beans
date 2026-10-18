@@ -100,3 +100,8 @@ Resulting answers for the example tree:
 - [ ] graphql: `CreateBeanInput.prefix: String` (defaults to the config prefix), passed through to beancore ID generation (`internal/beancore/core.go:336`); `mise codegen`; tests
 - [ ] tui: prefix field in `internal/tui/createmodal.go`, selectable when >1 prefix is available and fixed otherwise; default is own prefix; tests
 - [ ] docs: README monorepo section on scoping
+
+## Work Log
+2026-10-18 11:16: config: added Scope() and AvailablePrefixes() with tests
+2026-10-18 11:17: graphql: BeanFilter.idPrefix + CreateBeanInput.prefix with tests
+2026-10-18 11:18: cli: beans list scoped, --all flag
