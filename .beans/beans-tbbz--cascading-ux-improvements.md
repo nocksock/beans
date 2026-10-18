@@ -86,22 +86,25 @@ Resulting answers for the example tree:
 5. `packages/shared/` → inherited `repo-` → `repo-*` only (not everything)
 6. `packages/tools/` → empty prefix → unscoped
 7. `packages/mobile/` → `mob-*` (stray `repo-*` hidden, visible via toggle)
-8. `vendor/lib/` sharing a dir without cascade → single-layer chain → unscoped
+8. `vendor/lib/` → it sits under the cascading root, so it inherits and is scoped to `lib-*`. Only configs outside any cascade (or below a non-cascading config) are unscoped
 - Orphaned prefixes (`old-*`): visible at the root and via the toggle only.
 - Blocking status still considers out-of-scope blockers.
 - Creating a child of an out-of-scope parent is allowed; the new bean gets the scoped prefix.
 
 ### Steps
-- [ ] config: `Config.Scope() string`, which returns the prefix or "" per the rule above, with table tests over the example tree
-- [ ] graphql: `BeanFilter.idPrefix: String` (string prefix match), `mise codegen`, resolver tests
-- [ ] cli: `beans list` passes `idPrefix` from `cfg.Scope()`; add `--all`; tests
-- [ ] tui: apply scope to the list query; out-of-scope ancestors as greyed context rows; toggle key (configurable keybinding) and a header scope indicator
-- [ ] config: `Config.AvailablePrefixes() []string`: own prefix first, then prefixes of descendant configs that cascade from this one and share its beans dir (needs downward discovery; overlaps beans-h0g0). Tests over the example tree
-- [ ] graphql: `CreateBeanInput.prefix: String` (defaults to the config prefix), passed through to beancore ID generation (`internal/beancore/core.go:336`); `mise codegen`; tests
-- [ ] tui: prefix field in `internal/tui/createmodal.go`, selectable when >1 prefix is available and fixed otherwise; default is own prefix; tests
-- [ ] docs: README monorepo section on scoping
+- [x] config: `Config.Scope() string`, which returns the prefix or "" per the rule above, with table tests over the example tree
+- [x] graphql: `BeanFilter.idPrefix: String` (string prefix match), `mise codegen`, resolver tests
+- [x] cli: `beans list` passes `idPrefix` from `cfg.Scope()`; add `--all`; tests
+- [x] tui: apply scope to the list query; out-of-scope ancestors as greyed context rows; toggle key (configurable keybinding) and a header scope indicator
+- [x] config: `Config.AvailablePrefixes() []string`: own prefix first, then prefixes of descendant configs that cascade from this one and share its beans dir (needs downward discovery; overlaps beans-h0g0). Tests over the example tree
+- [x] graphql: `CreateBeanInput.prefix: String` (defaults to the config prefix), passed through to beancore ID generation (`internal/beancore/core.go:336`); `mise codegen`; tests
+- [x] tui: prefix field in `internal/tui/createmodal.go`, selectable when >1 prefix is available and fixed otherwise; default is own prefix; tests
+- [x] docs: README monorepo section on scoping
 
 ## Work Log
 2026-10-18 11:16: config: added Scope() and AvailablePrefixes() with tests
 2026-10-18 11:17: graphql: BeanFilter.idPrefix + CreateBeanInput.prefix with tests
 2026-10-18 11:18: cli: beans list scoped, --all flag
+2026-10-18 11:20: tui: list scoped, g s toggles all scopes, title indicator
+2026-10-18 11:21: tui: prefix field in create dialog, tests
+2026-10-18 11:23: docs + manual test in scratch monorepo; filed beans-vjqd (default type milestone)
