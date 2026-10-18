@@ -1,11 +1,11 @@
 ---
 # beans-ung3
 title: filter and trigger keybinds
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-17T12:59:24Z
-updated_at: 2026-10-18T15:56:00Z
+updated_at: 2026-10-18T16:27:13Z
 ---
 
 similar to lazygit. ? would open a keybinds dialog with all currently available keybinds grouped by global and context keybinds. / starts filtering. enter will run. without filter binds are selectable via j/k, enter runs selected.
@@ -33,3 +33,4 @@ Steps:
 2026-10-18 10:30: Planned the keybinds dialog with the user; spec in docs/specs/2026-10-18-keybinds-dialog-design.md
 2026-10-18 11:05: Implemented keybinds dialog (keybinds.go) with TDD, replaced help overlay, wired replay into the app
 2026-10-18 11:20: Polished binding labels, README keybinding docs, manual check in tmux: filter, run s, run g t
+2026-10-18 11:35: Merged into dev, bean completed
