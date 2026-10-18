@@ -174,3 +174,4 @@ where one task views the current task, and the other the one selected in depende
 2026-10-18 13:13: log is skipped by tab (unfocusable) until beans-8pxh makes it navigable
 2026-10-18 13:14: manual tmux check at 80x24, 100x40, 120x36, 200x45 ok
 2026-10-18 13:30: enter in dependency graph now also focuses details (user feedback)
+2026-10-18 13:50: pane interface (panes.go) replaces per-pane switches in App
