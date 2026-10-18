@@ -69,7 +69,7 @@ This will create a `.beans/` directory and a `.beans.yml` configuration file at 
 beans init --path ~/path/to/tasks --prefix app- --id-length 6
 ```
 
-Run `beans init --help` for the full list.
+Run `beans init --help` for the full list. An existing `.beans.yml` is only overwritten with `--force`.
 
 From this point onward, you can interact with your Beans through the `beans` CLI. To get a list of available commands:
 
@@ -115,7 +115,7 @@ beans:
 
 Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans` directory, and the inherited `claude` launcher.
 
-Create such a child config with `beans init --inherit`. Below a cascading parent, `beans init` refuses to run without the flag, since a full config would shadow the parent's settings. With it, only the settings passed as flags are written:
+Create the parent with `beans init --cascade` and such a child config with `beans init --inherit`. Below a cascading parent, `beans init` refuses to run without the flag, since a full config would shadow the parent's settings. With it, only the settings passed as flags are written:
 
 ```bash
 cd packages/api && beans init --inherit --prefix api-

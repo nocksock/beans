@@ -15,6 +15,8 @@ import (
 var (
 	initJSON          bool
 	initInherit       bool
+	initCascade       bool
+	initForce         bool
 	initPath          string
 	initPrefix        string
 	initIDLength      int
@@ -26,12 +28,15 @@ var (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a beans project",
-	Long: `Creates a .beans directory and .beans.yml config file in the current directory.
+	Long: `Creates a .beans directory and .beans.yml config file in the current directory
+(or next to --beans-path). An existing .beans.yml is only overwritten with --force.
 
 Flags set the matching .beans.yml settings. For example, to keep the beans
 outside the project:
 
   beans init --path ~/path/to/tasks
+
+Pass --cascade to let configs in subdirectories inherit this one (sets cascade: true).
 
 Inside a directory that a parent config cascades into (cascade: true), init
 refuses to run unless --inherit is given. With --inherit it writes a config
@@ -54,6 +59,11 @@ from the parent:
 				return initFail(output.ErrFileError, "failed to get current directory", err)
 			}
 			projectDir = dir
+		}
+
+		configFile := filepath.Join(projectDir, config.ConfigFileName)
+		if _, err := os.Stat(configFile); err == nil && !initForce {
+			return initFail(output.ErrValidation, "refusing to init", fmt.Errorf("%s already exists; pass --force to overwrite it", configFile))
 		}
 
 		parentPath, err := config.CascadingParent(projectDir)
@@ -117,6 +127,12 @@ func initStandalone(projectDir string, flags *pflag.FlagSet) (string, error) {
 	if err := cfg.Save(projectDir); err != nil {
 		return "", initFail(output.ErrFileError, "failed to create config", err)
 	}
+	// cascade is per file and not part of Config, so it is written separately
+	if initCascade {
+		if err := config.SetSetting(filepath.Join(projectDir, config.ConfigFileName), "cascade", "true"); err != nil {
+			return "", initFail(output.ErrFileError, "failed to set cascade", err)
+		}
+	}
 	return beansDir, nil
 }
 
@@ -134,7 +150,11 @@ func initInherited(projectDir, parentPath string, flags *pflag.FlagSet) (string,
 		return "", initFail(output.ErrValidation, "invalid flags", err)
 	}
 
-	if err := config.SaveSettings(projectDir, initSettings(flags)); err != nil {
+	settings := initSettings(flags)
+	if initCascade {
+		settings["cascade"] = true
+	}
+	if err := config.SaveSettings(projectDir, settings); err != nil {
 		return "", initFail(output.ErrFileError, "failed to create config", err)
 	}
 
@@ -223,6 +243,8 @@ func init() {
 	flags := initCmd.Flags()
 	flags.BoolVar(&initJSON, "json", false, "Output as JSON")
 	flags.BoolVar(&initInherit, "inherit", false, "Below a cascading parent config: write only the settings given as flags, inherit the rest")
+	flags.BoolVar(&initCascade, "cascade", false, "Pass this config's settings down to configs in subdirectories (sets cascade: true)")
+	flags.BoolVar(&initForce, "force", false, "Overwrite an existing .beans.yml")
 	flags.StringVar(&initPath, "path", "", "Beans directory, relative to the config file (sets beans.path)")
 	flags.StringVar(&initPrefix, "prefix", "", "ID prefix for new beans (sets beans.prefix, default: <dir name>-)")
 	flags.IntVar(&initIDLength, "id-length", 0, "Length of generated bean IDs (sets beans.id_length, default: 4)")

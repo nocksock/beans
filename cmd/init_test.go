@@ -248,3 +248,75 @@ func TestInitCmdInheritRequiresCascadingParent(t *testing.T) {
 		t.Fatalf("error = %v, want one about needing a cascading parent", err)
 	}
 }
+
+func TestInitCmdCascade(t *testing.T) {
+	project := t.TempDir()
+	if err := runInit(t, project, "--cascade", "--prefix", "repo-"); err != nil {
+		t.Fatalf("init error = %v", err)
+	}
+
+	child := filepath.Join(project, "api")
+	if err := os.MkdirAll(child, 0755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := config.CascadingParent(child)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(project, config.ConfigFileName); got != want {
+		t.Errorf("cascading parent of child = %q, want %q", got, want)
+	}
+
+	cfg, err := config.Load(filepath.Join(project, config.ConfigFileName))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Beans.Prefix != "repo-" || cfg.Beans.IDLength != 4 {
+		t.Errorf("beans = %+v, want prefix repo- and default id_length 4", cfg.Beans)
+	}
+}
+
+func TestInitCmdInheritCascade(t *testing.T) {
+	_, child := cascadingParent(t)
+	if err := runInit(t, child, "--inherit", "--cascade", "--prefix", "api-"); err != nil {
+		t.Fatalf("init error = %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(child, config.ConfigFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "beans:\n  prefix: api-\ncascade: true\n"
+	if string(raw) != want {
+		t.Errorf("config = %q, want %q", raw, want)
+	}
+}
+
+func TestInitCmdRefusesToOverwrite(t *testing.T) {
+	project := t.TempDir()
+	if err := runInit(t, project, "--prefix", "one-"); err != nil {
+		t.Fatalf("first init error = %v", err)
+	}
+
+	err := runInit(t, project, "--prefix", "two-")
+	if err == nil || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("second init error = %v, want one mentioning --force", err)
+	}
+	cfg, err := config.Load(filepath.Join(project, config.ConfigFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Beans.Prefix != "one-" {
+		t.Errorf("prefix = %q, want the original one- to be kept", cfg.Beans.Prefix)
+	}
+
+	if err := runInit(t, project, "--force", "--prefix", "two-"); err != nil {
+		t.Fatalf("forced init error = %v", err)
+	}
+	cfg, err = config.Load(filepath.Join(project, config.ConfigFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Beans.Prefix != "two-" {
+		t.Errorf("prefix = %q, want two- after --force", cfg.Beans.Prefix)
+	}
+}
