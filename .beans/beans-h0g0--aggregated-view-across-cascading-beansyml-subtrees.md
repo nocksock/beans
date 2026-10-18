@@ -18,3 +18,8 @@ Related: beans-bgih (recurse into subfolders).
 - Where does `create` put a new bean when run at the root?
 - TUI grouping/filtering by subtree?
 - Interaction with beans-bgih recursion within a single beans path
+## Update from beans-tbbz (2026-10-18)
+Partly addressed for configs sharing one beans dir:
+- Lists in a nested cascading config are scoped to its prefix (`Config.Scope()`, GraphQL `BeanFilter.idPrefix`, `beans list --all`, TUI `g s`); the cascade root lists everything.
+- Create at the root: the TUI create dialog offers the prefixes of descendant configs sharing the beans dir (`Config.AvailablePrefixes()`, `CreateBeanInput.prefix`), with minimal downward config discovery.
+- Still open here: subtrees with their *own* beans dirs (loading several dirs at once).
