@@ -886,6 +886,12 @@ func (a *App) handleLayoutKey(msg tea.KeyMsg) bool {
 	case key.Matches(msg, k.ToggleLog):
 		a.ws.toggle(paneLog)
 	default:
+		for id, b := range paneKeys() {
+			if key.Matches(msg, b) {
+				a.ws.focusPane(id)
+				return true
+			}
+		}
 		return false
 	}
 	return true
@@ -992,7 +998,11 @@ func (a *App) drawPane(r layout.Rect) string {
 	if r.ID == a.ws.focus {
 		border = focusedPaneBorderStyle
 	}
-	return layout.Frame(p.title(), p.View(), r.W, r.H, border)
+	title := p.title()
+	if k := primaryKey(paneKeys()[r.ID]); k != "" {
+		title = "[" + k + "] " + title
+	}
+	return layout.Frame(title, p.View(), r.W, r.H, border)
 }
 
 // footer renders the notice, the layout hints and the focused pane's hints,

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -87,6 +88,7 @@ func (m helpOverlayModel) View() string {
 		{lk.ToggleContext.Keys(), "Toggle details pane"},
 		{lk.ToggleDepGraph.Keys(), "Toggle dependencies pane"},
 		{lk.ToggleLog.Keys(), "Toggle log pane"},
+		{slices.Concat(lk.FocusList.Keys(), lk.FocusContext.Keys(), lk.FocusDepGraph.Keys(), lk.FocusLog.Keys()), "Focus pane (number in its title)"},
 		{l.Open.Keys(), "Open children (or details)"},
 		{l.Back.Keys(), "Back up a level / previous pane"},
 		{d.Refocus.Keys(), "Root graph at bean and open it (dependencies)"},

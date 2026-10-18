@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/hmans/beans/internal/tui/layout"
+import (
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/hmans/beans/internal/tui/layout"
+)
 
 // Panes of the main screen
 const (
@@ -9,6 +12,17 @@ const (
 	paneDepGraph layout.ID = "deps"
 	paneLog      layout.ID = "log"
 )
+
+// paneKeys are the bindings focusing each pane, shown in the pane titles.
+func paneKeys() map[layout.ID]key.Binding {
+	k := keymap.Layout
+	return map[layout.ID]key.Binding{
+		paneList:     k.FocusList,
+		paneContext:  k.FocusContext,
+		paneDepGraph: k.FocusDepGraph,
+		paneLog:      k.FocusLog,
+	}
+}
 
 // layoutTree arranges every pane. Which ones are shown is up to the presets
 // and toggles; hidden panes collapse and their siblings take the space.

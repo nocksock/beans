@@ -55,6 +55,10 @@ type LayoutKeyMap struct {
 	ToggleContext  key.Binding
 	ToggleDepGraph key.Binding
 	ToggleLog      key.Binding
+	FocusList      key.Binding
+	FocusContext   key.Binding
+	FocusDepGraph  key.Binding
+	FocusLog       key.Binding
 }
 
 // ListKeyMap holds bindings for the bean list.
@@ -230,6 +234,10 @@ func DefaultKeyMap() KeyMap {
 			ToggleContext:  bind("details", "v"),
 			ToggleDepGraph: bind("dependencies", "D"),
 			ToggleLog:      bind("log", "L"),
+			FocusList:      bind("beans", "1"),
+			FocusContext:   bind("details", "2"),
+			FocusDepGraph:  bind("dependencies", "3"),
+			FocusLog:       bind("log", "4"),
 		},
 		List: ListKeyMap{
 			Up:        bind("up", "up", "k"),
