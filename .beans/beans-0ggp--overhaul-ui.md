@@ -173,3 +173,4 @@ where one task views the current task, and the other the one selected in depende
 2026-10-18 13:12: deviation: Detail/DepNav keymaps became `context`/`depGraph` groups (not one shared `Bean` group); pane `back` bindings live per pane so esc in the list keeps its drill-out meaning
 2026-10-18 13:13: log is skipped by tab (unfocusable) until beans-8pxh makes it navigable
 2026-10-18 13:14: manual tmux check at 80x24, 100x40, 120x36, 200x45 ok
+2026-10-18 13:30: enter in dependency graph now also focuses details (user feedback)
