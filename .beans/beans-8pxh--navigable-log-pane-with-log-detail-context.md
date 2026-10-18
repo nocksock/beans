@@ -1,10 +1,11 @@
 ---
 # beans-8pxh
 title: Navigable log pane with log-detail context
-status: todo
+status: in-progress
 type: task
+priority: normal
 created_at: 2026-10-18T09:49:29Z
-updated_at: 2026-10-18T09:49:29Z
+updated_at: 2026-10-18T11:15:23Z
 parent: beans-7jm4
 blocked_by:
     - beans-0ggp
@@ -17,3 +18,10 @@ Follow-up of beans-0ggp. Make the log pane focusable and navigable (cursor over 
 - Add a pane by writing an adapter implementing `pane` (`internal/tui/panes.go`), registering it in `App.newPanes()`, and placing it in `layoutTree`/`presetCycles` (`presets.go`).
 - The context pane currently always shows a bean (`contextModel`); a different context (log detail / diff) means letting the context pane render per source, e.g. via the focused `selectionSource`.
 - The log is listed in `unfocusable` (`presets.go`); remove it there once it is navigable.
+
+## Work Log
+
+2026-10-18 13:05: Extracted shared scroller from contextModel
+2026-10-18 13:10: Log pane cursor (follows latest), LogKeyMap, removed unfocusable
+2026-10-18 13:15: logDetailModel shows full run output in context pane via runSource; log preset cycle
+2026-10-18 13:22: Tests + README; verified manually in tmux
