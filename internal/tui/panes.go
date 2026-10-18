@@ -24,11 +24,17 @@ type selectionSource interface {
 	selection() *bean.Bean
 }
 
+// runSource is a pane whose selected run (nil if none) the context pane
+// shows the output of while it has focus.
+type runSource interface {
+	selectedRun() *logEntry
+}
+
 // newPanes returns the panes of a, by layout ID.
 func (a *App) newPanes() map[layout.ID]pane {
 	return map[layout.ID]pane{
 		paneList:     listPane{&a.list},
-		paneContext:  contextPane{&a.ctx},
+		paneContext:  &a.ctxPane,
 		paneDepGraph: depGraphPane{&a.deps},
 		paneLog:      &logPane{logPanelModel: &a.log},
 	}
@@ -48,15 +54,44 @@ func (p listPane) selection() *bean.Bean {
 	return b
 }
 
-type contextPane struct{ *contextModel }
+// contextPane shows the bean, or the run output, that the last focused
+// selection source picked.
+type contextPane struct {
+	bean    *contextModel
+	run     *logDetailModel
+	showRun bool
+}
 
-func (p contextPane) update(msg tea.Msg) tea.Cmd {
+// active is the view the pane shows.
+func (p *contextPane) active() pane {
+	if p.showRun {
+		return p.run
+	}
+	return beanContextPane{p.bean}
+}
+
+func (p *contextPane) title() string              { return p.active().title() }
+func (p *contextPane) View() string               { return p.active().View() }
+func (p *contextPane) footer() string             { return p.active().footer() }
+func (p *contextPane) update(msg tea.Msg) tea.Cmd { return p.active().update(msg) }
+func (p *contextPane) bindings() []key.Binding    { return p.active().bindings() }
+func (p *contextPane) typing() bool               { return false }
+
+// setSize sizes both views, so either is ready to show.
+func (p *contextPane) setSize(width, height int) {
+	p.bean.setSize(width, height)
+	p.run.setSize(width, height)
+}
+
+type beanContextPane struct{ *contextModel }
+
+func (p beanContextPane) update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	*p.contextModel, cmd = p.Update(msg)
 	return cmd
 }
-func (p contextPane) bindings() []key.Binding { return allBindings(keymap.Context) }
-func (p contextPane) typing() bool            { return false }
+func (p beanContextPane) bindings() []key.Binding { return allBindings(keymap.Context) }
+func (p beanContextPane) typing() bool            { return false }
 
 type depGraphPane struct{ *depNavModel }
 
@@ -69,7 +104,8 @@ func (p depGraphPane) bindings() []key.Binding { return allBindings(keymap.DepGr
 func (p depGraphPane) typing() bool            { return false }
 func (p depGraphPane) selection() *bean.Bean   { return p.selectedBean() }
 
-// logPane shows the log; it can't take focus yet (see unfocusable).
+// logPane shows the log, with a cursor on the run whose output the context
+// pane shows.
 type logPane struct {
 	*logPanelModel
 	width, height int
@@ -78,7 +114,46 @@ type logPane struct {
 func (p *logPane) title() string             { return "Log" }
 func (p *logPane) setSize(width, height int) { p.width, p.height = width, height }
 func (p *logPane) View() string              { return p.logPanelModel.View(p.width, p.height) }
-func (p *logPane) footer() string            { return "" }
-func (p *logPane) update(tea.Msg) tea.Cmd    { return nil }
-func (p *logPane) bindings() []key.Binding   { return nil }
+func (p *logPane) bindings() []key.Binding   { return allBindings(keymap.Log) }
 func (p *logPane) typing() bool              { return false }
+func (p *logPane) selectedRun() *logEntry    { return p.selectedEntry() }
+
+func (p *logPane) update(msg tea.Msg) tea.Cmd {
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return nil
+	}
+	k := keymap.Log
+	switch {
+	case key.Matches(keyMsg, k.Up):
+		p.moveCursor(-1)
+	case key.Matches(keyMsg, k.Down):
+		p.moveCursor(1)
+	case key.Matches(keyMsg, k.GoToStart):
+		p.moveCursor(-len(p.entries))
+	case key.Matches(keyMsg, k.GoToEnd):
+		p.moveCursor(len(p.entries))
+	case key.Matches(keyMsg, k.Open):
+		if p.selectedEntry() != nil {
+			return func() tea.Msg { return focusContextMsg{} }
+		}
+	case key.Matches(keyMsg, k.OpenEditor):
+		if e := p.selectedEntry(); e != nil && e.logPath != "" {
+			path := e.logPath
+			return func() tea.Msg { return openLogMsg{path: path} }
+		}
+	case key.Matches(keyMsg, k.Back):
+		return func() tea.Msg { return focusBackMsg{} }
+	}
+	return nil
+}
+
+func (p *logPane) footer() string {
+	k := keymap.Log
+	return hints(
+		groupHint("move", k.Down, k.Up),
+		hint(k.Open, ""),
+		hint(k.OpenEditor, ""),
+		hint(k.Back, ""),
+	)
+}

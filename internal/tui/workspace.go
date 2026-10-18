@@ -169,15 +169,9 @@ func (w *workspace) matches(p preset) bool {
 	return true
 }
 
-// cycleFocus focuses the next (delta 1) or previous (-1) visible pane that
-// can take focus.
+// cycleFocus focuses the next (delta 1) or previous (-1) visible pane.
 func (w *workspace) cycleFocus(delta int) {
-	var panes []layout.ID
-	for _, id := range w.visiblePanes() {
-		if !unfocusable[id] || id == w.focus {
-			panes = append(panes, id)
-		}
-	}
+	panes := w.visiblePanes()
 	i := slices.Index(panes, w.focus)
 	n := len(panes)
 	w.focusPane(panes[((i+delta)%n+n)%n])

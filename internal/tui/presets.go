@@ -5,7 +5,7 @@ import "github.com/hmans/beans/internal/tui/layout"
 // Panes of the main screen
 const (
 	paneList     layout.ID = "list"
-	paneContext  layout.ID = "context" // details of what's selected in the list or dependency graph
+	paneContext  layout.ID = "context" // details of what's selected in the list, dependency graph or log
 	paneDepGraph layout.ID = "deps"
 	paneLog      layout.ID = "log"
 )
@@ -26,11 +26,6 @@ var layoutTree = layout.VSplit(
 	layout.Leaf(paneLog).Fixed(8).Drop(1),
 )
 
-// unfocusable panes are shown but skipped by tab.
-var unfocusable = map[layout.ID]bool{
-	paneLog: true, // not navigable yet
-}
-
 // preset is a set of visible panes.
 type preset []layout.ID
 
@@ -47,5 +42,9 @@ var presetCycles = map[layout.ID][]preset{
 		{paneList, paneContext, paneLog},
 		{paneDepGraph, paneContext, paneLog},
 		{paneContext},
+	},
+	paneLog: {
+		{paneList, paneContext, paneLog},
+		{paneContext, paneLog}, // run output at full width
 	},
 }

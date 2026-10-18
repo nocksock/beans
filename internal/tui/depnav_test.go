@@ -172,7 +172,7 @@ func TestDepGraphPane(t *testing.T) {
 		}
 	})
 
-	pump(app, keyMsg("tab"))
+	pump(app, keyMsg("shift+tab"))
 	if app.ws.focus != paneDepGraph {
 		t.Fatalf("focus = %v, want the dependency graph", app.ws.focus)
 	}

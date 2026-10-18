@@ -118,8 +118,8 @@ func TestWorkspace(t *testing.T) {
 			wantFocus:   paneContext,
 		},
 		{
-			name:        "tab wraps around, skipping the log",
-			ops:         []wsOp{tab, tab},
+			name:        "tab wraps around",
+			ops:         []wsOp{tab, tab, tab},
 			wantVisible: []layout.ID{paneList, paneContext, paneLog},
 			wantFocus:   paneList,
 		},
@@ -127,7 +127,7 @@ func TestWorkspace(t *testing.T) {
 			name:        "shift+tab goes backwards",
 			ops:         []wsOp{toggle(paneDepGraph), func(w *workspace) { w.cycleFocus(-1) }},
 			wantVisible: []layout.ID{paneList, paneDepGraph, paneContext, paneLog},
-			wantFocus:   paneContext,
+			wantFocus:   paneLog,
 		},
 		{
 			name:        "esc goes back to the previous pane",

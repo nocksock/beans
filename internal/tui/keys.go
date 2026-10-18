@@ -28,6 +28,7 @@ type KeyMap struct {
 	List               ListKeyMap
 	Context            ContextKeyMap
 	DepGraph           DepGraphKeyMap
+	Log                LogKeyMap
 	Help               HelpKeyMap
 	Picker             PickerKeyMap
 	TagEditor          TagEditorKeyMap
@@ -94,7 +95,8 @@ type ListKeyMap struct {
 	ToggleScope     key.Binding
 }
 
-// ContextKeyMap holds bindings for the context pane showing a bean.
+// ContextKeyMap holds bindings for the context pane. Its scroll keys, Back
+// and OpenEditor apply to a run's output too, the rest only to a bean.
 type ContextKeyMap struct {
 	ScrollUp     key.Binding
 	ScrollDown   key.Binding
@@ -126,6 +128,17 @@ type DepGraphKeyMap struct {
 	Down       key.Binding
 	Refocus    key.Binding
 	ToggleDone key.Binding
+	Back       key.Binding
+}
+
+// LogKeyMap holds bindings for the log pane.
+type LogKeyMap struct {
+	Up         key.Binding
+	Down       key.Binding
+	GoToStart  key.Binding
+	GoToEnd    key.Binding
+	Open       key.Binding
+	OpenEditor key.Binding
 	Back       key.Binding
 }
 
@@ -285,6 +298,15 @@ func DefaultKeyMap() KeyMap {
 			ToggleDone: bind("show done", "A"),
 			Back:       bind("back", "esc", "backspace"),
 		},
+		Log: LogKeyMap{
+			Up:         bind("up", "up", "k"),
+			Down:       bind("down", "down", "j"),
+			GoToStart:  bind("oldest", "home", "g"),
+			GoToEnd:    bind("latest", "end", "G"),
+			Open:       bind("output", "enter"),
+			OpenEditor: bind("$EDITOR", "E"),
+			Back:       bind("back", "esc", "backspace"),
+		},
 		Help: HelpKeyMap{
 			Close: bind("close", "?", "esc"),
 		},
@@ -417,7 +439,7 @@ func (km KeyMap) conflicts() []string {
 
 // paneContexts are the contexts of panes, where the global and layout
 // bindings apply too.
-var paneContexts = map[string]bool{"list": true, "context": true, "depGraph": true}
+var paneContexts = map[string]bool{"list": true, "context": true, "depGraph": true, "log": true}
 
 type namedBinding struct {
 	name    string

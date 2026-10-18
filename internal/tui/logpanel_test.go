@@ -261,3 +261,67 @@ func TestLogPanelToggle(t *testing.T) {
 		t.Errorf("log should not render in a 12-row terminal:\n%s", app.View())
 	}
 }
+
+func TestLogPanelCursor(t *testing.T) {
+	now := time.Now()
+	var m logPanelModel
+	m.moveCursor(-1) // no entries: nothing to move
+	if m.selectedEntry() != nil {
+		t.Fatal("empty log should have no selection")
+	}
+
+	var ids []int
+	for i := range 3 {
+		ids = append(ids, m.start("l", fmt.Sprintf("beans-%d", i), "", now))
+	}
+	if got := m.selectedEntry().id; got != ids[2] {
+		t.Errorf("selected = %d, want the latest", got)
+	}
+
+	m.moveCursor(-1)
+	if got := m.selectedEntry().id; got != ids[1] {
+		t.Errorf("after up: selected = %d, want %d", got, ids[1])
+	}
+	m.moveCursor(-10)
+	if got := m.selectedEntry().id; got != ids[0] {
+		t.Errorf("up stops at the oldest: selected = %d, want %d", got, ids[0])
+	}
+
+	// A new run doesn't move a cursor off the latest...
+	newer := m.start("l", "beans-new", "", now)
+	if got := m.selectedEntry().id; got != ids[0] {
+		t.Errorf("selected = %d, want it to stay on %d", got, ids[0])
+	}
+	// ...but on the latest, the cursor follows new runs
+	m.moveCursor(10)
+	if got := m.selectedEntry().id; got != newer {
+		t.Errorf("down stops at the latest: selected = %d, want %d", got, newer)
+	}
+	newest := m.start("l", "beans-newest", "", now)
+	if got := m.selectedEntry().id; got != newest {
+		t.Errorf("selected = %d, want to follow to %d", got, newest)
+	}
+}
+
+func TestLogPanelViewScrollsToSelection(t *testing.T) {
+	now := time.Now()
+	var m logPanelModel
+	for i := range 6 {
+		id := m.start("l", fmt.Sprintf("beans-%d", i), writeLog(t, "a\nb\n"), now)
+		m.finish(id, 0, nil, now)
+	}
+
+	m.moveCursor(-5) // the oldest
+	view := m.View(60, 4)
+	if !strings.Contains(view, "▌") || !strings.Contains(view, "beans-0") {
+		t.Errorf("selected oldest entry should be shown with the cursor:\n%s", view)
+	}
+	if strings.Contains(view, "beans-5") {
+		t.Errorf("the newest entry should have scrolled out:\n%s", view)
+	}
+
+	m.moveCursor(10)
+	if view := m.View(60, 4); !strings.Contains(view, "beans-5") {
+		t.Errorf("selected latest entry should be shown:\n%s", view)
+	}
+}

@@ -49,11 +49,13 @@ type launchFinishedMsg struct {
 	err      error // set when the command couldn't be run at all
 }
 
-// logPanelModel is the lazygit-style command log pane
+// logPanelModel is the lazygit-style command log pane. Its cursor picks the
+// run whose output the context pane shows.
 type logPanelModel struct {
-	entries []logEntry
-	nextID  int
-	reveal  bool // the pane should be shown: a run started or failed
+	entries  []logEntry
+	nextID   int
+	reveal   bool // the pane should be shown: a run started or failed
+	selected int  // id of the entry under the cursor; 0 follows the latest
 }
 
 // start records a new running entry, asks for the pane to be shown and
@@ -118,6 +120,36 @@ func (m *logPanelModel) latest() *logEntry {
 	return &m.entries[len(m.entries)-1]
 }
 
+// selectedIndex is the index of the entry under the cursor, or -1 if there
+// are no entries. A dropped entry moves the cursor to the latest.
+func (m *logPanelModel) selectedIndex() int {
+	if i := slices.IndexFunc(m.entries, func(e logEntry) bool { return e.id == m.selected }); i >= 0 {
+		return i
+	}
+	return len(m.entries) - 1
+}
+
+// selectedEntry returns the entry under the cursor, or nil if nothing has run yet.
+func (m *logPanelModel) selectedEntry() *logEntry {
+	if i := m.selectedIndex(); i >= 0 {
+		return &m.entries[i]
+	}
+	return nil
+}
+
+// moveCursor moves the cursor delta entries down (newer), stopping at the
+// ends. On the latest entry, the cursor follows new runs.
+func (m *logPanelModel) moveCursor(delta int) {
+	if len(m.entries) == 0 {
+		return
+	}
+	i := max(0, min(m.selectedIndex()+delta, len(m.entries)-1))
+	m.selected = m.entries[i].id
+	if i == len(m.entries)-1 {
+		m.selected = 0
+	}
+}
+
 // cleanup removes the log files of finished runs. Running ones are left alone,
 // since their processes outlive the TUI and still write to them.
 func (m *logPanelModel) cleanup() {
@@ -139,28 +171,42 @@ func (m *logPanelModel) takeReveal() bool {
 	return r
 }
 
-// View renders the newest log lines at exactly width x height.
+// View renders the log at exactly width x height: the newest lines that fit
+// along with the selected entry.
 func (m logPanelModel) View(width, height int) string {
 	var lines []string
-	for _, e := range m.entries {
-		lines = append(lines, e.header())
+	selected := m.selectedIndex()
+	selStart, selEnd := 0, 0 // lines of the selected entry
+	for i, e := range m.entries {
+		cursor := " "
+		if i == selected {
+			cursor = lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true).Render("▌")
+			selStart = len(lines)
+		}
+		lines = append(lines, cursor+e.header())
 		style := ui.Muted
 		if e.state == runFailed {
 			style = lipgloss.NewStyle().Foreground(ui.ColorDanger)
 		}
 		for _, l := range e.tail {
-			lines = append(lines, style.Render("  "+l))
+			lines = append(lines, cursor+style.Render("  "+l))
+		}
+		if i == selected {
+			selEnd = len(lines)
 		}
 	}
 	if len(lines) == 0 {
 		lines = []string{ui.Muted.Render("No commands run yet")}
 	}
 
-	// Newest at the bottom: keep only the lines that fit
+	// Newest at the bottom, scrolled up as far as needed to show the
+	// selected entry (its header, at least)
 	rows := max(height, 0)
-	if len(lines) > rows {
-		lines = lines[len(lines)-rows:]
+	end := len(lines)
+	if end-rows > selStart {
+		end = max(min(selEnd, selStart+rows), rows)
 	}
+	lines = lines[max(end-rows, 0):end]
 	for len(lines) < rows {
 		lines = append(lines, "")
 	}
@@ -188,23 +234,36 @@ func (e logEntry) header() string {
 }
 
 // tailLines returns the last n non-empty lines of the file at path, reading at
-// most its last tailReadBytes. For lines rewritten with carriage returns
-// (progress bars), only the final text is kept.
+// most its last tailReadBytes.
 func tailLines(path string, n int) []string {
+	lines, _ := readLogLines(path, tailReadBytes)
+	lines = slices.DeleteFunc(lines, func(l string) bool { return strings.TrimSpace(l) == "" })
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return lines
+}
+
+// readLogLines returns the lines of the run output at path, reading at most
+// its last maxBytes; truncated reports whether earlier output was skipped.
+// For lines rewritten with carriage returns (progress bars), only the final
+// text is kept. Escape sequences are removed, since cursor movements would
+// garble the panes.
+func readLogLines(path string, maxBytes int64) (lines []string, truncated bool) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil
+		return nil, false
 	}
 	defer f.Close()
 
 	info, err := f.Stat()
 	if err != nil {
-		return nil
+		return nil, false
 	}
-	offset := max(info.Size()-tailReadBytes, 0)
+	offset := max(info.Size()-maxBytes, 0)
 	data := make([]byte, info.Size()-offset)
 	if _, err := f.ReadAt(data, offset); err != nil && err != io.EOF {
-		return nil
+		return nil, false
 	}
 	if offset > 0 {
 		// Drop the partial first line
@@ -213,18 +272,16 @@ func tailLines(path string, n int) []string {
 		}
 	}
 
-	var lines []string
-	for _, l := range strings.Split(string(data), "\n") {
+	text := strings.TrimSuffix(string(data), "\n")
+	if text == "" {
+		return nil, offset > 0
+	}
+	for _, l := range strings.Split(text, "\n") {
 		l = strings.TrimRight(l, "\r")
 		if i := strings.LastIndex(l, "\r"); i >= 0 {
 			l = l[i+1:]
 		}
-		if strings.TrimSpace(l) != "" {
-			lines = append(lines, l)
-		}
+		lines = append(lines, strings.ReplaceAll(ansi.Strip(l), "\t", "    "))
 	}
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
-	}
-	return lines
+	return lines, offset > 0
 }
