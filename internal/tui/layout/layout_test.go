@@ -134,7 +134,7 @@ func TestArrange(t *testing.T) {
 			root:    demoTree,
 			visible: nil,
 			w:       100, h: 40,
-			want:    nil,
+			want: nil,
 		},
 	}
 	for _, tt := range tests {
