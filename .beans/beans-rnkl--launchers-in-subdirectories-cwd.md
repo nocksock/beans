@@ -22,12 +22,13 @@ The README's worktree launcher examples use `$BEANS_ROOT/$WORKTREE_DIR` and have
 
 ## Plan
 
-- [ ] README: change the worktree examples (worktree-tmux, worktree-kitty, the multi-bean example) to be inheritance-safe (`$BEANS_CONFIG_DIR`, the launcher's cwd)
-- [ ] README: add a short note on when to use `BEANS_ROOT` (the bean's project) vs `BEANS_CONFIG_DIR` (where the launcher and its scripts live)
-- [ ] Studio hub config: replace `${BEANS_ROOT:-.}` with `$BEANS_CONFIG_DIR` (or rely on the cwd) in `tmux+claude`, `worktree-tmux+claude`, `worktree-kitty`
-- [ ] Verify by launching from a studio subproject
-- [ ] Follow-up bean in the studio hub: the cleanup note commits beans with `git -C "$HUB" add .beans`, but subproject beans live in `main/packages/*/.beans`
+- [x] README: change the worktree examples (worktree-tmux, worktree-kitty, the multi-bean example) to be inheritance-safe (`$BEANS_CONFIG_DIR`, the launcher's cwd)
+- [x] README: add a short note on when to use `BEANS_ROOT` (the bean's project) vs `BEANS_CONFIG_DIR` (where the launcher and its scripts live)
+- [x] Studio hub config: replace `${BEANS_ROOT:-.}` with `$BEANS_CONFIG_DIR` (or rely on the cwd) in `tmux+claude`, `worktree-tmux+claude`, `worktree-kitty`
+- [x] Verify by launching from a studio subproject
+- [x] Follow-up bean in the studio hub: the cleanup note commits beans with `git -C "$HUB" add .beans`, but subproject beans live in `main/packages/*/.beans`
 
 ## Work Log
 
 2026-10-18 13:20: Root cause found (studio launchers use BEANS_ROOT; tmux falls back to ~). Plan agreed: README + studio config + studio follow-up bean.
+2026-10-18 13:35: README examples + BEANS_ROOT/BEANS_CONFIG_DIR note; studio launchers switched to BEANS_CONFIG_DIR (uncommitted); verified old→~, new→main/; follow-up studio-rwuw
