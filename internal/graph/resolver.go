@@ -5,6 +5,7 @@ import (
 
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
+	"github.com/hmans/beans/internal/githistory"
 )
 
 //go:generate go tool gqlgen generate
@@ -37,4 +38,9 @@ func (r *Resolver) newBeanID(prefix *string) string {
 		length = cfg.Beans.IDLength
 	}
 	return bean.NewID(*prefix, length)
+}
+
+// historyFile locates a bean's file for reading its git history.
+func (r *Resolver) historyFile(b *bean.Bean) githistory.File {
+	return githistory.File{Dir: r.Core.Root(), ID: b.ID}
 }
