@@ -124,6 +124,7 @@ type listModel struct {
 	// Active filters
 	tagFilter    string // if set, only show beans with this tag
 	showArchived bool   // if false, beans with the archived status are hidden
+	showAllScope bool   // if true, beans outside the config's scope are listed too
 
 	// Multi-select state
 	selectedBeans map[string]bool // IDs of beans marked for multi-edit
@@ -215,6 +216,10 @@ func (m listModel) loadBeans() tea.Msg {
 	if !m.showArchived {
 		filter.ExcludeStatus = []string{config.StatusArchived}
 	}
+	// Out-of-scope beans still come along as ancestors (see allBeans), dimmed
+	if scope := m.activeScope(); scope != "" {
+		filter.IDPrefix = &scope
+	}
 
 	// Query filtered beans
 	filteredBeans, err := m.resolver.Query().Beans(context.Background(), filter)
@@ -292,6 +297,23 @@ func (m listModel) loadBeans() tea.Msg {
 		beansByID:   beansByID,
 		childCounts: childCounts,
 	}
+}
+
+// scope returns the config's scope (see config.Config.Scope).
+func (m listModel) scope() string {
+	if m.config == nil {
+		return ""
+	}
+	return m.config.Scope()
+}
+
+// activeScope returns the ID prefix the list is limited to, or "" if it shows
+// beans of all scopes.
+func (m listModel) activeScope() string {
+	if m.showAllScope {
+		return ""
+	}
+	return m.scope()
 }
 
 // descendantsOf returns the beans in candidates that are (transitive) children of rootID.
@@ -765,6 +787,13 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				// Toggle showing archived beans
 				m.showArchived = !m.showArchived
 				return m, m.loadBeans
+			case key.Matches(msg, k.ToggleScope):
+				// Toggle showing beans outside the config's scope
+				if m.scope() == "" {
+					break
+				}
+				m.showAllScope = !m.showAllScope
+				return m, m.loadBeans
 			case key.Matches(msg, k.Back):
 				// First clear selection if any beans are selected
 				if len(m.selectedBeans) > 0 {
@@ -847,6 +876,13 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 	if m.showArchived {
 		suffix += " [+archived]"
 	}
+	if scope := m.scope(); scope != "" {
+		if m.showAllScope {
+			suffix += " [all scopes]"
+		} else {
+			suffix += fmt.Sprintf(" [%s*]", scope)
+		}
+	}
 
 	crumbs := make([]string, 0, len(m.rootBeans)+1)
 	crumbs = append(crumbs, "Beans")
@@ -887,6 +923,16 @@ func (m listModel) Footer() string {
 	archivedHelp := "show archived"
 	if m.showArchived {
 		archivedHelp = "hide archived"
+	}
+
+	// The scope toggle only matters in a scoped config
+	var scopeHelp string
+	if scope := m.scope(); scope != "" {
+		if m.showAllScope {
+			scopeHelp = hint(k.ToggleScope, scope+"* only")
+		} else {
+			scopeHelp = hint(k.ToggleScope, "all scopes")
+		}
 	}
 
 	if len(m.selectedBeans) > 0 {
@@ -951,6 +997,7 @@ func (m listModel) Footer() string {
 			hint(k.ToggleLog, ""),
 			hint(k.Archive, ""),
 			hint(k.ToggleArchived, archivedHelp),
+			scopeHelp,
 			groupHint("fold", k.Collapse, k.Expand, k.ToggleCollapse),
 			hint(k.Filter, ""),
 			hint(g.Help, ""),

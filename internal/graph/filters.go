@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"strings"
+
 	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
 	"github.com/hmans/beans/internal/config"
@@ -15,6 +17,11 @@ func ApplyFilter(beans []*bean.Bean, filter *model.BeanFilter, core *beancore.Co
 	}
 
 	result := beans
+
+	// ID prefix filter
+	if filter.IDPrefix != nil && *filter.IDPrefix != "" {
+		result = filterByIDPrefix(result, *filter.IDPrefix)
+	}
 
 	// Status filters (a builtin status also matches its custom substatuses)
 	cfg := core.Config()
@@ -219,6 +226,17 @@ func filterByNoParent(beans []*bean.Bean) []*bean.Bean {
 	var result []*bean.Bean
 	for _, b := range beans {
 		if b.Parent == "" {
+			result = append(result, b)
+		}
+	}
+	return result
+}
+
+// filterByIDPrefix filters beans whose ID starts with prefix.
+func filterByIDPrefix(beans []*bean.Bean, prefix string) []*bean.Bean {
+	var result []*bean.Bean
+	for _, b := range beans {
+		if strings.HasPrefix(b.ID, prefix) {
 			result = append(result, b)
 		}
 	}

@@ -81,6 +81,7 @@ type ListKeyMap struct {
 	Launch          key.Binding
 	Archive         key.Binding
 	ToggleArchived  key.Binding
+	ToggleScope     key.Binding
 	ToggleLog       key.Binding
 	OpenLog         key.Binding
 }
@@ -242,6 +243,7 @@ func DefaultKeyMap() KeyMap {
 			Launch:          bind("launch", "!"),
 			Archive:         bind("archive", "Y"),
 			ToggleArchived:  bind("show archived", "A"),
+			ToggleScope:     bind("show all scopes", "g s"),
 			ToggleLog:       bind("log", "L"),
 			OpenLog:         bind("open log", "O"),
 		},

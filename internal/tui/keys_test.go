@@ -134,7 +134,10 @@ func TestNewKeyMap(t *testing.T) {
 		{
 			name:      "key shadowing a chord",
 			overrides: config.Keybindings{"list": {"create": {"g"}}},
-			wantWarns: []string{`list: "g" (create) shadows chord "g t"`},
+			wantWarns: []string{
+				`list: "g" (create) shadows chord "g t"`,
+				`list: "g" (create) shadows chord "g s"`,
+			},
 		},
 	}
 

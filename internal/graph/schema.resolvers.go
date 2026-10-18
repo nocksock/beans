@@ -100,6 +100,7 @@ func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBea
 	}
 
 	b := &bean.Bean{
+		ID:        r.newBeanID(input.Prefix),
 		Slug:      slug,
 		Title:     title,
 		Type:      "task", // default

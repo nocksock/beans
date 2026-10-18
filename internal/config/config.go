@@ -123,6 +123,10 @@ type Config struct {
 	// Empty means Beans.Path resolves against configDir.
 	beansPathDir string `yaml:"-"`
 
+	// inherited is true when settings cascade into this config from an ancestor
+	// config (not serialized).
+	inherited bool `yaml:"-"`
+
 	// statuses is the resolved list of builtin and custom statuses (not serialized).
 	// Nil means only the builtins.
 	statuses []StatusConfig `yaml:"-"`
@@ -193,12 +197,18 @@ func Load(configPath string) (*Config, error) {
 		}
 		return nil, err
 	}
+	inherited := len(layers) > 1
 
 	layers, err = withUserLayer(layers)
 	if err != nil {
 		return nil, err
 	}
-	return fromLayers(configPath, layers)
+	cfg, err := fromLayers(configPath, layers)
+	if err != nil {
+		return nil, err
+	}
+	cfg.inherited = inherited
+	return cfg, nil
 }
 
 // loadDefault returns the default config with the user config applied,

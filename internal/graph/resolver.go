@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 
+	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/beancore"
 )
 
@@ -22,4 +23,18 @@ func (r *Resolver) validateSize(size string) error {
 		return fmt.Errorf("invalid size: %s (must be %s)", size, cfg.SizeList())
 	}
 	return nil
+}
+
+// newBeanID generates an ID with the given prefix and the configured length.
+// Returns "" for a nil prefix, so beancore generates one with the configured
+// prefix.
+func (r *Resolver) newBeanID(prefix *string) string {
+	if prefix == nil {
+		return ""
+	}
+	length := 4
+	if cfg := r.Core.Config(); cfg != nil && cfg.Beans.IDLength > 0 {
+		length = cfg.Beans.IDLength
+	}
+	return bean.NewID(*prefix, length)
 }
