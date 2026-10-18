@@ -132,11 +132,11 @@ func TestCreateModalPrefix(t *testing.T) {
 		wantFocus createField
 		want      string
 	}{
-		{"single prefix is skipped", newTestCreateModal, []tea.KeyMsg{keyMsg("tab")}, createFieldType, ""},
-		{"several prefixes are focusable", multi, []tea.KeyMsg{keyMsg("tab")}, createFieldPrefix, "repo-"},
-		{"cycle to next prefix", multi, []tea.KeyMsg{keyMsg("tab"), keyMsg("right")}, createFieldPrefix, "api-"},
-		{"cycle wraps around", multi, []tea.KeyMsg{keyMsg("tab"), keyMsg("left")}, createFieldPrefix, "web-"},
-		{"shift+tab from type skips single prefix", newTestCreateModal, []tea.KeyMsg{keyMsg("tab"), shiftTab}, createFieldTitle, ""},
+		{"single prefix is skipped", newTestCreateModal, []tea.KeyMsg{keyMsg("tab"), keyMsg("tab")}, createFieldType, ""},
+		{"several prefixes are focusable", multi, []tea.KeyMsg{keyMsg("tab"), keyMsg("tab")}, createFieldPrefix, "repo-"},
+		{"cycle to next prefix", multi, []tea.KeyMsg{keyMsg("tab"), keyMsg("tab"), keyMsg("right")}, createFieldPrefix, "api-"},
+		{"cycle wraps around", multi, []tea.KeyMsg{keyMsg("tab"), keyMsg("tab"), keyMsg("left")}, createFieldPrefix, "web-"},
+		{"shift+tab from type skips single prefix", newTestCreateModal, []tea.KeyMsg{keyMsg("tab"), keyMsg("tab"), shiftTab, shiftTab}, createFieldTitle, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -162,17 +162,17 @@ func TestCreateModalPrefixView(t *testing.T) {
 	multi.prefixes = []string{"repo-", "api-"}
 	multi.setFocus(createFieldPrefix)
 
-	if v := single.View(); !strings.Contains(v, "ID prefix") || !strings.Contains(v, "(none)") {
+	if v := single.View(); !strings.Contains(v, "Prefix") || !strings.Contains(v, "(none)") {
 		t.Errorf("single prefix should render fixed:\n%s", v)
 	}
-	if v := multi.View(); !strings.Contains(v, "ID prefix") || !strings.Contains(v, "‹ repo- ›") {
+	if v := multi.View(); !strings.Contains(v, "Prefix") || !strings.Contains(v, "‹ repo- ›") {
 		t.Errorf("several prefixes should render a selector:\n%s", v)
 	}
 	if lipgloss.Height(single.View()) != lipgloss.Height(multi.View()) {
 		t.Error("layout height should not depend on the number of prefixes")
 	}
 	edit := newEditModalModel(config.Default(), 120, 40, &bean.Bean{ID: "x-1", Title: "T"})
-	if strings.Contains(edit.View(), "ID prefix") {
+	if strings.Contains(edit.View(), "Prefix") {
 		t.Error("edit form should not show the prefix")
 	}
 }
@@ -187,6 +187,7 @@ func TestCreateWithPrefix(t *testing.T) {
 	for _, r := range "From root" {
 		app.Update(keyMsg(string(r)))
 	}
+	app.Update(keyMsg("tab"))
 	app.Update(keyMsg("tab"))
 	app.Update(keyMsg("right"))
 	_, cmd := app.Update(keyMsg("enter"))

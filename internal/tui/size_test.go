@@ -15,9 +15,9 @@ func TestCreateModalSize(t *testing.T) {
 		want string
 	}{
 		{"default size is omitted", []string{"enter"}, ""},
-		{"cycle to lg", []string{"tab", "tab", "tab", "tab", "l", "enter"}, "lg"},
-		{"cycle to xs", []string{"tab", "tab", "tab", "tab", "h", "h", "enter"}, "xs"},
-		{"cycle back to md is omitted", []string{"tab", "tab", "tab", "tab", "l", "h", "enter"}, ""},
+		{"cycle to lg", []string{"tab", "tab", "tab", "tab", "tab", "l", "enter"}, "lg"},
+		{"cycle to xs", []string{"tab", "tab", "tab", "tab", "tab", "h", "h", "enter"}, "xs"},
+		{"cycle back to md is omitted", []string{"tab", "tab", "tab", "tab", "tab", "l", "h", "enter"}, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -52,8 +52,8 @@ func TestEditModalSize(t *testing.T) {
 	}{
 		{"unchanged", "lg", nil, "<nil>"},
 		{"unset stays unset", "", nil, "<nil>"},
-		{"grow", "lg", []string{"tab", "tab", "tab", "tab", "l"}, "xl"},
-		{"back to md clears", "lg", []string{"tab", "tab", "tab", "tab", "h"}, ""},
+		{"grow", "lg", []string{"tab", "tab", "tab", "tab", "tab", "l"}, "xl"},
+		{"back to md clears", "lg", []string{"tab", "tab", "tab", "tab", "tab", "h"}, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
