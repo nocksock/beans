@@ -146,9 +146,16 @@ type LogKeyMap struct {
 	Back       key.Binding
 }
 
-// HelpKeyMap holds bindings for the help overlay.
+// HelpKeyMap holds bindings for the keybinds dialog. Its filter input gets
+// all other keys while it has focus.
 type HelpKeyMap struct {
-	Close key.Binding
+	Up        key.Binding
+	Down      key.Binding
+	GoToStart key.Binding
+	GoToEnd   key.Binding
+	Filter    key.Binding
+	Run       key.Binding
+	Close     key.Binding
 }
 
 // PickerKeyMap holds bindings shared by all list pickers (status, type,
@@ -222,22 +229,22 @@ func DefaultKeyMap() KeyMap {
 		Global: GlobalKeyMap{
 			Quit:         bind("quit", "q"),
 			ForceQuit:    bind("force quit", "ctrl+c"),
-			Help:         bind("help", "?"),
+			Help:         bind("keybinds", "?"),
 			ReloadConfig: bind("reload config", "R"),
-			OpenLog:      bind("open log", "O"),
+			OpenLog:      bind("latest log output", "O"),
 		},
 		Layout: LayoutKeyMap{
 			NextPreset:     bind("next layout", "+", "="),
 			PrevPreset:     bind("previous layout", "-"),
 			FocusNext:      bind("next pane", "tab"),
 			FocusPrev:      bind("previous pane", "shift+tab"),
-			ToggleContext:  bind("details", "v"),
-			ToggleDepGraph: bind("dependencies", "D"),
-			ToggleLog:      bind("log", "L"),
-			FocusList:      bind("beans", "1"),
-			FocusContext:   bind("details", "2"),
-			FocusDepGraph:  bind("dependencies", "3"),
-			FocusLog:       bind("log", "4"),
+			ToggleContext:  bind("toggle details", "v"),
+			ToggleDepGraph: bind("toggle dependencies", "D"),
+			ToggleLog:      bind("toggle log", "L"),
+			FocusList:      bind("focus beans", "1"),
+			FocusContext:   bind("focus details", "2"),
+			FocusDepGraph:  bind("focus dependencies", "3"),
+			FocusLog:       bind("focus log", "4"),
 		},
 		List: ListKeyMap{
 			Up:        bind("up", "up", "k"),
@@ -246,14 +253,14 @@ func DefaultKeyMap() KeyMap {
 			NextPage:  bind("next page", "right", "pgdown", "f", "d"),
 			GoToStart: bind("go to start", "home"),
 			GoToEnd:   bind("go to end", "end", "G"),
-			Filter:    bind("filter", "/"),
+			Filter:    bind("filter: text, field:value, sort:field", "/"),
 
-			Open:            bind("open", "enter"),
-			Back:            bind("back", "esc", "backspace"),
+			Open:            bind("open children / details", "enter"),
+			Back:            bind("back up a level", "esc", "backspace"),
 			ToggleSelect:    bind("select", " "),
 			Collapse:        bind("collapse", "h"),
 			Expand:          bind("expand", "l"),
-			ToggleCollapse:  bind("fold", "z"),
+			ToggleCollapse:  bind("toggle collapse", "z"),
 			CollapseAll:     bind("collapse all", "Z"),
 			FilterByTag:     bind("filter by tag", "g t"),
 			Create:          bind("create", "c"),
@@ -271,7 +278,7 @@ func DefaultKeyMap() KeyMap {
 			ManageBlocking:  bind("blocking", "b"),
 			ManageBlockedBy: bind("blocked by", "B"),
 			Launch:          bind("launch", "!"),
-			Archive:         bind("archive", "Y"),
+			Archive:         bind("archive completed", "Y"),
 			ToggleArchived:  bind("show archived", "A"),
 			ToggleScope:     bind("show all scopes", "g s"),
 		},
@@ -302,7 +309,7 @@ func DefaultKeyMap() KeyMap {
 		DepGraph: DepGraphKeyMap{
 			Up:         bind("up", "up", "k"),
 			Down:       bind("down", "down", "j"),
-			Refocus:    bind("open", "enter"),
+			Refocus:    bind("root graph here & open", "enter"),
 			ToggleDone: bind("show done", "A"),
 			Back:       bind("back", "esc", "backspace"),
 		},
@@ -311,12 +318,18 @@ func DefaultKeyMap() KeyMap {
 			Down:       bind("down", "down", "j"),
 			GoToStart:  bind("oldest", "home", "g"),
 			GoToEnd:    bind("latest", "end", "G"),
-			Open:       bind("output", "enter"),
+			Open:       bind("show output", "enter"),
 			OpenEditor: bind("$EDITOR", "E"),
 			Back:       bind("back", "esc", "backspace"),
 		},
 		Help: HelpKeyMap{
-			Close: bind("close", "?", "esc"),
+			Up:        bind("up", "up", "k"),
+			Down:      bind("down", "down", "j"),
+			GoToStart: bind("go to start", "home", "g"),
+			GoToEnd:   bind("go to end", "end", "G"),
+			Filter:    bind("filter", "/"),
+			Run:       bind("run", "enter"),
+			Close:     bind("close", "?", "esc"),
 		},
 		Picker: PickerKeyMap{
 			Up:        bind("up", "up", "k"),

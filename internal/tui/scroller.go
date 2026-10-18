@@ -71,3 +71,15 @@ func (s scroller) percentHint(total int) string {
 	}
 	return helpStyle.Render(fmt.Sprintf("%d%%", p))
 }
+
+// scrollTo scrolls the least amount needed to make line visible, keeping it
+// off the last row, which window replaces with "…" while more lines follow.
+func (s *scroller) scrollTo(line, total int) {
+	last := s.offset + s.height - 1
+	if line < s.offset {
+		s.offset = line
+	} else if line > last || (line == last && line < total-1) {
+		s.offset = line - s.height + 2
+	}
+	s.clamp(total)
+}

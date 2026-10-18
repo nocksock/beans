@@ -306,7 +306,7 @@ func (m depNavModel) footer() string {
 	legend := helpStyle.Render("↺ cycle") + "  "
 	return legend + hints(
 		groupHint("move", k.Down, k.Up),
-		hint(k.Refocus, ""),
+		hint(k.Refocus, "open"),
 		hint(k.ToggleDone, doneHelp),
 		hint(k.Back, ""),
 	)
