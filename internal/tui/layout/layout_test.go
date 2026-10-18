@@ -188,3 +188,9 @@ func TestRect(t *testing.T) {
 		t.Errorf("log rect = %v, %v", r, ok)
 	}
 }
+
+func TestLeaves(t *testing.T) {
+	if got, want := demoTree.Leaves(), []ID{"list", "deps", "context", "log"}; !slices.Equal(got, want) {
+		t.Errorf("leaves = %v, want %v", got, want)
+	}
+}

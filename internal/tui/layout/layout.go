@@ -123,3 +123,15 @@ func (n Node) prune(visible func(ID) bool) (_ Node, ok bool) {
 	n.children = children
 	return n, len(children) > 0
 }
+
+// Leaves returns the IDs of all panes in n, in tree order.
+func (n Node) Leaves() []ID {
+	if !n.split {
+		return []ID{n.id}
+	}
+	var out []ID
+	for _, c := range n.children {
+		out = append(out, c.Leaves()...)
+	}
+	return out
+}
