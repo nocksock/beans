@@ -30,12 +30,13 @@ enter create  ctrl+e create & edit  tab next  esc cancel
 
 ## Plan
 
-- [ ] Reorder `createField` constants to title, body, prefix, type, status, priority, size so focus cycling (tab/shift+tab) follows the visual order
-- [ ] View: header, title box, description box, selector row, error, help. Drop the "Title" and "Description" labels; placeholders and the focused border color identify the fields
-- [ ] Prefix joins the selector row as the first column, labelled "Prefix". Create form only. With one prefix it stays muted and unfocusable, as now. Column width fits the longest configured prefix plus arrow padding, with "(none)" as the floor
-- [ ] Modal minimum width grows so the five columns fit without wrapping; edit form keeps the four-column minimum
-- [ ] Edit form gets the same order without the prefix column (same component, no other change; `editModalChromeHeight` stays valid since the row count is unchanged)
-- [ ] Tests: update the view test (labels removed, "Prefix" label present); focus-order test walking tab through all seven fields with two prefixes and skipping prefix with one; width test that the five columns fit at the minimum modal width
+- [x] Reorder `createField` constants to title, body, prefix, type, status, priority, size so focus cycling (tab/shift+tab) follows the visual order
+- [x] View: header, title box, description box, selector row, error, help. Drop the "Title" and "Description" labels; placeholders and the focused border color identify the fields
+- [x] Prefix joins the selector row as the first column, labelled "Prefix". Create form only. With one prefix it stays muted and unfocusable, as now. Column width fits the longest configured prefix plus arrow padding, with "(none)" as the floor
+- [x] Modal minimum width grows so the five columns fit without wrapping; edit form keeps the four-column minimum
+- [x] Edit form gets the same order without the prefix column (same component, no other change; `editModalChromeHeight` shrinks by the two removed label rows)
+- [x] Tests: update the view test (labels removed, "Prefix" label present); focus-order test walking tab through all seven fields with two prefixes and skipping prefix with one; width test that the five columns fit at the minimum modal width
 
 ## Work Log
 2026-10-18 18:12: Plan agreed with user, status set to in-progress
+2026-10-18 18:23: Reordered the form, prefix joins the selector row, labels dropped, tests updated; go test ./... green
