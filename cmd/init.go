@@ -14,6 +14,7 @@ import (
 
 var (
 	initJSON          bool
+	initInherit       bool
 	initPath          string
 	initPrefix        string
 	initIDLength      int
@@ -30,17 +31,17 @@ var initCmd = &cobra.Command{
 Flags set the matching .beans.yml settings. For example, to keep the beans
 outside the project:
 
-  beans init --path ~/path/to/tasks`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fail := func(code, msg string, err error) error {
-			if initJSON {
-				return output.Error(code, err.Error())
-			}
-			return fmt.Errorf("%s: %w", msg, err)
-		}
+  beans init --path ~/path/to/tasks
 
+Inside a directory that a parent config cascades into (cascade: true), init
+refuses to run unless --inherit is given. With --inherit it writes a config
+that holds only the settings passed as flags; everything else keeps coming
+from the parent:
+
+  beans init --inherit --prefix api-`,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if beansPath != "" && cmd.Flags().Changed("path") {
-			return fail(output.ErrValidation, "invalid flags", fmt.Errorf("--path and --beans-path cannot be combined"))
+			return initFail(output.ErrValidation, "invalid flags", fmt.Errorf("--path and --beans-path cannot be combined"))
 		}
 
 		var projectDir string
@@ -50,29 +51,31 @@ outside the project:
 		} else {
 			dir, err := os.Getwd()
 			if err != nil {
-				return fail(output.ErrFileError, "failed to get current directory", err)
+				return initFail(output.ErrFileError, "failed to get current directory", err)
 			}
 			projectDir = dir
 		}
 
-		// Config is saved at project root (not inside .beans/), with the
-		// directory name as default prefix
-		cfg, err := initConfig(filepath.Base(projectDir), cmd.Flags())
+		parentPath, err := config.CascadingParent(projectDir)
 		if err != nil {
-			return fail(output.ErrValidation, "invalid flags", err)
+			return initFail(output.ErrFileError, "failed to read parent config", err)
 		}
-		cfg.SetConfigDir(projectDir)
-
-		beansDir := beansPath
-		if beansDir == "" {
-			beansDir = cfg.ResolveBeansPath()
+		if parentPath != "" && !initInherit {
+			return initFail(output.ErrValidation, "refusing to init", fmt.Errorf(
+				"%s cascades into this directory; pass --inherit to create a config that only sets the given flags", parentPath))
 		}
-		if err := beancore.New(beansDir, nil).Init(); err != nil {
-			return fail(output.ErrFileError, "failed to create directory", err)
+		if initInherit && parentPath == "" {
+			return initFail(output.ErrValidation, "invalid flags", fmt.Errorf("--inherit requires a parent config with cascade: true"))
 		}
 
-		if err := cfg.Save(projectDir); err != nil {
-			return fail(output.ErrFileError, "failed to create config", err)
+		var beansDir string
+		if initInherit {
+			beansDir, err = initInherited(projectDir, parentPath, cmd.Flags())
+		} else {
+			beansDir, err = initStandalone(projectDir, cmd.Flags())
+		}
+		if err != nil {
+			return err
 		}
 
 		if initJSON {
@@ -84,10 +87,72 @@ outside the project:
 	},
 }
 
-// initConfig builds the config for a new project: the defaults, with the
-// directory name as prefix, overridden by the flags the user set.
-func initConfig(dirName string, flags *pflag.FlagSet) (*config.Config, error) {
-	cfg := config.DefaultWithPrefix(dirName + "-")
+// initFail wraps an init error for the chosen output mode.
+func initFail(code, msg string, err error) error {
+	if initJSON {
+		return output.Error(code, err.Error())
+	}
+	return fmt.Errorf("%s: %w", msg, err)
+}
+
+// initStandalone writes a full config with defaults and creates its beans
+// directory. Returns the beans directory.
+func initStandalone(projectDir string, flags *pflag.FlagSet) (string, error) {
+	// Config is saved at project root (not inside .beans/), with the
+	// directory name as default prefix
+	cfg, err := initConfig(config.DefaultWithPrefix(filepath.Base(projectDir)+"-"), flags)
+	if err != nil {
+		return "", initFail(output.ErrValidation, "invalid flags", err)
+	}
+	cfg.SetConfigDir(projectDir)
+
+	beansDir := beansPath
+	if beansDir == "" {
+		beansDir = cfg.ResolveBeansPath()
+	}
+	if err := beancore.New(beansDir, nil).Init(); err != nil {
+		return "", initFail(output.ErrFileError, "failed to create directory", err)
+	}
+
+	if err := cfg.Save(projectDir); err != nil {
+		return "", initFail(output.ErrFileError, "failed to create config", err)
+	}
+	return beansDir, nil
+}
+
+// initInherited writes a config below a cascading parent that holds only the
+// settings given as flags, then creates the beans directory the resulting
+// config resolves to (the parent's, unless --path is given). Returns the beans
+// directory.
+func initInherited(projectDir, parentPath string, flags *pflag.FlagSet) (string, error) {
+	parent, err := config.Load(parentPath)
+	if err != nil {
+		return "", initFail(output.ErrFileError, "failed to load parent config", err)
+	}
+	// Validate the flags against the parent's statuses and types
+	if _, err := initConfig(parent, flags); err != nil {
+		return "", initFail(output.ErrValidation, "invalid flags", err)
+	}
+
+	if err := config.SaveSettings(projectDir, initSettings(flags)); err != nil {
+		return "", initFail(output.ErrFileError, "failed to create config", err)
+	}
+
+	cfg, err := config.Load(filepath.Join(projectDir, config.ConfigFileName))
+	if err != nil {
+		return "", initFail(output.ErrFileError, "failed to load config", err)
+	}
+	beansDir := cfg.ResolveBeansPath()
+	if err := beancore.New(beansDir, nil).Init(); err != nil {
+		return "", initFail(output.ErrFileError, "failed to create directory", err)
+	}
+	return beansDir, nil
+}
+
+// initConfig applies the flags the user set to base, validating them against
+// base's statuses and types.
+func initConfig(base *config.Config, flags *pflag.FlagSet) (*config.Config, error) {
+	cfg := base
 	beans := &cfg.Beans
 
 	if flags.Changed("path") {
@@ -124,9 +189,40 @@ func initConfig(dirName string, flags *pflag.FlagSet) (*config.Config, error) {
 	return cfg, nil
 }
 
+// initSettingKeys maps each setting flag to its .beans.yml key.
+var initSettingKeys = map[string]string{
+	"path":           "beans.path",
+	"prefix":         "beans.prefix",
+	"id-length":      "beans.id_length",
+	"default-status": "beans.default_status",
+	"default-type":   "beans.default_type",
+	"prompt-extra":   "prompt.extra",
+}
+
+// initSettings returns only the settings the user passed as flags, keyed by
+// their .beans.yml key.
+func initSettings(flags *pflag.FlagSet) map[string]any {
+	values := map[string]any{
+		"path":           initPath,
+		"prefix":         initPrefix,
+		"id-length":      initIDLength,
+		"default-status": initDefaultStatus,
+		"default-type":   initDefaultType,
+		"prompt-extra":   initPromptExtra,
+	}
+	settings := map[string]any{}
+	for flag, key := range initSettingKeys {
+		if flags.Changed(flag) {
+			settings[key] = values[flag]
+		}
+	}
+	return settings
+}
+
 func init() {
 	flags := initCmd.Flags()
 	flags.BoolVar(&initJSON, "json", false, "Output as JSON")
+	flags.BoolVar(&initInherit, "inherit", false, "Below a cascading parent config: write only the settings given as flags, inherit the rest")
 	flags.StringVar(&initPath, "path", "", "Beans directory, relative to the config file (sets beans.path)")
 	flags.StringVar(&initPrefix, "prefix", "", "ID prefix for new beans (sets beans.prefix, default: <dir name>-)")
 	flags.IntVar(&initIDLength, "id-length", 0, "Length of generated bean IDs (sets beans.id_length, default: 4)")

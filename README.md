@@ -115,6 +115,12 @@ beans:
 
 Running beans inside `packages/api` uses prefix `api-`, the shared `repo/.beans` directory, and the inherited `claude` launcher.
 
+Create such a child config with `beans init --inherit`. Below a cascading parent, `beans init` refuses to run without the flag, since a full config would shadow the parent's settings. With it, only the settings passed as flags are written:
+
+```bash
+cd packages/api && beans init --inherit --prefix api-
+```
+
 - **Opt-in by the parent**: only a config with `cascade: true` passes settings down. Chains continue upward while each next config cascades; `cascade` itself is never inherited.
 - **Merging**: the closest config wins. Nested settings merge key by key; lists of named items (like `launchers`) merge by `name` (same name replaces, new names are added); other lists are replaced.
 - **Paths**: relative paths resolve against the config file that declared them. Set `beans.path` in a subdirectory config to give it its own beans directory. If no config sets it, `.beans` next to the nearest config is used.
