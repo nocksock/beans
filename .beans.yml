@@ -33,8 +33,12 @@ launchers:
 
       This bean runs in the worktree $WORKTREE_DIR on branch task/$BEANS_ID. Clean up only after the user has explicitly declared the work done. Never on your own initiative, and never because the bean is marked completed.
 
-      Once the user has declared the work done, ask them with your question tool, offering exactly these two options:
-      - "Merge into dev, cleanup": first commit any remaining work on task/$BEANS_ID, then merge it with \`git -C "$HUB/dev" merge --no-ff task/$BEANS_ID\`. If the merge conflicts or the dev worktree has uncommitted changes, stop and tell the user. Then run the steps below.
+      Once the user has declared the work done, first bring the branch up to date with dev:
+      - Commit any remaining work on task/$BEANS_ID.
+      - Merge dev into the task branch: \`git -C "$WORKTREE_DIR" merge dev\`. If it conflicts, resolve the conflicts here in the worktree, run the tests, and commit the merge. If you cannot resolve a conflict with confidence, stop and ask the user.
+
+      Only then ask them with your question tool, offering exactly these two options:
+      - "Merge into dev, cleanup": merge the task branch into dev with \`git -C "$HUB/dev" merge --no-ff task/$BEANS_ID\`. Since dev was merged in first, this must apply cleanly; if it conflicts anyway or the dev worktree has uncommitted changes, stop and tell the user. Then run the steps below.
       - "Merged, cleanup": the user has merged it already. Run the steps below.
 
       1. Confirm the merge: \`git -C "$HUB" merge-base --is-ancestor task/$BEANS_ID dev\` must succeed. If it fails, stop and tell the user.
