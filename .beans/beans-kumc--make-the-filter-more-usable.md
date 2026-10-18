@@ -33,7 +33,7 @@ Whitespace-separated tokens typed after `/`:
 
 ## Checklist
 
-- [ ] shared sort helpers in `internal/bean` (+ tests), CLI uses them
+- [x] shared sort helpers in `internal/bean` (+ tests), CLI uses them
 - [ ] `parseQuery` + tests
 - [ ] custom filter input in list view, wired into `loadBeans`
 - [ ] text match + sort applied to tree
@@ -43,3 +43,4 @@ Whitespace-separated tokens typed after `/`:
 ## Work Log
 
 2026-10-18 09:19: Planned with user: TUI-only, field:value (OR same / AND different / - exclude), sort:field[:dir] token, own input -> GraphQL BeanFilter
+2026-10-18 11:24: Added bean.SortBy shared by CLI; follow-up beans-44v3 for create prefill
