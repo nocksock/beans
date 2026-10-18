@@ -25,3 +25,6 @@ Follow-up of beans-0ggp. Make the log pane focusable and navigable (cursor over 
 2026-10-18 13:10: Log pane cursor (follows latest), LogKeyMap, removed unfocusable
 2026-10-18 13:15: logDetailModel shows full run output in context pane via runSource; log preset cycle
 2026-10-18 13:22: Tests + README; verified manually in tmux
+2026-10-18 13:50: List/context split 50:50 (both min 60)
+2026-10-18 14:20: Row columns reordered: status, title, tags, type, size, id; status/type right-aligned, labels active/done/feat (TUI, dep graph, CLI)
+2026-10-18 14:25: Selected cut-off titles scroll to their end after 2s
