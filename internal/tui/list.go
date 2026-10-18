@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/hmans/beans/internal/bean"
@@ -122,9 +124,10 @@ type listModel struct {
 	idColWidth int                  // ID column width (accounts for tree depth)
 
 	// Active filters
-	tagFilter    string // if set, only show beans with this tag
-	showArchived bool   // if false, beans with the archived status are hidden
-	showAllScope bool   // if true, beans outside the config's scope are listed too
+	query        query           // parsed filter query, see parseQuery
+	queryInput   textinput.Model // filter query editor, focused while typing
+	showArchived bool            // if false, beans with the archived status are hidden
+	showAllScope bool            // if true, beans outside the config's scope are listed too
 
 	// Multi-select state
 	selectedBeans map[string]bool // IDs of beans marked for multi-edit
@@ -167,18 +170,24 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = "Beans"
 	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(true)
+	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.KeyMap = mainListKeyMap()
 	l.Styles.Title = listTitleStyle
 	l.Styles.TitleBar = lipgloss.NewStyle().Padding(0, 0, 1, 1)
-	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(ui.ColorPrimary)
-	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(ui.ColorPrimary)
+
+	qi := textinput.New()
+	qi.Prompt = "/"
+	qi.Placeholder = "text field:value -field:value sort:field[:asc|desc]"
+	qi.PromptStyle = lipgloss.NewStyle().Foreground(ui.ColorPrimary)
+	qi.PlaceholderStyle = lipgloss.NewStyle().Foreground(ui.ColorMuted)
 
 	return listModel{
 		list:           l,
 		resolver:       resolver,
 		config:         cfg,
+		query:          parseQuery("", cfg),
+		queryInput:     qi,
 		selectedBeans:  selectedBeans,
 		collapsedBeans: collapsedBeans,
 	}
@@ -208,13 +217,11 @@ func (m listModel) Init() tea.Cmd {
 }
 
 func (m listModel) loadBeans() tea.Msg {
-	// Build filter from the tag filter and archived visibility
-	filter := &model.BeanFilter{}
-	if m.tagFilter != "" {
-		filter.Tags = []string{m.tagFilter}
-	}
-	if !m.showArchived {
-		filter.ExcludeStatus = []string{config.StatusArchived}
+	// Build filter from the query and archived visibility
+	showArchived := m.showArchived || slices.Contains(m.query.Filter.Status, config.StatusArchived)
+	filter := *m.query.Filter
+	if !showArchived {
+		filter.ExcludeStatus = append(slices.Clip(filter.ExcludeStatus), config.StatusArchived)
 	}
 	// Out-of-scope beans still come along as ancestors (see allBeans), dimmed
 	if scope := m.activeScope(); scope != "" {
@@ -222,10 +229,13 @@ func (m listModel) loadBeans() tea.Msg {
 	}
 
 	// Query filtered beans
-	filteredBeans, err := m.resolver.Query().Beans(context.Background(), filter)
+	filteredBeans, err := m.resolver.Query().Beans(context.Background(), &filter)
 	if err != nil {
 		return errMsg{err}
 	}
+	filteredBeans = slices.DeleteFunc(filteredBeans, func(b *bean.Bean) bool {
+		return !matchesText(b, m.query.Text)
+	})
 
 	// Query all beans for tree context (ancestors)
 	allBeans, err := m.resolver.Query().Beans(context.Background(), nil)
@@ -240,7 +250,7 @@ func (m listModel) loadBeans() tea.Msg {
 	visibleBeans := allBeans[:0:0]
 	for _, b := range allBeans {
 		beansByID[b.ID] = b
-		if !m.showArchived && m.config.IsArchived(b.Status) {
+		if !showArchived && m.config.IsArchived(b.Status) {
 			continue
 		}
 		visibleBeans = append(visibleBeans, b)
@@ -268,8 +278,9 @@ func (m listModel) loadBeans() tea.Msg {
 	}
 
 	// Sort function for tree building
+	orders := bean.SortOrdersFrom(m.config)
 	sortFn := func(beans []*bean.Bean) {
-		bean.SortByStatusPriorityAndType(beans, m.config.StatusNames(), m.config.PriorityNames(), m.config.TypeNames())
+		bean.SortBy(beans, m.query.Sort.Field, m.query.Sort.Desc, orders)
 	}
 
 	// Build tree and flatten it with collapse state
@@ -342,7 +353,6 @@ func descendantsOf(rootID string, candidates []*bean.Bean, beansByID map[string]
 func (m *listModel) drillInto(id string) {
 	m.rootStack = append(m.rootStack, id)
 	m.cursorTarget = ""
-	m.list.ResetFilter()
 	m.list.Select(0)
 }
 
@@ -354,7 +364,6 @@ func (m *listModel) drillOut() bool {
 	// Put the cursor back on the bean we came out of
 	m.cursorTarget = m.rootStack[len(m.rootStack)-1]
 	m.rootStack = m.rootStack[:len(m.rootStack)-1]
-	m.list.ResetFilter()
 	return true
 }
 
@@ -370,19 +379,47 @@ func (m *listModel) previewData() (*bean.Bean, previewContext) {
 	}
 }
 
-// setTagFilter sets the tag filter
+// setQuery replaces the filter query
+func (m *listModel) setQuery(input string) {
+	m.queryInput.SetValue(input)
+	m.query = parseQuery(input, m.config)
+}
+
+// setTagFilter makes tag the query's only included tag
 func (m *listModel) setTagFilter(tag string) {
-	m.tagFilter = tag
+	m.setQuery(withTag(m.queryInput.Value(), tag))
 }
 
-// clearFilter clears all active filters
-func (m *listModel) clearFilter() {
-	m.tagFilter = ""
-}
-
-// hasActiveFilter returns true if any filter is active
+// hasActiveFilter returns true if a filter query is applied
 func (m *listModel) hasActiveFilter() bool {
-	return m.tagFilter != ""
+	return strings.TrimSpace(m.queryInput.Value()) != ""
+}
+
+// editingQuery reports whether keys go to the filter query input
+func (m *listModel) editingQuery() bool {
+	return m.queryInput.Focused()
+}
+
+// updateQueryInput handles keys while the filter query is being edited.
+// The list reloads on every change so results update as you type.
+func (m listModel) updateQueryInput(msg tea.KeyMsg) (listModel, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEnter:
+		m.queryInput.Blur()
+		return m, nil
+	case tea.KeyEsc:
+		m.queryInput.Blur()
+		m.setQuery("")
+		return m, m.loadBeans
+	}
+	before := m.queryInput.Value()
+	var cmd tea.Cmd
+	m.queryInput, cmd = m.queryInput.Update(msg)
+	if m.queryInput.Value() == before {
+		return m, cmd
+	}
+	m.query = parseQuery(m.queryInput.Value(), m.config)
+	return m, tea.Batch(cmd, m.loadBeans)
 }
 
 func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
@@ -440,9 +477,15 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.list.FilterState() != list.Filtering {
+		if m.editingQuery() {
+			return m.updateQueryInput(msg)
+		}
+		{
 			k := keymap.List
 			switch {
+			case key.Matches(msg, k.Filter):
+				m.queryInput.CursorEnd()
+				return m, m.queryInput.Focus()
 			case key.Matches(msg, k.Collapse):
 				// Collapse current item if it has children
 				if item, ok := m.list.SelectedItem().(beanItem); ok && item.hasChildren {
@@ -689,7 +732,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 			case key.Matches(msg, k.Create):
 				// Open create modal
 				return m, func() tea.Msg {
-					return openCreateModalMsg{}
+					return openCreateModalMsg{prefill: m.query.prefill()}
 				}
 			case key.Matches(msg, k.CreateChild):
 				// Open create modal with selected bean(s) as parent (create child)
@@ -722,6 +765,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 						return openCreateModalMsg{
 							parentID:    parentID,
 							parentTitle: parentTitle,
+							prefill:     m.query.prefill(),
 						}
 					}
 				}
@@ -800,19 +844,14 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					clear(m.selectedBeans)
 					return m, nil
 				}
-				// Let the list clear an applied text filter
-				if m.list.FilterState() == list.FilterApplied {
-					break
+				// Then clear the filter query
+				if m.hasActiveFilter() {
+					m.setQuery("")
+					return m, m.loadBeans
 				}
 				// Then navigate up the hierarchy
 				if m.drillOut() {
 					return m, m.loadBeans
-				}
-				// Then clear active filter if any
-				if m.hasActiveFilter() {
-					return m, func() tea.Msg {
-						return clearFilterMsg{}
-					}
 				}
 				// Nothing left to back out of
 				return m, tea.Quit
@@ -820,8 +859,14 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		}
 	}
 
-	// Always forward to the list component
+	// Always forward to the list component, and to the query input while it is
+	// focused so its cursor keeps blinking
 	m.list, cmd = m.list.Update(msg)
+	if m.editingQuery() {
+		var inputCmd tea.Cmd
+		m.queryInput, inputCmd = m.queryInput.Update(msg)
+		cmd = tea.Batch(cmd, inputCmd)
+	}
 	return m, cmd
 }
 
@@ -870,8 +915,8 @@ func (m listModel) viewContent() string {
 func (m listModel) breadcrumbTitle(maxWidth int) string {
 	const sep = " › "
 	suffix := ""
-	if m.tagFilter != "" {
-		suffix = fmt.Sprintf(" [tag: %s]", m.tagFilter)
+	if q := strings.Join(strings.Fields(m.queryInput.Value()), " "); q != "" {
+		suffix = fmt.Sprintf(" [%s]", q)
 	}
 	if m.showArchived {
 		suffix += " [+archived]"
@@ -903,6 +948,10 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 
 // Footer renders the help/status line below the list
 func (m listModel) Footer() string {
+	if m.editingQuery() {
+		return m.queryFooter()
+	}
+
 	var help string
 
 	g, k := keymap.Global, keymap.List
@@ -970,6 +1019,7 @@ func (m listModel) Footer() string {
 			hint(k.Dependencies, ""),
 			hint(k.Launch, ""),
 			hint(k.ToggleLog, ""),
+			hint(k.Filter, "edit filter"),
 			hint(k.Back, "clear filter"),
 			hint(g.Help, ""),
 			hint(g.Quit, ""),
@@ -1015,6 +1065,17 @@ func (m listModel) Footer() string {
 	}
 
 	return noticePrefix + selectionPrefix + help
+}
+
+// queryFooter renders the filter query input with any warnings about ignored tokens
+func (m listModel) queryFooter() string {
+	line := m.queryInput.View()
+	if len(m.query.Warnings) > 0 {
+		warn := lipgloss.NewStyle().Foreground(ui.ColorDanger)
+		line += "  " + warn.Render(strings.Join(m.query.Warnings, ", "))
+	}
+	keyHint := func(k, desc string) string { return helpKeyStyle.Render(k) + " " + helpStyle.Render(desc) + "  " }
+	return line + "  " + hints(keyHint("enter", "apply"), keyHint("esc", "clear"))
 }
 
 // shiftPriority moves the priority of the marked beans (or the bean under the

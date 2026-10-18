@@ -70,9 +70,6 @@ type tagSelectedMsg struct {
 	tag string
 }
 
-// clearFilterMsg is sent to clear any active filter
-type clearFilterMsg struct{}
-
 // openEditorMsg requests opening the editor for a bean
 type openEditorMsg struct {
 	beanID   string
@@ -592,7 +589,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openCreateModalMsg:
 		a.previousState = a.state
-		a.createModal = newCreateModalModel(a.config, a.width, a.height, msg.parentID, msg.parentTitle)
+		a.createModal = newCreateModalModel(a.config, a.width, a.height, msg.parentID, msg.parentTitle).withPrefill(msg.prefill)
 		a.createModal.prefixes = a.config.AvailablePrefixes()
 		a.state = viewCreateModal
 		return a, a.createModal.Init()
@@ -659,6 +656,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.body != "" {
 			input.Body = &msg.body
 		}
+		input.Tags = msg.tags
 		if msg.parentID != "" {
 			input.Parent = &msg.parentID
 		}
@@ -852,10 +850,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// User cancelled - return to previous state
 		a.state = a.previousState
 		return a, nil
-
-	case clearFilterMsg:
-		a.list.clearFilter()
-		return a, a.list.loadBeans
 
 	case openDepNavMsg:
 		a.depNavOrigin = a.state
@@ -1118,7 +1112,7 @@ func (a *App) typingText() bool {
 func (a *App) canQuit() bool {
 	switch a.state {
 	case viewList:
-		return a.list.list.FilterState() != list.Filtering
+		return !a.list.editingQuery()
 	case viewDetail:
 		return a.detail.linkList.FilterState() != list.Filtering
 	case viewTagPicker:

@@ -105,7 +105,7 @@ func (m helpOverlayModel) View() string {
 		{l.Archive.Keys(), "Archive (all completed in list)"},
 		{l.ToggleArchived.Keys(), "Show / hide archived"},
 		{l.ToggleScope.Keys(), "Show all scopes / this scope only"},
-		{l.Filter.Keys(), "Filter"},
+		{l.Filter.Keys(), "Filter (text, field:value, sort:field)"},
 		{l.FilterByTag.Keys(), "Filter by tag"},
 		{l.Collapse.Keys(), "Collapse item"},
 		{l.Expand.Keys(), "Expand item"},

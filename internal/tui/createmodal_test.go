@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -143,7 +144,7 @@ func TestCreateModalSubmit(t *testing.T) {
 				t.Fatalf("got %#v, want beanCreatedMsg", msg)
 			}
 			want := beanCreatedMsg{title: tt.wantTitle, beanType: tt.wantType, status: tt.wantStatus, priority: tt.wantPrio, body: tt.wantBody, openEditor: tt.wantEditor}
-			if got != want {
+			if !reflect.DeepEqual(got, want) {
 				t.Errorf("got %+v, want %+v", got, want)
 			}
 		})
@@ -204,5 +205,26 @@ func TestCreateModalView(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q", want)
 		}
+	}
+}
+
+func TestCreateModalPrefill(t *testing.T) {
+	m := newTestCreateModal().withPrefill(beanPrefill{
+		Type: "bug", Status: "todo", Priority: "high", Size: "sm", Tags: []string{"idea"},
+	})
+	m.textInput.SetValue("Prefilled")
+
+	msg, ok := m.submit(false)().(beanCreatedMsg)
+	if !ok {
+		t.Fatal("submit should create a bean")
+	}
+	if msg.beanType != "bug" || msg.status != "todo" || msg.priority != "high" || msg.size != "sm" {
+		t.Errorf("prefilled fields = %s/%s/%s/%s, want bug/todo/high/sm", msg.beanType, msg.status, msg.priority, msg.size)
+	}
+	if len(msg.tags) != 1 || msg.tags[0] != "idea" {
+		t.Errorf("tags = %v, want [idea]", msg.tags)
+	}
+	if !strings.Contains(m.View(), "Tags: idea") {
+		t.Error("form should show the prefilled tags")
 	}
 }
