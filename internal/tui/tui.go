@@ -95,7 +95,7 @@ type App struct {
 	priorityPicker     priorityPickerModel
 	sizePicker         sizePickerModel
 	createModal        createModalModel
-	helpOverlay        helpOverlayModel
+	keybinds           keybindsModel
 	launcherPicker     launcherPickerModel
 	launcherError      launcherErrorModel
 	noLaunchers        noLaunchersModel
@@ -197,12 +197,12 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, keymap.Global.ForceQuit):
 			return tea.Quit
 		case key.Matches(msg, keymap.Global.Help):
-			// Open help overlay if not already showing it (and not in a picker/modal)
-			if a.state == viewList {
+			// Open the keybinds dialog from a pane (not in a picker/modal)
+			if a.state == viewList && !a.typingText() {
 				a.previousState = a.state
-				a.helpOverlay = newHelpOverlayModel(a.width, a.height)
+				a.keybinds = newKeybindsModel(a.keybindSections(), a.width, a.height)
 				a.state = viewHelpOverlay
-				return a.helpOverlay.Init()
+				return a.keybinds.Init()
 			}
 		case key.Matches(msg, keymap.Global.Quit):
 			if a.canQuit() {
@@ -392,6 +392,12 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case closeHelpMsg:
 		a.state = a.previousState
 		return nil
+
+	case runKeybindMsg:
+		// Replay the chosen key in the pane the dialog was opened from. A
+		// chord replays whole, like a completed chord.
+		a.state = a.previousState
+		return a.update(chordMsg(msg.key))
 
 	case openTagEditorMsg:
 		var beans []*bean.Bean
@@ -832,7 +838,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case viewCreateModal:
 		a.createModal, cmd = a.createModal.Update(msg)
 	case viewHelpOverlay:
-		a.helpOverlay, cmd = a.helpOverlay.Update(msg)
+		a.keybinds, cmd = a.keybinds.Update(msg)
 	case viewLauncherPicker:
 		a.launcherPicker, cmd = a.launcherPicker.Update(msg)
 	case viewLauncherError:
@@ -1005,6 +1011,17 @@ func (a *App) drawPane(r layout.Rect) string {
 	return layout.Frame(title, p.View(), r.W, r.H, border)
 }
 
+// keybindSections are the sections of the keybinds dialog: the global and
+// layout bindings, then the focused pane's.
+func (a *App) keybindSections() []keybindSection {
+	p := a.focusedPane()
+	return []keybindSection{
+		{"Global", allBindings(keymap.Global)},
+		{"Layout", allBindings(keymap.Layout)},
+		{p.name(), p.bindings()},
+	}
+}
+
 // footer renders the notice, the layout hints and the focused pane's hints,
 // or just the pane's text input while typing, cut to the screen width.
 func (a *App) footer() string {
@@ -1016,9 +1033,9 @@ func (a *App) footer() string {
 	line := a.list.noticeView() + hints(
 		groupHint("layout", k.NextPreset, k.PrevPreset),
 		hint(k.FocusNext, "pane"),
-		hint(k.ToggleContext, ""),
-		hint(k.ToggleDepGraph, ""),
-		hint(k.ToggleLog, ""),
+		hint(k.ToggleContext, "details"),
+		hint(k.ToggleDepGraph, "dependencies"),
+		hint(k.ToggleLog, "log"),
 		hint(g.Help, ""),
 		hint(g.Quit, ""),
 		helpStyle.Render("│")+"  "+a.focusedPane().footer(),
@@ -1078,6 +1095,8 @@ func (a *App) typingText() bool {
 		return true
 	case viewLauncherPicker:
 		return a.launcherPicker.list.FilterState() == list.Filtering
+	case viewHelpOverlay:
+		return a.keybinds.typing()
 	case viewArchiveConfirm, viewConfigureLaunchers:
 		return false
 	}
@@ -1105,7 +1124,7 @@ func (a *App) canQuit() bool {
 	case viewSizePicker:
 		return a.sizePicker.list.FilterState() != list.Filtering
 	case viewHelpOverlay:
-		return true
+		return !a.keybinds.typing()
 	default:
 		// Text input modals (create, tag editor) and launcher dialogs
 		return false
@@ -1162,7 +1181,7 @@ func (a *App) View() string {
 	case viewCreateModal:
 		return a.createModal.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewHelpOverlay:
-		return a.helpOverlay.ModalView(a.getBackgroundView(), a.width, a.height)
+		return a.keybinds.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewLauncherPicker:
 		return a.launcherPicker.ModalView(a.getBackgroundView(), a.width, a.height)
 	case viewLauncherError:

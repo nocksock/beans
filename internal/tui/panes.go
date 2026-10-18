@@ -9,7 +9,8 @@ import (
 
 // pane is what the app needs from a model shown in a layout pane.
 type pane interface {
-	title() string
+	name() string              // the pane's plain name ("Beans"), for the keybinds dialog
+	title() string             // the frame title, may include the shown bean
 	setSize(width, height int) // the content area, inside the frame
 	View() string              // the content at the set size
 	footer() string            // hints while focused
@@ -47,6 +48,7 @@ func (p listPane) update(msg tea.Msg) tea.Cmd {
 	*p.listModel, cmd = p.Update(msg)
 	return cmd
 }
+func (p listPane) name() string            { return "Beans" }
 func (p listPane) bindings() []key.Binding { return allBindings(keymap.List) }
 func (p listPane) typing() bool            { return p.editingQuery() }
 func (p listPane) selection() *bean.Bean {
@@ -70,6 +72,7 @@ func (p *contextPane) active() pane {
 	return beanContextPane{p.bean}
 }
 
+func (p *contextPane) name() string               { return p.active().name() }
 func (p *contextPane) title() string              { return p.active().title() }
 func (p *contextPane) View() string               { return p.active().View() }
 func (p *contextPane) footer() string             { return p.active().footer() }
@@ -90,6 +93,7 @@ func (p beanContextPane) update(msg tea.Msg) tea.Cmd {
 	*p.contextModel, cmd = p.Update(msg)
 	return cmd
 }
+func (p beanContextPane) name() string            { return "Details" }
 func (p beanContextPane) bindings() []key.Binding { return allBindings(keymap.Context) }
 func (p beanContextPane) typing() bool            { return false }
 
@@ -100,6 +104,7 @@ func (p depGraphPane) update(msg tea.Msg) tea.Cmd {
 	*p.depNavModel, cmd = p.Update(msg)
 	return cmd
 }
+func (p depGraphPane) name() string            { return "Dependencies" }
 func (p depGraphPane) bindings() []key.Binding { return allBindings(keymap.DepGraph) }
 func (p depGraphPane) typing() bool            { return false }
 func (p depGraphPane) selection() *bean.Bean   { return p.selectedBean() }
@@ -111,6 +116,7 @@ type logPane struct {
 	width, height int
 }
 
+func (p *logPane) name() string              { return "Log" }
 func (p *logPane) title() string             { return "Log" }
 func (p *logPane) setSize(width, height int) { p.width, p.height = width, height }
 func (p *logPane) View() string              { return p.logPanelModel.View(p.width, p.height) }

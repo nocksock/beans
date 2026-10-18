@@ -87,6 +87,8 @@ func (m *logDetailModel) setSize(width, height int) {
 }
 
 // title is the pane title.
+func (m *logDetailModel) name() string { return "Output" }
+
 func (m *logDetailModel) title() string {
 	if m.entry == nil {
 		return "Output"

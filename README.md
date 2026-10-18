@@ -177,7 +177,7 @@ keybinding:
 - An override replaces all default keys of that action. Keys use bubbletea's names (`ctrl+c`, `enter`, `esc`, `shift+tab`, `pgdown`, …); use `space` for the space bar.
 - Keys bound to several actions of one context (`global` and `layout` count as part of `list`, `context`, `depGraph` and `log`) are reported as a warning in the footer.
 - The tag editor and the create dialog have text inputs: printable keys bound there can't be typed anymore.
-- Footers and the help overlay show your bindings. Key bindings are reloaded with the rest of the config (`R`, or automatically when a config file changes).
+- Footers and the keybinds dialog (`?`) show your bindings. The dialog lists the global, layout and focused pane's keys, `/` filters them and `enter` runs the selected one. Key bindings are reloaded with the rest of the config (`R`, or automatically when a config file changes).
 
 | Context | Actions (default keys) |
 |---------|------------------------|
@@ -187,7 +187,7 @@ keybinding:
 | `context` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `back` (`esc` `backspace`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `changeSize` (`S`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
 | `depGraph` | `up` (`up` `k`), `down` (`down` `j`), `refocus` (`enter`), `toggleDone` (`A`), `back` (`esc` `backspace`) |
 | `log` | `up` (`up` `k`), `down` (`down` `j`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `open` (`enter`), `openEditor` (`E`), `back` (`esc` `backspace`) |
-| `help` | `close` (`?` `esc`) |
+| `help` | `up` (`up` `k`), `down` (`down` `j`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `run` (`enter`), `close` (`?` `esc`) |
 | `picker` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `h` `pgup` `b` `u`), `nextPage` (`right` `l` `pgdown` `f` `d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `confirm` (`enter`), `cancel` (`esc` `backspace`), `toggle` (`space`, blocking picker) |
 | `tagEditor` | `up` (`up` `ctrl+p`), `down` (`down` `ctrl+n`), `toggle` (`space` `tab`), `apply` (`enter`), `cancel` (`esc`) |
 | `createModal` | `cancel` (`esc`), `nextField` (`tab`), `prevField` (`shift+tab`), `submit` (`ctrl+s`), `submitAndEdit` (`ctrl+e`), `quickSubmit` (`enter`, not in the description), `cyclePrev` (`left` `h` `up` `k`), `cycleNext` (`right` `l` `down` `j` `space`), `quickSubmitAndEdit` (`e`); the last three only on type/status/priority |

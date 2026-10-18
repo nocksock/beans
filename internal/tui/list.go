@@ -994,7 +994,7 @@ func (m listModel) footer() string {
 		help = hints(
 			backHelp,
 			hint(k.ToggleSelect, ""),
-			hint(k.Open, ""),
+			hint(k.Open, "open"),
 			hint(k.Create, ""),
 			hint(k.Edit, ""),
 			hint(k.OpenEditor, ""),
@@ -1015,7 +1015,7 @@ func (m listModel) footer() string {
 		help = hints(
 			backHelp,
 			hint(k.ToggleSelect, ""),
-			hint(k.Open, ""),
+			hint(k.Open, "open"),
 			hint(k.Create, ""),
 			hint(k.Edit, ""),
 			hint(k.OpenEditor, ""),
@@ -1033,7 +1033,7 @@ func (m listModel) footer() string {
 			hint(k.ToggleArchived, archivedHelp),
 			scopeHelp,
 			groupHint("fold", k.Collapse, k.Expand, k.ToggleCollapse),
-			hint(k.Filter, ""),
+			hint(k.Filter, "filter"),
 		)
 	}
 
