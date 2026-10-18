@@ -264,3 +264,12 @@ func TestRenderBeanRow_LabelsRightAligned(t *testing.T) {
 		t.Errorf("completed should show as done: %q", done)
 	}
 }
+
+func TestRenderBeanRow_EpicHasNoStatus(t *testing.T) {
+	for _, compact := range []bool{false, true} {
+		row := ansi.Strip(RenderBeanRow("abc123", "todo", "epic", "Title", BeanRowConfig{MaxTitleWidth: 10, Compact: compact}))
+		if strings.Contains(row, "todo") || strings.HasPrefix(strings.TrimSpace(row), "T ") {
+			t.Errorf("epic rows should have no status (compact %v): %q", compact, row)
+		}
+	}
+}

@@ -401,6 +401,11 @@ func ColumnLabel(name string) string {
 // RenderBeanRow renders a bean as a single row: status, title, tags
 // (optional), type, size (optional) and ID. Status and type are right-aligned.
 func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string {
+	// Epics group work rather than being worked on, so their status is left out
+	if typeName == "epic" {
+		status = ""
+	}
+
 	// Status and type columns, each followed by a space
 	typeWidth, statusWidth := ColWidthType, ColWidthStatus
 	if cfg.Compact {
