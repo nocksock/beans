@@ -1231,16 +1231,13 @@ type Resolved struct {
 // Resolve finds the script for a launch name:
 //   - "builtin.X" is always the embedded builtin X
 //   - "parent.X" is X as declared by the nearest config layer above
-//     callerLayer (the leaf config when empty), else builtin X
+//     callerLayer (above the leaf config when empty), else builtin X
 //   - "X" is the configured launcher X, else builtin X
 func Resolve(cfg *config.Config, name, callerLayer string) (Resolved, error) {
 	if base, ok := strings.CutPrefix(name, builtinPrefix); ok {
 		return resolveBuiltin(base)
 	}
 	if base, ok := strings.CutPrefix(name, parentPrefix); ok {
-		if callerLayer == "" {
-			callerLayer = cfg.ConfigDir()
-		}
 		l, found, err := cfg.ParentLauncher(base, callerLayer)
 		if err != nil {
 			return Resolved{}, err
