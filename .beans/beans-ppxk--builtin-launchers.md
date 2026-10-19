@@ -82,3 +82,4 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 2026-10-19 10:45: Planned with user; plan written into bean
 2026-10-19 21:41: Task 1 done: config keeps per-layer launchers (Launcher, ParentLauncher, LoadedPath, reserved names), c732fc7
 2026-10-19 21:42: Task 2 done: Launch carries Name/Args/Builtin/ConfigPath/Depth, nested-call env, $0/$@ passing, ed8dba4
+2026-10-19 21:43: Task 3 done: builtin registry + tmux-window, tmux-session, kitty-window scripts
