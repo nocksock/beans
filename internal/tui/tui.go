@@ -1219,6 +1219,7 @@ func (a *App) newLaunch(script, configDir, beanID, beanTitle string) launcherexe
 		Script:      script,
 		ProjectRoot: a.projectRoot(),
 		ConfigDir:   configDir,
+		ConfigPath:  a.config.LoadedPath(),
 		BeansDir:    a.core.Root(),
 		BeanID:      beanID,
 		BeanTitle:   beanTitle,
