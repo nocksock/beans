@@ -68,12 +68,12 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 
 ### Tasks
 
-- [ ] CLI: positional name, ID fallback chain, `--` args passthrough
+- [x] CLI: positional name, ID fallback chain, `--` args passthrough
 - [x] Config: keep per-layer launcher definitions
 - [x] Resolver: `X` / `builtin.X` / `parent.X`
-- [ ] Nested-call env (`BEANS_BIN`, `BEANS_LAUNCH_CONFIG`, `BEANS_LAUNCH_LAYER`, `BEANS_LAUNCH_DEPTH`) + recursion guard
+- [x] Nested-call env (`BEANS_BIN`, `BEANS_LAUNCH_CONFIG`, `BEANS_LAUNCH_LAYER`, `BEANS_LAUNCH_DEPTH`) + recursion guard
 - [x] Embedded builtins: tmux-window, tmux-session, kitty-window, worktree, prompt, agent
-- [ ] `--list` builtin section (text + JSON)
+- [x] `--list` builtin section (text + JSON)
 - [ ] Docs (README / launcher docs, `beans prime` if it mentions `--launcher`)
 - [ ] Tests: resolution table, ID order, `$@` passthrough, recursion guard, builtin smoke tests with stubbed tmux/kitty/agents, worktree on temp repo
 
@@ -87,3 +87,5 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 2026-10-19 21:44: Task 5 done: prompt and agent builtins, 0b7a1a3
 2026-10-19 21:44: Review fix: ParentLauncher empty layerDir resolves above leaf, 00d280b
 2026-10-19 21:45: Task 6 done: name resolution, ceb2fa7
+2026-10-19 21:46: Task 7 done: beans launch <name> [id] [-- args...], ID chain, depth guard, pinned nested config, --list builtins, e4da13a
+2026-10-19 21:47: Task 8 done: TUI passes ConfigPath to launches, 15cef0a
