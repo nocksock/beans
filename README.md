@@ -384,7 +384,7 @@ Every run, foreground or background, shows up in the **log panel** below the bea
 
 - **Single-line exec**: Runs via `sh -c`, just like a shell command. Use for simple commands.
 - **Multi-line exec**: Must start with a shebang (`#!/bin/bash`, etc.). Note that for now multi-line scripts also run via `sh -c`, so the shebang line is treated as a comment and the script must be valid `sh`.
-- **Environment variables**: All launchers receive `$BEANS_ROOT`, `$BEANS_CONFIG_DIR`, `$BEANS_DIR`, `$BEANS_ID`, `$BEANS_TASK`
+- **Environment variables**: All launchers receive `$BEANS_ROOT`, `$BEANS_CONFIG_DIR`, `$BEANS_DIR`, `$BEANS_ID`, `$BEANS_TASK`, `$BEANS_BIN` (see [Environment Variables](#environment-variables))
 - **Working directory**: Set to the directory of the `.beans.yml` that declared the launcher (`$BEANS_CONFIG_DIR`). For a launcher defined in your project's own config, that's the project root (`$BEANS_ROOT`)
 - **Unix/Linux/macOS only**: Shebang mechanism is Unix-specific
 
@@ -433,27 +433,72 @@ Launchers receive these environment variables:
 - `BEANS_DIR`: Beans directory (e.g., `/path/to/project/.beans`)
 - `BEANS_ID`: Bean ID (e.g., `beans-abc123`)
 - `BEANS_TASK`: Bean title (e.g., `Fix login redirect`)
+- `BEANS_BIN`: Path of the running beans binary, for calling `beans launch` from a launch
+- `BEANS_LAUNCH_CONFIG`, `BEANS_LAUNCH_LAYER`, `BEANS_LAUNCH_DEPTH`: Used by nested `beans launch` calls, see [Builtins](#builtins)
 
 Which directory to use: `BEANS_ROOT` is the bean's project, so use it for anything about the bean itself (opening the project in an editor, running its tests). `BEANS_CONFIG_DIR` is where the launcher and its scripts live, so use it, or relative paths, for helper scripts, `.worktrees/` and other paths the launcher's config owns. A launcher that joins paths onto `$BEANS_ROOT` (e.g. `$BEANS_ROOT/scripts/...`) breaks when a subproject inherits it. Tools such as `tmux new-window -c` silently fall back to your home directory when the path doesn't exist.
 
-### CLI Usage
+### Running launches from the CLI
 
-Run a launcher for a bean from the command line with `beans launch`:
+Run a launch from the command line with `beans launch <name> [id] [-- args...]`:
 
 ```bash
-# Launch by full or partial (unique) bean ID
-beans launch beans-abc123 --launcher opencode
-beans launch beans-abc -l opencode
-
-# Read the bean ID from the first line of stdin
-echo beans-abc123 | beans launch --launcher worktree-tmux
-
-# List the configured launchers (add --json for scripting)
-beans launch --list
-beans launch --list --json
+beans launch claude beans-abc1          # configured launcher (full or unique partial ID)
+echo beans-abc1 | beans launch claude   # bean ID from stdin
+beans launch --list                     # configured launchers and builtins
+beans launch --list --json              # same, for scripting
 ```
 
-The launcher runs attached to your terminal, also when the bean ID came from stdin, so interactive tools keep working. `beans launch` waits for it and exits with its exit code. `background` and `multiple` only affect the TUI.
+The launch runs attached to your terminal, also when the bean ID came from stdin, so interactive tools keep working. `beans launch` waits for it and exits with its exit code. `background` and `multiple` only affect the TUI.
+
+The bean ID comes from the argument, else from `$BEANS_ID` (inside a launch, `$BEANS_ID` wins over stdin), else from the first line of stdin. Arguments after `--` are passed to the launch script as `"$@"`. Flags for a script therefore always go after `--`, and pflag passes everything after the first `--` through verbatim:
+
+```bash
+beans launch tmux-window -- --cwd "$dir" -- "$BEANS_BIN" launch agent -- claude
+```
+
+### Builtins
+
+beans ships launches you can use directly or compose in your own. They are bash scripts embedded in the binary (`beans launch --list` shows them as `builtin.<name>`):
+
+| Builtin | Usage |
+|---|---|
+| `tmux-window` | `-- [--cwd DIR] [--name NAME] -- CMD...` run a command in a new tmux window (tmux 3.0+; the command runs directly, no quoting needed) |
+| `tmux-session` | `-- [--cwd DIR] [-- CMD...]` open or switch to a tmux session for the bean (tmux 3.0+); `--cwd` and `CMD` only apply when the session is created, an existing session is just attached |
+| `kitty-window` | `-- [--cwd DIR] -- CMD...` run a command in a new kitty window |
+| `worktree` | `-- [--base BRANCH] [--dir DIR]` ensure a git worktree on `task/<bean-id>` (default `.worktrees/<bean-id>` in the project root) and print its path; reuses a worktree that already has the branch checked out |
+| `prompt` | `-- [--tmux] [--worktree DIR]` print the agent prompt for the bean |
+| `agent` | `-- <claude\|opencode\|crush> [PROMPT-ARGS...]` start a coding agent with the output of the `prompt` launch |
+
+A relative `--cwd` or `--dir` is relative to the directory you call the builtin from. The default `.worktrees/` directory should be in your `.gitignore`.
+
+Names resolve like this:
+
+- `X`: the launcher `X` from `.beans.yml`, else the builtin `X`.
+- `builtin.X`: always the builtin.
+- `parent.X`: `X` as defined by the next config file up the cascade (see [Monorepos: Cascading Configuration](#monorepos-cascading-configuration)), else the builtin. Use it to wrap the definition you override.
+
+Builtins call each other by plain name, so overriding one piece changes every launch that uses it. For example, an agent in a new tmux window, in its own worktree, with an extra note in the prompt:
+
+```yaml
+launchers:
+  - name: worktree-tmux+claude
+    multiple: true
+    background: true
+    exec: |
+      #!/bin/sh
+      set -eu
+      dir=$("$BEANS_BIN" launch worktree)
+      "$BEANS_BIN" launch tmux-window -- --cwd "$dir" -- \
+        "$BEANS_BIN" launch agent -- claude --tmux --worktree "$dir"
+  - name: prompt
+    exec: |
+      #!/bin/sh
+      "$BEANS_BIN" launch parent.prompt -- "$@"
+      echo "Run the tests before you commit."
+```
+
+Launches get these extra variables for nested calls: `BEANS_BIN` (the running beans binary), `BEANS_LAUNCH_CONFIG`, `BEANS_LAUNCH_LAYER` and `BEANS_LAUNCH_DEPTH`. A nested `beans launch` reuses the config file and beans directory of the launching project, unless you pass `--config` or `--beans-path`. Nesting deeper than 16 launches fails, which catches a launch that calls itself instead of `parent.<name>`. The `agent` builtin clears the `BEANS_LAUNCH_*` variables before starting the agent, so a shell the agent opens is not pinned to the launch.
 
 ## Contributing
 
