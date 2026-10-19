@@ -93,3 +93,4 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 2026-10-19 21:52: README documents beans launch syntax, builtins table, resolution rules, composition example (verified in temp project)
 2026-10-19 21:52: Fixed launch review: atomic pinning, usage/errors printed once, prepareLaunch tests (629f977)
 2026-10-19 21:58: Final review fixes: tmux-session keeps BEANS_LAUNCH_* out of session shell, TUI $0 = launcher name, env drift test (438b718)
+2026-10-19 21:58: E2E verified (builtins, parent. override, agent unpinning, depth guard, exit codes, real tmux 3.7b); final review fixes in
