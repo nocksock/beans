@@ -160,3 +160,95 @@ func TestWorktree(t *testing.T) {
 		}
 	})
 }
+
+// fakeBeans writes a stand-in for the beans binary that answers
+// `show --prompt`, `show --json` and `launch prompt`, logging its args.
+func fakeBeans(t *testing.T, status string) (bin, logPath string) {
+	t.Helper()
+	dir := t.TempDir()
+	logPath = filepath.Join(dir, "beans.log")
+	bin = filepath.Join(dir, "beans")
+	script := `#!/bin/sh
+printf '%s\n' "$*" >> "` + logPath + `"
+case "$*" in
+  *"show --prompt"*) echo "BEAN PROMPT" ;;
+  *"show --json"*) echo '{"id": "beans-abc1", "status": "` + status + `"}' ;;
+  *"launch prompt"*) echo "FULL PROMPT $*" ;;
+esac
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return bin, logPath
+}
+
+func runWithBeans(t *testing.T, bin, name string, args ...string) string {
+	t.Helper()
+	b, _ := LookupBuiltin(name)
+	l := Launch{Name: "builtin." + name, Script: b.Script, Args: args, Builtin: true,
+		ProjectRoot: "/repo", BeansDir: "/repo/.beans", ConfigPath: "/repo/.beans.yml", BeanID: "beans-abc1"}
+	cmd := CreateShellCommand(l)
+	cmd.Env = append(cmd.Env, "BEANS_BIN="+bin)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("%s %v: %v", name, args, err)
+	}
+	return string(out)
+}
+
+func TestPrompt(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  string
+		args    []string
+		want    []string
+		notWant []string
+	}{
+		{name: "plain", status: "todo", want: []string{"BEAN PROMPT"}, notWant: []string{"## tmux window", "## Worktree", "## Draft"}},
+		{name: "tmux", status: "todo", args: []string{"--tmux"}, want: []string{"## tmux window", "tmux rename-window"}},
+		{name: "worktree", status: "todo", args: []string{"--worktree", "/wt"}, want: []string{"## Worktree", "/wt", "task/beans-abc1"}},
+		{name: "draft", status: "draft", want: []string{"## Draft: plan first", "beans update beans-abc1 --status in-progress"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bin, logPath := fakeBeans(t, tt.status)
+			out := runWithBeans(t, bin, "prompt", tt.args...)
+			for _, w := range tt.want {
+				if !strings.Contains(out, w) {
+					t.Errorf("prompt missing %q:\n%s", w, out)
+				}
+			}
+			for _, w := range tt.notWant {
+				if strings.Contains(out, w) {
+					t.Errorf("prompt contains %q:\n%s", w, out)
+				}
+			}
+			calls, _ := os.ReadFile(logPath)
+			if !strings.Contains(string(calls), "--config /repo/.beans.yml --beans-path /repo/.beans show --prompt beans-abc1") {
+				t.Errorf("beans not pinned to the launch's config:\n%s", calls)
+			}
+		})
+	}
+}
+
+func TestAgent(t *testing.T) {
+	stubs := stubTools(t, nil, "claude", "opencode", "crush")
+	bin, _ := fakeBeans(t, "todo")
+
+	tests := []struct {
+		agent string
+		want  []string
+	}{
+		{"claude", []string{"FULL PROMPT launch prompt -- --tmux"}},
+		{"opencode", []string{"--prompt", "FULL PROMPT launch prompt -- --tmux"}},
+		{"crush", []string{"run", "FULL PROMPT launch prompt -- --tmux"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.agent, func(t *testing.T) {
+			runWithBeans(t, bin, "agent", tt.agent, "--tmux")
+			if got := readLog(t, stubs, tt.agent); strings.Join(got, "|") != strings.Join(tt.want, "|") {
+				t.Errorf("%s args = %q, want %q", tt.agent, got, tt.want)
+			}
+		})
+	}
+}
