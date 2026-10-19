@@ -89,3 +89,4 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 2026-10-19 21:45: Task 6 done: name resolution, ceb2fa7
 2026-10-19 21:46: Task 7 done: beans launch <name> [id] [-- args...], ID chain, depth guard, pinned nested config, --list builtins, e4da13a
 2026-10-19 21:47: Task 8 done: TUI passes ConfigPath to launches, 15cef0a
+2026-10-19 21:50: Review fix: hardened builtin scripts (env allowlist, tmux direct exec, draft regex, worktree reuse, bash 3.2), b28fc35
