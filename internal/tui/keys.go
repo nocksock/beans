@@ -185,19 +185,35 @@ type TagEditorKeyMap struct {
 }
 
 // CreateModalKeyMap holds bindings for the create dialog. Its text fields get
-// all other keys, so printable keys bound here (except the Cycle* and
-// QuickSubmitAndEdit bindings, which only apply on selector fields) can't be
-// typed.
+// all other keys, so printable keys bound here (except the selector-only
+// bindings) can't be typed. The Focus* chords work while typing only when
+// they start with a non-printable key like ctrl+g.
+//
+// Selectors have a navigation mode and a type-ahead mode, where letters
+// select the value starting with them. The navigation-only bindings are
+// letters that type ahead in type-ahead mode.
 type CreateModalKeyMap struct {
-	Cancel             key.Binding
+	Cancel             key.Binding // leaves type-ahead mode first
 	NextField          key.Binding
 	PrevField          key.Binding
 	Submit             key.Binding
 	SubmitAndEdit      key.Binding
 	QuickSubmit        key.Binding // everywhere but the description field
+	FocusTitle         key.Binding
+	FocusBody          key.Binding
+	FocusPrefix        key.Binding // enters type-ahead mode
+	FocusType          key.Binding // enters type-ahead mode
+	FocusStatus        key.Binding // enters type-ahead mode
+	FocusPriority      key.Binding // enters type-ahead mode
+	FocusSize          key.Binding // enters type-ahead mode
 	CyclePrev          key.Binding // selector fields only
 	CycleNext          key.Binding // selector fields only
-	QuickSubmitAndEdit key.Binding // selector fields only
+	NavLeft            key.Binding // selector fields in navigation mode only
+	NavRight           key.Binding // selector fields in navigation mode only
+	NavUp              key.Binding // selector fields in navigation mode only
+	NavDown            key.Binding // selector fields in navigation mode only
+	TypeAhead          key.Binding // selector fields in navigation mode only
+	QuickSubmitAndEdit key.Binding // selector fields in navigation mode only
 }
 
 // ArchiveConfirmKeyMap holds bindings for the archive confirmation.
@@ -358,8 +374,20 @@ func DefaultKeyMap() KeyMap {
 			Submit:             bind("create", "ctrl+s"),
 			SubmitAndEdit:      bind("create & edit", "ctrl+e"),
 			QuickSubmit:        bind("create", "enter"),
-			CyclePrev:          bind("change", "left", "h", "up", "k"),
-			CycleNext:          bind("change", "right", "l", "down", "j", " "),
+			FocusTitle:         bind("go to title", "ctrl+g n"),
+			FocusBody:          bind("go to description", "ctrl+g d"),
+			FocusPrefix:        bind("go to prefix", "ctrl+g i"),
+			FocusType:          bind("go to type", "ctrl+g t"),
+			FocusStatus:        bind("go to status", "ctrl+g s"),
+			FocusPriority:      bind("go to priority", "ctrl+g P"),
+			FocusSize:          bind("go to size", "ctrl+g S"),
+			CyclePrev:          bind("change", "left", "up", "ctrl+p"),
+			CycleNext:          bind("change", "right", "down", "ctrl+n", " "),
+			NavLeft:            bind("left", "h"),
+			NavRight:           bind("right", "l"),
+			NavUp:              bind("up", "k"),
+			NavDown:            bind("down", "j"),
+			TypeAhead:          bind("type to select", "i"),
 			QuickSubmitAndEdit: bind("create & edit", "e"),
 		},
 		ArchiveConfirm: ArchiveConfirmKeyMap{
@@ -543,6 +571,25 @@ func isChordPrefix(seq string, bindings []key.Binding) bool {
 		}
 	}
 	return false
+}
+
+// unprintableChords returns the chords of the bindings that start with a
+// non-printable key (ctrl+g t), which can be typed while typing text.
+func unprintableChords(bindings []key.Binding) []key.Binding {
+	var out []key.Binding
+	for _, b := range bindings {
+		var keys []string
+		for _, k := range b.Keys() {
+			first, _, isChord := strings.Cut(k, chordSep)
+			if isChord && len([]rune(first)) > 1 {
+				keys = append(keys, k)
+			}
+		}
+		if len(keys) > 0 {
+			out = append(out, key.NewBinding(key.WithKeys(keys...)))
+		}
+	}
+	return out
 }
 
 // allBindings returns all bindings of a context struct (e.g. keymap.List).

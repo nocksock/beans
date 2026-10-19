@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -1044,9 +1045,9 @@ func (a *App) footer() string {
 }
 
 // resolveChord tracks chord keys (see KeyMap). It returns pending=true while a
-// chord is incomplete; otherwise the message to handle: the key itself, or a
-// chordMsg once a chord is complete. An unknown chord is handled as a chordMsg
-// too, which matches no binding.
+// chord is incomplete, or when it completes as an unknown chord, which is
+// dropped; otherwise the message to handle: the key itself, or a chordMsg
+// once a chord is complete.
 func (a *App) resolveChord(msg tea.KeyMsg) (_ tea.Msg, pending bool) {
 	bindings := a.chordBindings()
 	seq := msg.String()
@@ -1060,14 +1061,19 @@ func (a *App) resolveChord(msg tea.KeyMsg) (_ tea.Msg, pending bool) {
 	wasPending := a.pendingKeys != ""
 	a.pendingKeys = ""
 	if wasPending {
-		return chordMsg(seq), false
+		chord := chordMsg(seq)
+		return chord, !slices.ContainsFunc(bindings, func(b key.Binding) bool { return key.Matches(chord, b) })
 	}
 	return msg, false
 }
 
 // chordBindings returns the bindings whose chords can be typed in the current
-// state. Chords are off while typing text (filters, text inputs).
+// state. Chords are off while typing text (filters, text inputs), except in
+// the bean form for chords that start with a non-printable key (ctrl+g t).
 func (a *App) chordBindings() []key.Binding {
+	if a.state == viewCreateModal {
+		return unprintableChords(allBindings(keymap.CreateModal))
+	}
 	if a.typingText() {
 		return nil
 	}

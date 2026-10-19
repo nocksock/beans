@@ -92,9 +92,9 @@ func TestCreateModalSubmit(t *testing.T) {
 				m = typeIntoCreate(m, "Bug")
 				// tab past the description; type: task -> milestone (wraps), then back to task, then bug (left twice)
 				return pressCreate(m,
-					keyMsg("tab"), keyMsg("tab"), keyMsg("l"), keyMsg("h"), keyMsg("h"), keyMsg("h"),
-					keyMsg("tab"), keyMsg("h"),
-					keyMsg("tab"), keyMsg("k"),
+					keyMsg("tab"), keyMsg("tab"), keyMsg("right"), keyMsg("left"), keyMsg("left"), keyMsg("left"),
+					keyMsg("tab"), keyMsg("left"),
+					keyMsg("tab"), keyMsg("up"),
 					keyMsg("enter"))
 			},
 			wantTitle: "Bug", wantType: "bug", wantStatus: "todo", wantPrio: "high",
@@ -187,7 +187,7 @@ func TestCreateModalKeysReachFormThroughApp(t *testing.T) {
 	}
 	app.Update(keyMsg("tab"))
 	app.Update(keyMsg("tab"))
-	app.Update(keyMsg("l"))
+	app.Update(keyMsg("right"))
 	if app.createModal.focus != createFieldType {
 		t.Fatalf("focus = %v, want type", app.createModal.focus)
 	}
