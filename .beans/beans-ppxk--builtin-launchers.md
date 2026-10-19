@@ -85,3 +85,4 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 2026-10-19 21:43: Task 3 done: builtin registry + tmux-window, tmux-session, kitty-window scripts
 2026-10-19 21:44: Task 4 done: worktree builtin, 482383a
 2026-10-19 21:44: Task 5 done: prompt and agent builtins, 0b7a1a3
+2026-10-19 21:44: Review fix: ParentLauncher empty layerDir resolves above leaf, 00d280b
