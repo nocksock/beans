@@ -69,7 +69,7 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 ### Tasks
 
 - [ ] CLI: positional name, ID fallback chain, `--` args passthrough
-- [ ] Config: keep per-layer launcher definitions
+- [x] Config: keep per-layer launcher definitions
 - [ ] Resolver: `X` / `builtin.X` / `parent.X`
 - [ ] Nested-call env (`BEANS_BIN`, `BEANS_LAUNCH_CONFIG`, `BEANS_LAUNCH_LAYER`, `BEANS_LAUNCH_DEPTH`) + recursion guard
 - [ ] Embedded builtins: tmux-window, tmux-session, kitty-window, worktree, prompt, agent
@@ -80,3 +80,4 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 ## Work Log
 
 2026-10-19 10:45: Planned with user; plan written into bean
+2026-10-19 21:41: Task 1 done: config keeps per-layer launchers (Launcher, ParentLauncher, LoadedPath, reserved names), c732fc7
