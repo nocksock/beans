@@ -325,3 +325,28 @@ func TestLogPanelViewScrollsToSelection(t *testing.T) {
 		t.Errorf("selected latest entry should be shown:\n%s", view)
 	}
 }
+
+func TestLaunchClearsSelection(t *testing.T) {
+	app, _ := newTestApp(t)
+	t.Cleanup(app.log.cleanup)
+	ids := listedIDs(app)
+	app.list.selectedBeans[ids[0]] = true
+	app.list.selectedBeans[ids[1]] = true
+
+	app.Update(closeLauncherPickerMsg{})
+	if got := len(app.list.selectedBeans); got != 2 {
+		t.Fatalf("cancelling the picker cleared the selection, %d marked", got)
+	}
+
+	_, cmd := app.Update(launcherSelectedMsg{
+		launcher: launcher{name: "bg", exec: "true", background: true},
+		beanIDs:  ids[:2],
+	})
+	for _, msg := range runBatch(cmd) {
+		app.Update(msg)
+	}
+
+	if got := len(app.list.selectedBeans); got != 0 {
+		t.Errorf("selection after launch = %d beans, want none so the next launch targets the cursor", got)
+	}
+}

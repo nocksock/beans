@@ -740,6 +740,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case launcherSelectedMsg:
 		// Close the launcher picker first
 		a.state = a.previousState
+		// Clear selection so the next launch targets the cursor again
+		clear(a.list.selectedBeans)
 
 		if len(msg.beanIDs) == 0 {
 			return nil
