@@ -17,7 +17,7 @@ Original idea: maybe prefix ctrl+g t (for type), s for status and so on? when fo
 ### Selector modes (prefix, type, status, priority, size)
 
 **Navigation mode** (default when tabbing onto a selector):
-- `h`/`l` move focus to prev/next selector column; `k` moves up to description, `j` from description back down to the selectors
+- `h`/`l` move focus to prev/next selector column (stopping at the ends); `k` moves up to the description; `j` is a no-op (selectors are the bottom row; the description is a text field, so `j` types there)
 - arrows / `space` cycle the value, `e` save & edit, `enter` save, `esc` cancels the form
 - `i` enters type-ahead mode; any unbound letter also enters it and is used as the first typed letter (`f` -> feature)
 
@@ -26,7 +26,7 @@ Original idea: maybe prefix ctrl+g t (for type), s for status and so on? when fo
 - no match: key ignored, buffer unchanged
 - buffer resets after ~1s idle (timestamp on the model, no tick cmd)
 - repeating the same single letter cycles through values starting with it
-- arrows / `space` still cycle, `enter` saves, `esc` returns to navigation mode (second `esc` cancels the form)
+- arrows / `space` still cycle, `enter` saves, `esc` returns to navigation mode (second `esc` cancels the form); `esc` is the `cancel` binding, which leaves type-ahead first, to avoid a keymap conflict
 - focused field gets a visual cue (accent/underline) while in type-ahead mode
 
 ### Jump chords
@@ -38,17 +38,20 @@ Original idea: maybe prefix ctrl+g t (for type), s for status and so on? when fo
 
 ### Keymap changes
 - `cyclePrev`/`cycleNext` lose `h/j/k/l` (keep arrows, `space`)
-- new `navLeft/navRight/navUp/navDown` (`h/l/k/j`), `typeAhead` (`i`), `exitTypeAhead` (`esc`)
+- `cyclePrev`/`cycleNext` also get `ctrl+p`/`ctrl+n`
+- new `navLeft/navRight/navUp/navDown` (`h/l/k/j`), `typeAhead` (`i`)
+- unknown chords are now dropped instead of passed on (otherwise `ctrl+g x` would be typed into the title)
 - `quickSubmitAndEdit` (`e`) stays -> no breaking config change
 
 ## Todo
-- [ ] Chord support in the create modal (`chordBindings` for `viewCreateModal`)
-- [ ] Jump chord bindings + focus handling
-- [ ] Selector navigation/type-ahead modes and hjkl field navigation
-- [ ] Type-ahead prefix buffer with timeout and same-letter cycling
-- [ ] Visual cue for type-ahead mode, help/footer hints
-- [ ] Table-driven tests: type-ahead matching/cycling/reset, mode transitions incl. double esc, hjkl nav incl. row crossing, each jump chord (also from title), `t` in title stays text, keymap has no conflicts
-- [ ] Update docs/README keybinding docs if they list form keys
+- [x] Chord support in the create modal (`chordBindings` for `viewCreateModal`)
+- [x] Jump chord bindings + focus handling
+- [x] Selector navigation/type-ahead modes and hjkl field navigation
+- [x] Type-ahead prefix buffer with timeout and same-letter cycling
+- [x] Visual cue for type-ahead mode, help/footer hints
+- [x] Table-driven tests: type-ahead matching/cycling/reset, mode transitions incl. double esc, hjkl nav incl. row crossing, each jump chord (also from title), `t` in title stays text, keymap has no conflicts
+- [x] Update docs/README keybinding docs if they list form keys
 
 ## Work Log
 2026-10-19 13:00: Planned with user; design agreed
+2026-10-19 15:05: Implemented chords, selector modes, type-ahead; tests + README; verified in real TUI via tmux
