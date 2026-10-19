@@ -1,11 +1,11 @@
 ---
 # beans-atr7
 title: shortcuts for setting prefix, type etc
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-19T10:52:10Z
-updated_at: 2026-10-19T12:20:42Z
+updated_at: 2026-10-19T20:30:23Z
 ---
 
 Field shortcuts and type-ahead for the bean form (create/edit modal).
