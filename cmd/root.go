@@ -26,6 +26,17 @@ a full view of your project.`,
 		beansPath = config.ExpandHome(beansPath)
 		configPath = config.ExpandHome(configPath)
 
+		// Nested `beans launch` calls use the config and beans of the launch
+		// that started them, wherever the script cd'ed to
+		if cmd == launchCmd && os.Getenv("BEANS_LAUNCH_DEPTH") != "" {
+			if configPath == "" {
+				configPath = os.Getenv("BEANS_LAUNCH_CONFIG")
+			}
+			if beansPath == "" {
+				beansPath = os.Getenv("BEANS_DIR")
+			}
+		}
+
 		// Skip core initialization for init and prime commands
 		if cmd.Name() == "init" || cmd.Name() == "prime" {
 			return nil

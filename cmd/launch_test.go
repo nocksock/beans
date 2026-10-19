@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hmans/beans/internal/config"
+	launcherexec "github.com/hmans/beans/internal/launcher"
 )
 
 func TestFirstLine(t *testing.T) {
@@ -54,18 +55,20 @@ func TestLaunchBeanID(t *testing.T) {
 	tests := []struct {
 		name          string
 		args          []string
+		envID         string
 		stdin         string
 		wantID        string
 		wantFromStdin bool
 		wantErr       bool
 	}{
-		{name: "argument wins over stdin", args: []string{"beans-abc1"}, stdin: "beans-def2\n", wantID: "beans-abc1"},
+		{name: "argument wins", args: []string{"beans-abc1"}, envID: "beans-env1", stdin: "beans-def2\n", wantID: "beans-abc1"},
+		{name: "BEANS_ID before stdin", envID: "beans-env1", stdin: "beans-def2\n", wantID: "beans-env1"},
 		{name: "from stdin", stdin: "beans-def2\n", wantID: "beans-def2", wantFromStdin: true},
 		{name: "empty stdin", stdin: "", wantFromStdin: true, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, fromStdin, err := launchBeanID(tt.args, pipe(t, tt.stdin))
+			id, fromStdin, err := launchBeanID(tt.args, tt.envID, pipe(t, tt.stdin))
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("launchBeanID() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -76,51 +79,71 @@ func TestLaunchBeanID(t *testing.T) {
 	}
 }
 
-func TestFindLauncher(t *testing.T) {
-	launchers := []config.Launcher{{Name: "claude", Exec: "claude"}, {Name: "tmux", Exec: "tmux"}}
-
+func TestSplitLaunchArgs(t *testing.T) {
 	tests := []struct {
-		name      string
-		launchers []config.Launcher
-		key       string
-		wantErr   string
+		name       string
+		args       []string
+		dash       int
+		wantPos    []string
+		wantScript []string
 	}{
-		{name: "found", launchers: launchers, key: "tmux"},
-		{name: "unknown lists available", launchers: launchers, key: "nope", wantErr: "available: claude, tmux"},
-		{name: "none configured", key: "claude", wantErr: "no launchers are configured"},
+		{"no dash", []string{"claude", "beans-abc1"}, -1, []string{"claude", "beans-abc1"}, nil},
+		{"dash", []string{"tmux-window", "--cwd", "/x", "--", "cmd"}, 1, []string{"tmux-window"}, []string{"--cwd", "/x", "--", "cmd"}},
+		{"dash with id", []string{"agent", "beans-abc1", "claude"}, 2, []string{"agent", "beans-abc1"}, []string{"claude"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l, err := findLauncher(tt.launchers, tt.key)
-			if tt.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("findLauncher() error = %v, want containing %q", err, tt.wantErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("findLauncher() error = %v", err)
-			}
-			if l.Name != tt.key {
-				t.Errorf("findLauncher() = %q, want %q", l.Name, tt.key)
+			pos, script := splitLaunchArgs(tt.args, tt.dash)
+			if strings.Join(pos, " ") != strings.Join(tt.wantPos, " ") || strings.Join(script, " ") != strings.Join(tt.wantScript, " ") {
+				t.Errorf("splitLaunchArgs() = (%q, %q), want (%q, %q)", pos, script, tt.wantPos, tt.wantScript)
 			}
 		})
 	}
 }
 
-func TestListLaunchers(t *testing.T) {
+func TestLaunchDepth(t *testing.T) {
+	tests := []struct {
+		env     string
+		want    int
+		wantErr string
+	}{
+		{"", 0, ""},
+		{"3", 3, ""},
+		{"16", 0, "nested more than 16"},
+		{"x", 0, "invalid BEANS_LAUNCH_DEPTH"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.env, func(t *testing.T) {
+			got, err := launchDepth(tt.env)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("launchDepth(%q) error = %v, want containing %q", tt.env, err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil || got != tt.want {
+				t.Errorf("launchDepth(%q) = (%d, %v), want %d", tt.env, got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestListLaunches(t *testing.T) {
 	launchers := []config.Launcher{
 		{Name: "claude", Exec: "claude", Description: "Open in Claude"},
 		{Name: "tmux-worktree", Exec: "tmux new-window", Multiple: true, Background: true},
 	}
+	builtins := []launcherexec.Builtin{{Name: "agent", Description: "Start an agent"}}
 
 	t.Run("table", func(t *testing.T) {
 		var buf bytes.Buffer
-		if err := listLaunchers(&buf, launchers, false); err != nil {
+		if err := listLaunches(&buf, launchers, builtins, false); err != nil {
 			t.Fatal(err)
 		}
 		want := "claude         Open in Claude\n" +
-			"tmux-worktree  [multiple, background]\n"
+			"tmux-worktree  [multiple, background]\n" +
+			"\n" +
+			"builtin.agent  Start an agent\n"
 		if buf.String() != want {
 			t.Errorf("table output =\n%q\nwant\n%q", buf.String(), want)
 		}
@@ -128,31 +151,34 @@ func TestListLaunchers(t *testing.T) {
 
 	t.Run("table without launchers", func(t *testing.T) {
 		var buf bytes.Buffer
-		if err := listLaunchers(&buf, nil, false); err != nil {
+		if err := listLaunches(&buf, nil, builtins, false); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(buf.String(), "No launchers configured") {
+		if !strings.HasPrefix(buf.String(), "No launchers configured.\n\nbuiltin.agent") {
 			t.Errorf("output = %q", buf.String())
 		}
 	})
 
 	t.Run("json", func(t *testing.T) {
 		var buf bytes.Buffer
-		if err := listLaunchers(&buf, launchers, true); err != nil {
+		if err := listLaunches(&buf, launchers, builtins, true); err != nil {
 			t.Fatal(err)
 		}
 		var got []launcherInfo
 		if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
 			t.Fatalf("invalid JSON: %v\n%s", err, buf.String())
 		}
-		if len(got) != 2 || got[1].Name != "tmux-worktree" || !got[1].Multiple || !got[1].Background {
+		if len(got) != 3 || got[1].Name != "tmux-worktree" || !got[1].Multiple || !got[1].Background {
 			t.Errorf("json = %+v", got)
+		}
+		if got[2].Name != "builtin.agent" || !got[2].Builtin || got[2].Exec != "" {
+			t.Errorf("builtin entry = %+v", got[2])
 		}
 	})
 
-	t.Run("json without launchers is an empty array", func(t *testing.T) {
+	t.Run("json without launches is an empty array", func(t *testing.T) {
 		var buf bytes.Buffer
-		if err := listLaunchers(&buf, nil, true); err != nil {
+		if err := listLaunches(&buf, nil, nil, true); err != nil {
 			t.Fatal(err)
 		}
 		if strings.TrimSpace(buf.String()) != "[]" {
