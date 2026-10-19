@@ -116,3 +116,47 @@ func TestKittyWindow(t *testing.T) {
 		}
 	}
 }
+
+func TestWorktree(t *testing.T) {
+	repo := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	git("commit", "-q", "--allow-empty", "-m", "init")
+
+	b, _ := LookupBuiltin("worktree")
+	run := func(args ...string) string {
+		t.Helper()
+		l := Launch{Name: "builtin.worktree", Script: b.Script, Args: args, Builtin: true, ProjectRoot: repo, BeanID: "beans-abc1"}
+		out, err := CreateShellCommand(l).Output()
+		if err != nil {
+			t.Fatalf("worktree %v: %v", args, err)
+		}
+		return strings.TrimSpace(string(out))
+	}
+
+	t.Run("default location", func(t *testing.T) {
+		dir := run()
+		want, _ := filepath.EvalSymlinks(filepath.Join(repo, ".worktrees", "beans-abc1"))
+		if dir != want {
+			t.Errorf("path = %q, want %q", dir, want)
+		}
+		if run() != dir {
+			t.Error("second run should reuse the worktree")
+		}
+	})
+
+	t.Run("custom dir reuses the existing branch", func(t *testing.T) {
+		git("worktree", "remove", filepath.Join(repo, ".worktrees", "beans-abc1"))
+		custom := filepath.Join(t.TempDir(), "wt")
+		if dir := run("--dir", custom, "--base", "main"); !strings.HasSuffix(dir, "/wt") {
+			t.Errorf("path = %q, want .../wt", dir)
+		}
+	})
+}
