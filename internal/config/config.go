@@ -130,6 +130,9 @@ type Config struct {
 	// statuses is the resolved list of builtin and custom statuses (not serialized).
 	// Nil means only the builtins.
 	statuses []StatusConfig `yaml:"-"`
+
+	// launcherLayers holds each config file's own launchers, root-first (not serialized).
+	launcherLayers []launcherLayer `yaml:"-"`
 }
 
 // BeansConfig defines settings for bean creation.
@@ -240,6 +243,9 @@ func fromLayers(configPath string, layers []layer) (*Config, error) {
 	cfg.configDir = filepath.Dir(configPath)
 	cfg.configPath = configPath
 	cfg.recordOrigins(layers)
+	if cfg.launcherLayers, err = decodeLauncherLayers(layers); err != nil {
+		return nil, err
+	}
 	cfg.applyDefaults()
 
 	if err := cfg.validate(); err != nil {
@@ -310,6 +316,9 @@ func (c *Config) applyDefaults() {
 // validate checks the merged config for errors.
 func (c *Config) validate() error {
 	for _, launcher := range c.Launchers {
+		if strings.HasPrefix(launcher.Name, "builtin.") || strings.HasPrefix(launcher.Name, "parent.") {
+			return fmt.Errorf("launcher '%s': the prefixes builtin. and parent. are reserved", launcher.Name)
+		}
 		// Multi-line exec must have shebang
 		if strings.Contains(launcher.Exec, "\n") && !strings.HasPrefix(launcher.Exec, "#!") {
 			return fmt.Errorf("launcher '%s' has multi-line exec but no shebang (#!). Multi-line scripts must start with a shebang (e.g., #!/bin/bash)", launcher.Name)

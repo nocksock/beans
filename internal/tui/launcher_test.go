@@ -372,3 +372,16 @@ func TestDiscoverLaunchersKeepsConfigDir(t *testing.T) {
 		t.Errorf("dirs = %q, %q; want /repo, /repo/pkg", launchers[0].dir, launchers[1].dir)
 	}
 }
+
+func TestLaunchForUsesLauncherName(t *testing.T) {
+	app, b := newTestApp(t)
+	l := launcher{name: "open-shell", exec: "echo hi", dir: "/cfg"}
+
+	got := app.launchFor(l, b.ID, "fallback")
+	if got.Name != "open-shell" {
+		t.Errorf("Name = %q, want open-shell (the script's $0)", got.Name)
+	}
+	if got.Script != "echo hi" || got.ConfigDir != "/cfg" || got.BeanID != b.ID || got.BeanTitle != b.DisplayTitle() {
+		t.Errorf("launch = %+v", got)
+	}
+}

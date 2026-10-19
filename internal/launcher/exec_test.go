@@ -99,3 +99,26 @@ func TestCreateBackgroundCommand(t *testing.T) {
 		t.Errorf("log = %q, want stdout and stderr %q", got, want)
 	}
 }
+
+func TestCreateShellCommandPassesArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		builtin bool
+		script  string
+	}{
+		{"sh", false, `printf '%s|' "$0" "$@"`},
+		{"bash builtin", true, `[[ -n $BASH_VERSION ]] && printf '%s|' "$0" "$@"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := Launch{Name: "demo", Script: tt.script, Args: []string{"a b", "--", "c"}, ProjectRoot: t.TempDir(), Builtin: tt.builtin}
+			out, err := CreateShellCommand(l).Output()
+			if err != nil {
+				t.Fatalf("run: %v", err)
+			}
+			if got, want := string(out), "demo|a b|--|c|"; got != want {
+				t.Errorf("output = %q, want %q", got, want)
+			}
+		})
+	}
+}

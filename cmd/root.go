@@ -26,6 +26,14 @@ a full view of your project.`,
 		beansPath = config.ExpandHome(beansPath)
 		configPath = config.ExpandHome(configPath)
 
+		// Nested `beans launch` calls use the config and beans of the launch
+		// that started them, wherever the script cd'ed to
+		var searchDir string
+		if cmd == launchCmd {
+			pin := launchPin(configPath, beansPath, os.Getenv)
+			configPath, beansPath, searchDir, launchPinned = pin.configPath, pin.beansPath, pin.searchDir, pin.pinned
+		}
+
 		// Skip core initialization for init and prime commands
 		if cmd.Name() == "init" || cmd.Name() == "prime" {
 			return nil
@@ -42,11 +50,13 @@ a full view of your project.`,
 			}
 		} else {
 			// Search upward for .beans.yml
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("getting current directory: %w", err)
+			if searchDir == "" {
+				searchDir, err = os.Getwd()
+				if err != nil {
+					return fmt.Errorf("getting current directory: %w", err)
+				}
 			}
-			cfg, err = config.LoadFromDirectory(cwd)
+			cfg, err = config.LoadFromDirectory(searchDir)
 			if err != nil {
 				return fmt.Errorf("loading config: %w", err)
 			}
