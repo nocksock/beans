@@ -7,109 +7,44 @@ beans:
     default_type: task
 
 launchers:
+  # Composed from scripts/bean-launch [--worktree] [--tmux|--kitty] <claude|opencode|crush>
   - name: worktree-tmux+claude
     multiple: true
     background: true
     description: "Create git worktree and open Claude Code in a new tmux window"
-    exec: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      cd "${BEANS_ROOT:-.}"
-      WORKTREE_DIR="$(./scripts/bean-worktree)"
-
-      # Claude renames the window itself once it knows what the bean is about
-      read -r -d '' RENAME_NOTE <<'EOF' || true
-      ## tmux window
-
-      You are running in a tmux window. Before starting, rename it to `<bean-id>: <label>`, where <label> is a short summary of this bean of at most 20 characters:
-      `tmux rename-window -t "$TMUX_PANE" '<bean-id>: <label>'`
-      EOF
-
-      # Unquoted heredoc: paths are baked in, \$TMUX_PANE must resolve in the new window
-      HUB="$(pwd)"
-      read -r -d '' CLEANUP_NOTE <<EOF || true
-      ## Cleanup when done
-
-      This bean runs in the worktree $WORKTREE_DIR on branch task/$BEANS_ID. Clean up only after the user has explicitly declared the work done. Never on your own initiative, and never because the bean is marked completed.
-
-      Once the user has declared the work done, first bring the branch up to date with dev:
-      - Commit any remaining work on task/$BEANS_ID.
-      - Merge dev into the task branch: \`git -C "$WORKTREE_DIR" merge dev\`. If it conflicts, resolve the conflicts here in the worktree, run the tests, and commit the merge. If you cannot resolve a conflict with confidence, stop and ask the user.
-
-      Only then ask them with your question tool, offering exactly these two options:
-      - "Merge into dev, cleanup": merge the task branch into dev with \`git -C "$HUB/dev" merge --no-ff task/$BEANS_ID\`. Since dev was merged in first, this must apply cleanly; if it conflicts anyway or the dev worktree has uncommitted changes, stop and tell the user. Then run the steps below.
-      - "Merged, cleanup": the user has merged it already. Run the steps below.
-
-      1. Confirm the merge: \`git -C "$HUB" merge-base --is-ancestor task/$BEANS_ID dev\` must succeed. If it fails, stop and tell the user.
-      2. Check the related beans (parent, children, blocking and blocked-by; see \`beans show $BEANS_ID\`). If decisions or outcomes of this work affect any of them, update them with \`beans update\`, e.g. their body, status or blocking links, and tell the user what you changed.
-      3. Mark the bean completed and commit it in the hub together with any related bean updates: \`beans update $BEANS_ID --status completed && git -C "$HUB" add .beans && git -C "$HUB" commit -m "chore: complete $BEANS_ID"\`
-      4. Remove the worktree: \`git -C "$HUB" worktree remove "$WORKTREE_DIR"\`. Do not pass --force; if it refuses because of uncommitted changes, stop and tell the user.
-      5. Delete the branch from the dev worktree, so -d checks it against dev: \`git -C "$HUB/dev" branch -d task/$BEANS_ID\`
-      6. Close this tmux window as the very last step, since it ends this session: \`tmux kill-window -t "\$TMUX_PANE"\`
-      EOF
-      PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"$'\n\n'"$CLEANUP_NOTE"
-
-      # Draft beans get planned before any implementation
-      read -r -d '' DRAFT_NOTE <<EOF || true
-      ## Draft: plan first
-
-      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to in-progress with \`beans update $BEANS_ID --status in-progress\` and commit the bean change in the hub.
-      EOF
-      if [[ "$(beans show --json "$BEANS_ID" | jq -r .status)" == draft ]]; then
-        PROMPT+=$'\n\n'"$DRAFT_NOTE"
-      fi
-
-      tmux new-window -c "$WORKTREE_DIR" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
-        'claude "$BEANS_PROMPT"'
-  - name: opencode
-    exec: cd dev && opencode --prompt "Work on task $BEANS_ID"
-    description: "Open task in OpenCode"
-  - name: claude
-    exec: cd dev && claude "Work on task $BEANS_ID"
-    description: "Open task in Claude Code"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" --worktree --tmux claude'
+  - name: worktree-tmux+opencode
+    multiple: true
+    background: true
+    description: "Create git worktree and open OpenCode in a new tmux window"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" --worktree --tmux opencode'
+  - name: worktree-tmux+crush
+    multiple: true
+    background: true
+    description: "Create git worktree and open Crush in a new tmux window"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" --worktree --tmux crush'
+  - name: tmux+claude
+    background: true
+    description: "Open task in Claude Code in a new tmux window"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" --tmux claude'
+  - name: tmux+opencode
+    background: true
+    description: "Open task in OpenCode in a new tmux window"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" --tmux opencode'
+  - name: worktree-kitty+opencode
+    multiple: true
+    background: true
+    description: "Create git worktree and open OpenCode in a new kitty window"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" --worktree --kitty opencode'
   - name: tmux
     exec: ./scripts/tmux-session-run
     description: "Open task in tmux"
-  - name: tmux+claude
-    description: "Open task in Claude Code in a new tmux window"
-    exec: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-      # Claude renames the window itself once it knows what the bean is about
-      read -r -d '' RENAME_NOTE <<'EOF' || true
-      ## tmux window
-
-      You are running in a tmux window. Before starting, rename it to `<bean-id>: <label>`, where <label> is a short summary of this bean of at most 20 characters:
-      `tmux rename-window -t "$TMUX_PANE" '<bean-id>: <label>'`
-      EOF
-      PROMPT="$(beans show --prompt "$BEANS_ID")"$'\n\n'"$RENAME_NOTE"
-
-      # Draft beans get planned before any implementation
-      read -r -d '' DRAFT_NOTE <<EOF || true
-      ## Draft: plan first
-
-      This bean is still a draft. Do not implement anything yet. Plan the feature first: work out the requirements and open questions with the user, then write the agreed plan into the bean body. Once the plan is done, set the status to in-progress with \`beans update $BEANS_ID --status in-progress\` and commit the bean change in the hub.
-      EOF
-      if [[ "$(beans show --json "$BEANS_ID" | jq -r .status)" == draft ]]; then
-        PROMPT+=$'\n\n'"$DRAFT_NOTE"
-      fi
-
-      tmux new-window -c "${BEANS_ROOT:-.}/dev" -n "$BEANS_ID" -e "BEANS_PROMPT=$PROMPT" \
-        'claude "$BEANS_PROMPT"'
+  - name: claude
+    description: "Open task in Claude Code"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" claude'
+  - name: opencode
+    description: "Open task in OpenCode"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" opencode'
   - name: crush
-    exec: cd dev && crush run "Work on task $BEANS_ID"
     description: "Open task in Crush"
-  - name: worktree-kitty
-    multiple: true
-    description: "Create git worktree and open in new kitty window"
-    exec: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      cd "${BEANS_ROOT:-.}"
-      WORKTREE_DIR="$(./scripts/bean-worktree)"
-
-      # Open in new kitty window
-      kitty @ launch --type=window --cwd="$WORKTREE_DIR" \
-        opencode -p "Work on task $BEANS_ID"
+    exec: '"${BEANS_ROOT:-.}/scripts/bean-launch" crush'

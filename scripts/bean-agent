@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Start a coding agent in the current directory with $BEANS_PROMPT as its prompt.
+#
+# Usage: BEANS_PROMPT=... scripts/bean-agent <claude|opencode|crush>
+
+set -euo pipefail
+
+: "${BEANS_PROMPT:?BEANS_PROMPT not set}"
+
+case "${1:-}" in
+    claude) exec claude "$BEANS_PROMPT" ;;
+    opencode) exec opencode --prompt "$BEANS_PROMPT" ;;
+    # Interactive crush takes no prompt, so this runs it once, non-interactively
+    crush) exec crush run "$BEANS_PROMPT" ;;
+    *) echo "Usage: $0 <claude|opencode|crush>" >&2; exit 1 ;;
+esac
