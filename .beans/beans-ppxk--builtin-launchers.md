@@ -72,7 +72,7 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 - [x] Config: keep per-layer launcher definitions
 - [ ] Resolver: `X` / `builtin.X` / `parent.X`
 - [ ] Nested-call env (`BEANS_BIN`, `BEANS_LAUNCH_CONFIG`, `BEANS_LAUNCH_LAYER`, `BEANS_LAUNCH_DEPTH`) + recursion guard
-- [ ] Embedded builtins: tmux-window, tmux-session, kitty-window, worktree, prompt, agent
+- [x] Embedded builtins: tmux-window, tmux-session, kitty-window, worktree, prompt, agent
 - [ ] `--list` builtin section (text + JSON)
 - [ ] Docs (README / launcher docs, `beans prime` if it mentions `--launcher`)
 - [ ] Tests: resolution table, ID order, `$@` passthrough, recursion guard, builtin smoke tests with stubbed tmux/kitty/agents, worktree on temp repo
@@ -83,3 +83,5 @@ Migrate the hub `.beans.yml` + `scripts/` to the builtins: override `prompt` (ca
 2026-10-19 21:41: Task 1 done: config keeps per-layer launchers (Launcher, ParentLauncher, LoadedPath, reserved names), c732fc7
 2026-10-19 21:42: Task 2 done: Launch carries Name/Args/Builtin/ConfigPath/Depth, nested-call env, $0/$@ passing, ed8dba4
 2026-10-19 21:43: Task 3 done: builtin registry + tmux-window, tmux-session, kitty-window scripts
+2026-10-19 21:44: Task 4 done: worktree builtin, 482383a
+2026-10-19 21:44: Task 5 done: prompt and agent builtins, 0b7a1a3
