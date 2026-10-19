@@ -70,14 +70,14 @@ func TestEditModalSubmitOnlyChangedFields(t *testing.T) {
 		{
 			name: "status changed, save & edit",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
-				return pressCreate(m, keyMsg("tab"), keyMsg("tab"), keyMsg("tab"), keyMsg("l"), keyMsg("e"))
+				return pressCreate(m, keyMsg("tab"), keyMsg("tab"), keyMsg("tab"), keyMsg("right"), keyMsg("e"))
 			},
 			title: "<nil>", body: "<nil>", typ: "<nil>", status: "draft", prio: "<nil>", wantEditor: true,
 		},
 		{
 			name: "selector cycled back is unchanged",
 			build: func(m createModalModel) (createModalModel, tea.Cmd) {
-				return pressCreate(m, keyMsg("tab"), keyMsg("tab"), keyMsg("l"), keyMsg("h"), keyMsg("enter"))
+				return pressCreate(m, keyMsg("tab"), keyMsg("tab"), keyMsg("right"), keyMsg("left"), keyMsg("enter"))
 			},
 			title: "<nil>", body: "<nil>", typ: "<nil>", status: "<nil>", prio: "<nil>",
 		},

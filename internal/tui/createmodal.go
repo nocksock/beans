@@ -3,6 +3,7 @@ package tui
 import (
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
@@ -79,6 +80,10 @@ const selectorPadding = 4
 // editModalMinBodyHeight is the minimum height of the description field when editing
 const editModalMinBodyHeight = 5
 
+// typeAheadTimeout is how long a selector waits for the next letter of a
+// type-ahead prefix before starting a new one
+const typeAheadTimeout = time.Second
+
 // createField identifies a focusable field in the create form
 type createField int
 
@@ -109,6 +114,10 @@ type createModalModel struct {
 	priorityIdx int
 	sizeIdx     int
 	focus       createField
+	typeAhead   bool      // the focused selector selects by typed letters
+	typed       string    // the type-ahead prefix typed so far
+	typedAt     time.Time // when the last type-ahead letter was typed
+	now         func() time.Time
 	width       int
 	height      int
 	parentID    string // optional parent ID for the new bean
@@ -180,6 +189,7 @@ func newCreateModalModel(cfg *config.Config, width, height int, parentID, parent
 		height:      height,
 		parentID:    parentID,
 		parentTitle: parentTitle,
+		now:         time.Now,
 	}
 	m.typeIdx = indexByName(m.types, func(t config.TypeConfig) string { return t.Name }, cfg.GetDefaultType())
 	m.statusIdx = indexByName(m.statuses, func(s config.StatusConfig) string { return s.Name }, createModalDefaultStatus)
@@ -297,6 +307,8 @@ func (m createModalModel) prefixSelectable() bool {
 // setFocus moves focus to the given field, (un)focusing the text inputs accordingly
 func (m *createModalModel) setFocus(f createField) tea.Cmd {
 	m.focus = (f + createFieldCount) % createFieldCount
+	m.typeAhead = false
+	m.typed = ""
 	m.textInput.Blur()
 	m.body.Blur()
 	switch m.focus {
@@ -380,20 +392,109 @@ func (m createModalModel) trySubmit(openEditor bool) (createModalModel, tea.Cmd)
 	return m, m.submit(openEditor)
 }
 
+// selectorValues returns the value names of a selector field
+func (m createModalModel) selectorValues(f createField) []string {
+	switch f {
+	case createFieldPrefix:
+		return m.prefixes
+	case createFieldType:
+		return namesOf(m.types, func(t config.TypeConfig) string { return t.Name })
+	case createFieldStatus:
+		return namesOf(m.statuses, func(s config.StatusConfig) string { return s.Name })
+	case createFieldPriority:
+		return namesOf(m.priorities, func(p config.PriorityConfig) string { return p.Name })
+	case createFieldSize:
+		return namesOf(m.sizes, func(s config.SizeConfig) string { return s.Name })
+	}
+	return nil
+}
+
+// selectorIndex returns the selected index of a selector field
+func (m *createModalModel) selectorIndex(f createField) *int {
+	switch f {
+	case createFieldPrefix:
+		return &m.prefixIdx
+	case createFieldType:
+		return &m.typeIdx
+	case createFieldStatus:
+		return &m.statusIdx
+	case createFieldPriority:
+		return &m.priorityIdx
+	case createFieldSize:
+		return &m.sizeIdx
+	}
+	return nil
+}
+
+// selectedName returns the selected value of a selector field
+func (m createModalModel) selectedName(f createField) string {
+	return m.selectorValues(f)[*m.selectorIndex(f)]
+}
+
 // cycle moves the selection of the focused selector field by delta
 func (m *createModalModel) cycle(delta int) {
-	switch m.focus {
-	case createFieldPrefix:
-		m.prefixIdx = (m.prefixIdx + delta + len(m.prefixes)) % len(m.prefixes)
-	case createFieldType:
-		m.typeIdx = (m.typeIdx + delta + len(m.types)) % len(m.types)
-	case createFieldStatus:
-		m.statusIdx = (m.statusIdx + delta + len(m.statuses)) % len(m.statuses)
-	case createFieldPriority:
-		m.priorityIdx = (m.priorityIdx + delta + len(m.priorities)) % len(m.priorities)
-	case createFieldSize:
-		m.sizeIdx = (m.sizeIdx + delta + len(m.sizes)) % len(m.sizes)
+	n := len(m.selectorValues(m.focus))
+	if idx := m.selectorIndex(m.focus); idx != nil {
+		*idx = (*idx + delta + n) % n
 	}
+}
+
+// typeAheadKey selects the first value of the focused selector that starts
+// with the letters typed so far. Typing the only letter again moves to the
+// next value starting with it. A letter that matches nothing is ignored.
+func (m *createModalModel) typeAheadKey(r rune) {
+	now := m.now()
+	if now.Sub(m.typedAt) > typeAheadTimeout {
+		m.typed = ""
+	}
+	m.typedAt = now
+
+	letter := strings.ToLower(string(r))
+	values := m.selectorValues(m.focus)
+	idx := m.selectorIndex(m.focus)
+	from := 0
+	prefix := m.typed + letter
+	if m.typed == letter {
+		from, prefix = *idx+1, letter
+	}
+	for i := range values {
+		j := (from + i) % len(values)
+		if strings.HasPrefix(strings.ToLower(values[j]), prefix) {
+			*idx = j
+			m.typed = prefix
+			return
+		}
+	}
+}
+
+// selectorFields returns the selector fields that can be focused, left to right
+func (m createModalModel) selectorFields() []createField {
+	fields := []createField{createFieldType, createFieldStatus, createFieldPriority, createFieldSize}
+	if m.prefixSelectable() {
+		fields = append([]createField{createFieldPrefix}, fields...)
+	}
+	return fields
+}
+
+// moveSelector moves focus to the selector delta columns away, stopping at
+// the ends of the row
+func (m *createModalModel) moveSelector(delta int) {
+	fields := m.selectorFields()
+	i := slices.Index(fields, m.focus) + delta
+	if i >= 0 && i < len(fields) {
+		m.setFocus(fields[i])
+	}
+}
+
+// focusField moves focus to a field picked by a jump chord: selectors start
+// in type-ahead mode, a prefix that can't be changed keeps the focus
+func (m *createModalModel) focusField(f createField) tea.Cmd {
+	if f == createFieldPrefix && !m.prefixSelectable() {
+		return nil
+	}
+	cmd := m.setFocus(f)
+	m.typeAhead = m.isSelectorFocused()
+	return cmd
 }
 
 func (m createModalModel) isSelectorFocused() bool {
@@ -416,8 +517,30 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		k := keymap.CreateModal
+		jumps := []struct {
+			binding key.Binding
+			field   createField
+		}{
+			{k.FocusTitle, createFieldTitle},
+			{k.FocusBody, createFieldBody},
+			{k.FocusPrefix, createFieldPrefix},
+			{k.FocusType, createFieldType},
+			{k.FocusStatus, createFieldStatus},
+			{k.FocusPriority, createFieldPriority},
+			{k.FocusSize, createFieldSize},
+		}
+		for _, j := range jumps {
+			if key.Matches(msg, j.binding) {
+				return m, m.focusField(j.field)
+			}
+		}
+
 		switch {
 		case key.Matches(msg, k.Cancel):
+			if m.typeAhead {
+				m.typeAhead = false
+				return m, nil
+			}
 			return m, func() tea.Msg { return closeCreateModalMsg{} }
 		case key.Matches(msg, k.NextField):
 			return m, m.moveFocus(1)
@@ -435,15 +558,7 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 		}
 
 		if m.isSelectorFocused() {
-			switch {
-			case key.Matches(msg, k.CyclePrev):
-				m.cycle(-1)
-			case key.Matches(msg, k.CycleNext):
-				m.cycle(1)
-			case key.Matches(msg, k.QuickSubmitAndEdit):
-				return m.trySubmit(true)
-			}
-			return m, nil
+			return m.updateSelector(msg)
 		}
 	}
 
@@ -454,6 +569,47 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 		m.body, cmd = m.body.Update(msg)
 	}
 	return m, cmd
+}
+
+// updateSelector handles a key on a focused selector field
+func (m createModalModel) updateSelector(msg tea.KeyMsg) (createModalModel, tea.Cmd) {
+	k := keymap.CreateModal
+	switch {
+	case key.Matches(msg, k.CyclePrev):
+		m.cycle(-1)
+		return m, nil
+	case key.Matches(msg, k.CycleNext):
+		m.cycle(1)
+		return m, nil
+	}
+
+	if !m.typeAhead {
+		switch {
+		case key.Matches(msg, k.NavLeft):
+			m.moveSelector(-1)
+			return m, nil
+		case key.Matches(msg, k.NavRight):
+			m.moveSelector(1)
+			return m, nil
+		case key.Matches(msg, k.NavUp):
+			return m, m.setFocus(createFieldBody)
+		case key.Matches(msg, k.NavDown):
+			// The selectors are the bottom row
+			return m, nil
+		case key.Matches(msg, k.TypeAhead):
+			m.typeAhead = true
+			return m, nil
+		case key.Matches(msg, k.QuickSubmitAndEdit):
+			return m.trySubmit(true)
+		}
+	}
+
+	// Any other letter types ahead, entering type-ahead mode
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && !msg.Alt {
+		m.typeAhead = true
+		m.typeAheadKey(msg.Runes[0])
+	}
+	return m, nil
 }
 
 func (m createModalModel) View() string {
@@ -489,7 +645,7 @@ func (m createModalModel) View() string {
 	label := func(f createField, text string) string {
 		style := lipgloss.NewStyle().Foreground(ui.ColorMuted)
 		if m.focus == f {
-			style = lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true)
+			style = lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true).Underline(m.typeAhead)
 		}
 		return style.Render(text)
 	}
@@ -562,14 +718,26 @@ func (m createModalModel) View() string {
 	case createFieldTitle:
 		help = hint(k.QuickSubmit, verb)
 	default:
-		help = groupHint("change", k.CyclePrev, k.CycleNext) +
-			hint(k.QuickSubmit, verb) +
-			hint(k.QuickSubmitAndEdit, verb+" & edit")
+		if m.typeAhead {
+			help = helpStyle.Render("type to select") + "  " +
+				groupHint("change", k.CyclePrev, k.CycleNext) +
+				hint(k.QuickSubmit, verb)
+		} else {
+			// The quick submit & edit key works too, but doesn't fit
+			help = groupHint("move", k.NavLeft, k.NavRight) +
+				groupHint("change", k.CyclePrev, k.CycleNext) +
+				hint(k.TypeAhead, "type") +
+				hint(k.QuickSubmit, verb)
+		}
 	}
 	if !m.isSelectorFocused() {
 		help += hint(k.SubmitAndEdit, verb+" & edit")
 	}
-	help = hints(help, hint(k.NextField, ""), hint(k.Cancel, ""))
+	cancel := hint(k.Cancel, "")
+	if m.typeAhead {
+		cancel = hint(k.Cancel, "done")
+	}
+	help = hints(help, hint(k.NextField, ""), cancel)
 
 	// Assemble content: the placeholders and the focused border identify the
 	// text fields, so they have no labels
