@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -21,6 +22,9 @@ import (
 var (
 	launchList bool
 	launchJSON bool
+	// launchPinned is set by the root command when a nested `beans launch`
+	// reuses the launching project's config and beans (see launchPin).
+	launchPinned bool
 )
 
 // maxLaunchDepth caps nested `beans launch` calls, e.g. a `prompt` override
@@ -44,51 +48,134 @@ launches), else from the first line of stdin:
 
   echo beans-abc1 | beans launch claude
 
+Inside a launch $BEANS_ID wins over stdin, and nested calls reuse the
+launching project's config and beans unless --config or --beans-path is given.
+
 Use --list to show the configured launchers and the builtins.`,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := checkLaunchFlags(launchList, launchJSON, len(args)); err != nil {
+			return err
+		}
 		if launchList {
 			return listLaunches(cmd.OutOrStdout(), cfg.Launchers, launcherexec.Builtins(), launchJSON)
 		}
 
-		positional, scriptArgs := splitLaunchArgs(args, cmd.ArgsLenAtDash())
-		if len(positional) == 0 {
-			return fmt.Errorf("no launch given, see beans launch --list")
-		}
-		if len(positional) > 2 {
-			return fmt.Errorf("too many arguments, pass arguments for the launch after --")
-		}
-
-		depth, err := launchDepth(os.Getenv("BEANS_LAUNCH_DEPTH"))
+		plan, err := prepareLaunch(cfg, args, cmd.ArgsLenAtDash(), launchPinned, os.Getenv, os.Stdin)
 		if err != nil {
+			cmd.SilenceUsage = !isLaunchUsageError(err)
 			return err
 		}
-		resolved, err := launcherexec.Resolve(cfg, positional[0], os.Getenv("BEANS_LAUNCH_LAYER"))
-		if err != nil {
-			return err
-		}
-
-		id, fromStdin, err := launchBeanID(positional[1:], os.Getenv("BEANS_ID"), os.Stdin)
-		if err != nil {
-			return err
-		}
-
-		resolver := &graph.Resolver{Core: core}
-		b, err := resolver.Query().Bean(context.Background(), id)
-		if err != nil {
-			return handleBeanQueryError(err, false, id)
-		}
-		if b == nil {
-			return fmt.Errorf("bean not found: %s", id)
-		}
-
 		// From here on, failures are the launch's, not a usage problem.
 		cmd.SilenceUsage = true
-		launch := newCLILaunch(resolved, b)
-		launch.Args = scriptArgs
-		launch.Depth = depth
-		return runLaunch(launch, fromStdin)
+
+		resolver := &graph.Resolver{Core: core}
+		b, err := resolver.Query().Bean(context.Background(), plan.id)
+		if err != nil {
+			return handleBeanQueryError(err, false, plan.id)
+		}
+		if b == nil {
+			return fmt.Errorf("bean not found: %s", plan.id)
+		}
+
+		launch := newCLILaunch(plan.resolved, b)
+		launch.Args = plan.scriptArgs
+		launch.Depth = plan.depth
+		err = runLaunch(launch, plan.fromStdin)
+		// A nested launch's failure was already reported by the launch that
+		// failed; the outermost call reports the exit code once more.
+		var exitErr *exitCodeError
+		if plan.depth > 0 && errors.As(err, &exitErr) {
+			cmd.SilenceErrors = true
+		}
+		return err
 	},
+}
+
+// launchPaths is where a `beans launch` call loads its config and beans from.
+type launchPaths struct {
+	configPath string // config file to load; "" searches upward from searchDir
+	beansPath  string // beans directory; "" uses the config's
+	searchDir  string // where to search for the config; "" is the cwd
+	pinned     bool   // nested call reusing the launching project
+}
+
+// launchPin decides where a `beans launch` call loads its config and beans
+// from. A nested call (BEANS_LAUNCH_DEPTH set) without --config and
+// --beans-path is pinned to the launching project: its beans directory and
+// config file, or, for a project without config file, the config found from
+// its root. Otherwise the launch environment is ignored entirely.
+func launchPin(configFlag, beansFlag string, getenv func(string) string) launchPaths {
+	if getenv("BEANS_LAUNCH_DEPTH") == "" || configFlag != "" || beansFlag != "" {
+		return launchPaths{configPath: configFlag, beansPath: beansFlag}
+	}
+	p := launchPaths{configPath: getenv("BEANS_LAUNCH_CONFIG"), beansPath: getenv("BEANS_DIR"), pinned: true}
+	if p.configPath == "" {
+		p.searchDir = getenv("BEANS_ROOT")
+	}
+	return p
+}
+
+// checkLaunchFlags rejects flag combinations that make no sense.
+func checkLaunchFlags(list, asJSON bool, nargs int) error {
+	if list && nargs > 0 {
+		return fmt.Errorf("--list takes no arguments")
+	}
+	if asJSON && !list {
+		return fmt.Errorf("--json only works with --list")
+	}
+	return nil
+}
+
+// launchUsageError is a wrongly called `beans launch`, which shows the usage.
+type launchUsageError struct{ error }
+
+func isLaunchUsageError(err error) bool {
+	var u launchUsageError
+	return errors.As(err, &u)
+}
+
+// launchPlan is a launch resolved from the command line and environment,
+// before its bean is looked up.
+type launchPlan struct {
+	resolved   launcherexec.Resolved
+	id         string
+	fromStdin  bool
+	depth      int
+	scriptArgs []string
+}
+
+// prepareLaunch resolves the launch named in args (dash as in
+// splitLaunchArgs) and the bean ID. Only a pinned call looks up parent.
+// launches from the caller's config layer ($BEANS_LAUNCH_LAYER); any other
+// call starts above the leaf config, as that layer may belong to another
+// project.
+func prepareLaunch(cfg *config.Config, args []string, dash int, pinned bool, getenv func(string) string, stdin *os.File) (launchPlan, error) {
+	positional, scriptArgs := splitLaunchArgs(args, dash)
+	if len(positional) == 0 {
+		return launchPlan{}, launchUsageError{fmt.Errorf("no launch given, see beans launch --list")}
+	}
+	if len(positional) > 2 {
+		return launchPlan{}, launchUsageError{fmt.Errorf("too many arguments, pass arguments for the launch after --")}
+	}
+
+	depth, err := launchDepth(getenv("BEANS_LAUNCH_DEPTH"))
+	if err != nil {
+		return launchPlan{}, err
+	}
+	var callerLayer string
+	if pinned {
+		callerLayer = getenv("BEANS_LAUNCH_LAYER")
+	}
+	resolved, err := launcherexec.Resolve(cfg, positional[0], callerLayer)
+	if err != nil {
+		return launchPlan{}, err
+	}
+	id, fromStdin, err := launchBeanID(positional[1:], getenv("BEANS_ID"), stdin)
+	if err != nil {
+		return launchPlan{}, err
+	}
+	return launchPlan{resolved: resolved, id: id, fromStdin: fromStdin, depth: depth, scriptArgs: scriptArgs}, nil
 }
 
 // splitLaunchArgs splits args at the -- cobra saw (dash is
