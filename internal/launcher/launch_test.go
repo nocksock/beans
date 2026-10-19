@@ -85,3 +85,41 @@ func TestCreateExecCommandRunsInWorkDir(t *testing.T) {
 		})
 	}
 }
+
+func TestLaunchEnvForNestedCalls(t *testing.T) {
+	tests := []struct {
+		name   string
+		launch Launch
+		want   []string
+	}{
+		{
+			name:   "configured launch",
+			launch: Launch{ProjectRoot: "/repo/pkg", ConfigDir: "/repo", ConfigPath: "/repo/pkg/.beans.yml", Depth: 2},
+			want:   []string{"BEANS_LAUNCH_CONFIG=/repo/pkg/.beans.yml", "BEANS_LAUNCH_LAYER=/repo", "BEANS_LAUNCH_DEPTH=3"},
+		},
+		{
+			name:   "builtin has no layer",
+			launch: Launch{ProjectRoot: "/repo/pkg", Builtin: true},
+			want:   []string{"BEANS_LAUNCH_LAYER=", "BEANS_LAUNCH_DEPTH=1", "BEANS_CONFIG_DIR=/repo/pkg"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := tt.launch.Env()
+			for _, want := range tt.want {
+				if !slices.Contains(env, want) {
+					t.Errorf("Env() missing %q", want)
+				}
+			}
+			if !slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "BEANS_BIN=/") }) {
+				t.Error("Env() missing absolute BEANS_BIN")
+			}
+		})
+	}
+}
+
+func TestBuiltinRunsInCallersDirectory(t *testing.T) {
+	if got := (Launch{ProjectRoot: "/repo", ConfigDir: "/repo", Builtin: true}).WorkDir(); got != "" {
+		t.Errorf("WorkDir() = %q, want empty (current directory)", got)
+	}
+}

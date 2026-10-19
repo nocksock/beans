@@ -1,15 +1,22 @@
 package launcher
 
 import (
+	"cmp"
 	"errors"
 	"io"
 	"os"
 	"os/exec"
 )
 
-// CreateShellCommand creates a command that runs a launch's script via sh -c.
+// CreateShellCommand creates a command that runs a launch's script via sh -c
+// (bash -c for builtins), with the launch's name as $0 and its args as $@.
 func CreateShellCommand(l Launch) *exec.Cmd {
-	cmd := exec.Command("sh", "-c", l.Script)
+	shell := "sh"
+	if l.Builtin {
+		shell = "bash"
+	}
+	args := append([]string{"-c", l.Script, cmp.Or(l.Name, "beans-launch")}, l.Args...)
+	cmd := exec.Command(shell, args...)
 	cmd.Env = l.Env()
 	cmd.Dir = l.WorkDir()
 	return cmd
