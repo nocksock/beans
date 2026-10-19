@@ -8,7 +8,7 @@ worktree=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         --tmux) tmux_window=true; shift ;;
-        --worktree) worktree=$2; shift 2 ;;
+        --worktree) worktree=${2:?--worktree needs a value}; shift 2 ;;
         *) echo "usage: prompt [--tmux] [--worktree DIR]" >&2; exit 2 ;;
     esac
 done
@@ -39,7 +39,11 @@ You are working in the git worktree $worktree on branch task/$BEANS_ID. Commit y
 EOT
 fi
 
-if "${beans[@]}" show --json "$BEANS_ID" | grep -Eq '"status": *"draft"'; then
+# Captured rather than piped into grep -q, which can exit early and kill a
+# large output with SIGPIPE, failing the pipeline under pipefail
+json=$("${beans[@]}" show --json "$BEANS_ID")
+draft_re='"status": *"draft"'
+if [[ $json =~ $draft_re ]]; then
     cat <<EOT
 
 ## Draft: plan first
