@@ -39,6 +39,8 @@ func TestParentLauncher(t *testing.T) {
 		{name: "nothing above user", launcher: "tmux", layer: userDir},
 		{name: "skips layers without it", launcher: "only-user", layer: pkg, wantExec: "user-only", wantDir: userDir, wantOK: true},
 		{name: "unknown name", launcher: "nope", layer: pkg},
+		{name: "empty layer from the leaf finds the layer above", launcher: "tmux", layer: "", wantExec: "root-tmux", wantDir: root, wantOK: true},
+		{name: "non-clean layer path", launcher: "tmux", layer: pkg + "/", wantExec: "root-tmux", wantDir: root, wantOK: true},
 		{name: "unknown layer", launcher: "tmux", layer: "/elsewhere", wantErr: "not part of this config"},
 	}
 	for _, tt := range tests {
@@ -55,6 +57,37 @@ func TestParentLauncher(t *testing.T) {
 			}
 			if ok != tt.wantOK || l.Exec != tt.wantExec || l.Dir != tt.wantDir {
 				t.Errorf("ParentLauncher() = (%q in %q, %v), want (%q in %q, %v)", l.Exec, l.Dir, ok, tt.wantExec, tt.wantDir, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestParentLauncherWithoutProjectConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		userYAML string
+		wantOK   bool
+	}{
+		{name: "user config declares it", userYAML: "launchers:\n  - name: tmux\n    exec: user-tmux\n", wantOK: true},
+		{name: "no user config"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			xdg := t.TempDir()
+			t.Setenv("XDG_CONFIG_HOME", xdg)
+			if tt.userYAML != "" {
+				writeTree(t, xdg, map[string]string{"beans/config.yml": tt.userYAML})
+			}
+			cfg, err := LoadFromDirectory(t.TempDir())
+			if err != nil {
+				t.Fatalf("LoadFromDirectory() error = %v", err)
+			}
+			l, ok, err := cfg.ParentLauncher("tmux", "")
+			if err != nil {
+				t.Fatalf("ParentLauncher() error = %v", err)
+			}
+			if ok != tt.wantOK || (ok && l.Exec != "user-tmux") {
+				t.Errorf("ParentLauncher() = (%q, %v), want ok=%v", l.Exec, ok, tt.wantOK)
 			}
 		})
 	}

@@ -37,8 +37,9 @@ func (l Launch) configDir() string {
 	return l.ProjectRoot
 }
 
-// layer is the config directory `parent.` lookups of nested calls start
-// from; builtins belong to no config layer.
+// layer is the config layer `parent.` lookups of nested calls start from. It
+// intentionally mirrors WorkDir's builtin rule but means something different:
+// builtins belong to no config layer, so "" makes the lookup start at the leaf.
 func (l Launch) layer() string {
 	if l.Builtin {
 		return ""
@@ -49,7 +50,10 @@ func (l Launch) layer() string {
 // Env returns the process environment plus the BEANS_* variables, including
 // the ones nested `beans launch` calls use to find the same config.
 func (l Launch) Env() []string {
-	bin, _ := os.Executable()
+	bin, err := os.Executable()
+	if err != nil {
+		bin = os.Args[0]
+	}
 	return append(os.Environ(),
 		fmt.Sprintf("BEANS_ROOT=%s", l.ProjectRoot),
 		fmt.Sprintf("BEANS_CONFIG_DIR=%s", l.configDir()),

@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -87,6 +88,7 @@ func TestCreateExecCommandRunsInWorkDir(t *testing.T) {
 }
 
 func TestLaunchEnvForNestedCalls(t *testing.T) {
+	t.Setenv("BEANS_LAUNCH_DEPTH", "7")
 	tests := []struct {
 		name   string
 		launch Launch
@@ -110,6 +112,17 @@ func TestLaunchEnvForNestedCalls(t *testing.T) {
 				if !slices.Contains(env, want) {
 					t.Errorf("Env() missing %q", want)
 				}
+			}
+			// exec.Cmd uses the last duplicate, so the last entry must win.
+			var lastDepth string
+			for _, e := range env {
+				if strings.HasPrefix(e, "BEANS_LAUNCH_DEPTH=") {
+					lastDepth = e
+				}
+			}
+			wantDepth := fmt.Sprintf("BEANS_LAUNCH_DEPTH=%d", tt.launch.Depth+1)
+			if lastDepth != wantDepth {
+				t.Errorf("last BEANS_LAUNCH_DEPTH entry = %q, want %q", lastDepth, wantDepth)
 			}
 			if !slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "BEANS_BIN=/") }) {
 				t.Error("Env() missing absolute BEANS_BIN")

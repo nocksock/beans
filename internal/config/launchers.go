@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 
 	"gopkg.in/yaml.v3"
@@ -46,14 +47,29 @@ func (c *Config) Launcher(name string) (Launcher, bool) {
 }
 
 // ParentLauncher returns the launcher name as declared by the nearest config
-// layer above the one in layerDir: the definition a launcher in layerDir
+// layer above the caller's: the definition a launcher in that layer
 // overrides. ok is false when no layer above declares it.
+//
+// layerDir names the caller's config layer (compared after filepath.Clean, as
+// it usually comes back from an environment variable). An empty layerDir means
+// the caller is the leaf: with a project config file the leaf is the last
+// layer; without one (only the user layer, if any) every layer is above it.
 func (c *Config) ParentLauncher(name, layerDir string) (l Launcher, ok bool, err error) {
-	i := slices.IndexFunc(c.launcherLayers, func(ll launcherLayer) bool { return ll.dir == layerDir })
-	if i < 0 {
-		return Launcher{}, false, fmt.Errorf("config directory %s is not part of this config", layerDir)
+	var start int
+	if layerDir == "" {
+		start = len(c.launcherLayers) - 1
+		if c.configPath != "" {
+			start--
+		}
+	} else {
+		want := filepath.Clean(layerDir)
+		i := slices.IndexFunc(c.launcherLayers, func(ll launcherLayer) bool { return filepath.Clean(ll.dir) == want })
+		if i < 0 {
+			return Launcher{}, false, fmt.Errorf("config directory %s is not part of this config", layerDir)
+		}
+		start = i - 1
 	}
-	for i--; i >= 0; i-- {
+	for i := start; i >= 0; i-- {
 		for _, l := range c.launcherLayers[i].launchers {
 			if l.Name == name {
 				return l, true, nil
@@ -64,7 +80,7 @@ func (c *Config) ParentLauncher(name, layerDir string) (l Launcher, ok bool, err
 }
 
 // LoadedPath returns the config file this config was loaded from, or "" when
-// no project config file was found.
+// no project config file was found. Unlike ConfigPath it has no fallback.
 func (c *Config) LoadedPath() string {
 	return c.configPath
 }
