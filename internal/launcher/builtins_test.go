@@ -126,13 +126,17 @@ func containsSeq(args, want []string) bool {
 }
 
 // checkForwardedEnv checks that a host builtin passed the bean's env on with
-// flag (-e or --env), as single arguments, and nothing else.
-func checkForwardedEnv(t *testing.T, args []string, flag string) {
+// flag (-e or --env), as single arguments, and nothing else. withChain says
+// whether the launch-chain variables (BEANS_LAUNCH_*) go the same way.
+func checkForwardedEnv(t *testing.T, args []string, flag string, withChain bool) {
 	t.Helper()
-	for _, want := range []string{"BEANS_ID=beans-abc1", "BEANS_TASK=Do it", "BEANS_LAUNCH_DEPTH=1"} {
+	for _, want := range []string{"BEANS_ID=beans-abc1", "BEANS_TASK=Do it"} {
 		if !containsSeq(args, []string{flag, want}) {
 			t.Errorf("args %q missing %s %q", args, flag, want)
 		}
+	}
+	if got := containsSeq(args, []string{flag, "BEANS_LAUNCH_DEPTH=1"}); got != withChain {
+		t.Errorf("args %q: %s BEANS_LAUNCH_DEPTH=1 forwarded = %v, want %v", args, flag, got, withChain)
 	}
 	for _, a := range args {
 		if strings.HasPrefix(a, "BEANS_PROMPT=") {
@@ -154,7 +158,7 @@ func TestTmuxWindow(t *testing.T) {
 	if !slices.Equal(got[len(got)-3:], []string{"--", "echo", "a b"}) {
 		t.Errorf("tmux args %q should end with -- echo 'a b'", got)
 	}
-	checkForwardedEnv(t, got, "-e")
+	checkForwardedEnv(t, got, "-e", true)
 }
 
 func TestTmuxWindowRelativeCwd(t *testing.T) {
@@ -173,8 +177,11 @@ func TestTmuxWindowRelativeCwd(t *testing.T) {
 }
 
 func TestTmuxSession(t *testing.T) {
-	// has-session fails, so the session gets created
-	tmux := `case $1 in has-session) exit 1 ;; esac`
+	// has-session fails, so the session gets created. Every call records the
+	// BEANS_* variables tmux itself runs with, which a server it starts would
+	// copy into its global environment.
+	tmux := `env | grep '^BEANS_' >> "$0.env"; case $1 in has-session) exit 1 ;; esac`
+	chain := []string{"env", "BEANS_LAUNCH_CONFIG=", "BEANS_LAUNCH_LAYER=", "BEANS_LAUNCH_DEPTH=1"}
 	tests := []struct {
 		name     string
 		tmuxEnv  string
@@ -184,12 +191,16 @@ func TestTmuxSession(t *testing.T) {
 	}{
 		{name: "attach", args: []string{"--cwd", "/work"}, wantLast: []string{"attach-session", "-t", "=beans-abc1"}},
 		{name: "switch", tmuxEnv: "/tmp/tmux-1/default,1,0", args: []string{"--cwd", "/work", "--", "echo", "a b"},
-			wantCmd: []string{"--", "echo", "a b"}, wantLast: []string{"switch-client", "-t", "=beans-abc1"}},
+			wantCmd: append(append([]string{"--"}, chain...), "echo", "a b"), wantLast: []string{"switch-client", "-t", "=beans-abc1"}},
+		// A single argument is a shell command, as tmux would run it
+		{name: "shell command", args: []string{"--cwd", "/work", "--", "vim; bash"},
+			wantCmd: append(append([]string{"--"}, chain...), "/bin/sh", "-c", "vim; bash"), wantLast: []string{"attach-session", "-t", "=beans-abc1"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stubs := stubTools(t, map[string]string{"tmux": tmux})
 			t.Setenv("TMUX", tt.tmuxEnv)
+			t.Setenv("SHELL", "/bin/sh")
 			t.Setenv("BEANS_PROMPT", "stray")
 			runBuiltin(t, "tmux-session", tt.args...)
 
@@ -201,16 +212,97 @@ func TestTmuxSession(t *testing.T) {
 			if !containsSeq(newSession, []string{"new-session", "-d", "-s", "beans-abc1", "-c", "/work"}) {
 				t.Errorf("new-session args = %q", newSession)
 			}
-			checkForwardedEnv(t, newSession, "-e")
+			// -e sets the session's environment, which every later window
+			// (and, without a command, the session's own shell) inherits
+			checkForwardedEnv(t, newSession, "-e", false)
 			if tt.wantCmd != nil {
 				if !slices.Equal(newSession[len(newSession)-len(tt.wantCmd):], tt.wantCmd) {
 					t.Errorf("new-session args %q should end with %q", newSession, tt.wantCmd)
 				}
-			} else if slices.Contains(newSession, "--") {
-				t.Errorf("new-session args %q should have no command", newSession)
+			} else {
+				if slices.Contains(newSession, "--") {
+					t.Errorf("new-session args %q should have no command", newSession)
+				}
+				for _, a := range newSession {
+					if strings.Contains(a, "BEANS_LAUNCH_") {
+						t.Errorf("new-session args %q pass launch-chain variable %q to the interactive shell", newSession, a)
+					}
+				}
 			}
 			if !slices.Equal(calls[2], tt.wantLast) {
 				t.Errorf("last tmux call = %q, want %q", calls[2], tt.wantLast)
+			}
+			tmuxEnv, _ := os.ReadFile(filepath.Join(stubs, "tmux.env"))
+			if strings.Contains(string(tmuxEnv), "BEANS_LAUNCH_") {
+				t.Errorf("tmux ran with launch-chain variables, a new server would keep them:\n%s", tmuxEnv)
+			}
+		})
+	}
+}
+
+// scriptLines returns a script's lines with continuations joined.
+func scriptLines(script string) []string {
+	lines := strings.Split(strings.ReplaceAll(script, "\\\n", " "), "\n")
+	for i := range lines {
+		lines[i] = strings.TrimSpace(lines[i])
+	}
+	return lines
+}
+
+// forwardedVars returns the variable names a host builtin forwards, from its
+// `for var in ...; do` loops.
+func forwardedVars(t *testing.T, script string) []string {
+	t.Helper()
+	var names []string
+	for _, line := range scriptLines(script) {
+		rest, ok := strings.CutPrefix(line, "for var in ")
+		if !ok {
+			continue
+		}
+		list, _, ok := strings.Cut(rest, ";")
+		if !ok {
+			t.Fatalf("unexpected loop %q", line)
+		}
+		names = append(names, strings.Fields(list)...)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// unsetVars returns the BEANS_* variables a builtin's `unset` lines remove,
+// and whether it has any.
+func unsetVars(script string) ([]string, bool) {
+	var names []string
+	found := false
+	for _, line := range scriptLines(script) {
+		rest, ok := strings.CutPrefix(line, "unset ")
+		if !ok || !strings.HasPrefix(rest, "BEANS_") {
+			continue
+		}
+		found = true
+		names = append(names, strings.Fields(rest)...)
+	}
+	slices.Sort(names)
+	return names, found
+}
+
+func TestHostBuiltinsForwardLaunchEnv(t *testing.T) {
+	base := len(os.Environ())
+	var want []string
+	for _, kv := range (Launch{}).Env()[base:] {
+		name, _, _ := strings.Cut(kv, "=")
+		want = append(want, name)
+	}
+	slices.Sort(want)
+
+	for _, name := range []string{"tmux-window", "tmux-session", "kitty-window"} {
+		t.Run(name, func(t *testing.T) {
+			script := lookupBuiltin(t, name).Script
+			if got := forwardedVars(t, script); !slices.Equal(got, want) {
+				t.Errorf("forwarded variables = %q, want Launch.Env's %q", got, want)
+			}
+			if got, ok := unsetVars(script); ok && !slices.Equal(got, want) {
+				t.Errorf("unset variables = %q, want Launch.Env's %q", got, want)
 			}
 		})
 	}
@@ -240,7 +332,7 @@ func TestKittyWindow(t *testing.T) {
 	if !slices.Equal(got[len(got)-2:], []string{"echo", "hi"}) {
 		t.Errorf("kitty args %q should end with echo hi", got)
 	}
-	checkForwardedEnv(t, got, "--env")
+	checkForwardedEnv(t, got, "--env", true)
 }
 
 func TestHostBuiltinsRejectMissingFlagValue(t *testing.T) {

@@ -470,7 +470,7 @@ beans ships launches you can use directly or compose in your own. They are bash 
 | `prompt` | `-- [--tmux] [--worktree DIR]` print the agent prompt for the bean |
 | `agent` | `-- <claude\|opencode\|crush> [PROMPT-ARGS...]` start a coding agent with the output of the `prompt` launch |
 
-A relative `--cwd` or `--dir` is relative to the directory you call the builtin from. The default `.worktrees/` directory should be in your `.gitignore`.
+A relative `--cwd` or `--dir` is relative to the directory you call the builtin from. The default `.worktrees/` directory should be in your `.gitignore`. `worktree` defaults to `$BEANS_ROOT/.worktrees/<bean-id>`, i.e. the project root rather than `BEANS_CONFIG_DIR`, so in a subproject with its own `.beans.yml` pass `--dir` if you want the worktree elsewhere.
 
 Names resolve like this:
 
@@ -498,7 +498,7 @@ launchers:
       echo "Run the tests before you commit."
 ```
 
-Launches get these extra variables for nested calls: `BEANS_BIN` (the running beans binary), `BEANS_LAUNCH_CONFIG`, `BEANS_LAUNCH_LAYER` and `BEANS_LAUNCH_DEPTH`. A nested `beans launch` reuses the config file and beans directory of the launching project, unless you pass `--config` or `--beans-path`. Nesting deeper than 16 launches fails, which catches a launch that calls itself instead of `parent.<name>`. The `agent` builtin clears the `BEANS_LAUNCH_*` variables before starting the agent, so a shell the agent opens is not pinned to the launch.
+Launches get these extra variables for nested calls: `BEANS_BIN` (the running beans binary), `BEANS_LAUNCH_CONFIG`, `BEANS_LAUNCH_LAYER` and `BEANS_LAUNCH_DEPTH`. A nested `beans launch` reuses the config file and beans directory of the launching project, unless you pass `--config` or `--beans-path`. Nesting deeper than 16 launches fails, which catches a launch that calls itself instead of `parent.<name>`. The `agent` builtin clears the `BEANS_LAUNCH_*` variables before starting the agent, so a shell the agent opens is not pinned to the launch. Likewise, `tmux-session` passes them only to its `CMD`, never to the session's shell or later windows.
 
 ## Contributing
 

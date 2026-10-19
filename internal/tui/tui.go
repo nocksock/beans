@@ -1212,10 +1212,11 @@ func (a *App) projectRoot() string {
 	return filepath.Dir(a.core.Root())
 }
 
-// newLaunch describes running script (declared by the config file in
-// configDir) for a bean of this project.
-func (a *App) newLaunch(script, configDir, beanID, beanTitle string) launcherexec.Launch {
+// newLaunch describes running the launcher called name, i.e. script (declared
+// by the config file in configDir), for a bean of this project.
+func (a *App) newLaunch(name, script, configDir, beanID, beanTitle string) launcherexec.Launch {
 	return launcherexec.Launch{
+		Name:        name,
 		Script:      script,
 		ProjectRoot: a.projectRoot(),
 		ConfigDir:   configDir,
@@ -1233,7 +1234,7 @@ func (a *App) launchFor(l launcher, beanID, fallbackTitle string) launcherexec.L
 	if b, _ := a.core.Get(beanID); b != nil {
 		title = b.DisplayTitle()
 	}
-	return a.newLaunch(l.exec, l.dir, beanID, title)
+	return a.newLaunch(l.name, l.exec, l.dir, beanID, title)
 }
 
 // runLauncher runs l in the foreground (with the terminal handed over to it)
