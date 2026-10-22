@@ -1,10 +1,11 @@
 ---
 # beans-l3z5
 title: Launching keeps the multi-selection, so the next launch reruns all marked beans
-status: completed
+status: archived
 type: bug
+priority: normal
 created_at: 2026-10-19T19:41:26Z
-updated_at: 2026-10-19T19:41:26Z
+updated_at: 2026-10-19T20:46:15Z
 parent: beans-gl8t
 ---
 

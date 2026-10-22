@@ -1,11 +1,11 @@
 ---
 # beans-kumc
 title: make the filter more usable
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T14:50:12Z
-updated_at: 2026-10-18T09:50:01Z
+updated_at: 2026-10-19T20:46:15Z
 ---
 
 Make the TUI `/` filter understand `field:value` tokens and sorting, instead of only fuzzy-matching title + ID.

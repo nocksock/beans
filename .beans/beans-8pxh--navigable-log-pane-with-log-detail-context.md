@@ -1,11 +1,11 @@
 ---
 # beans-8pxh
 title: Navigable log pane with log-detail context
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-18T09:49:29Z
-updated_at: 2026-10-18T14:43:18Z
+updated_at: 2026-10-19T20:46:15Z
 parent: beans-7jm4
 blocked_by:
     - beans-0ggp

@@ -1,11 +1,11 @@
 ---
 # beans-ung3
 title: filter and trigger keybinds
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T12:59:24Z
-updated_at: 2026-10-18T16:27:13Z
+updated_at: 2026-10-19T20:46:15Z
 ---
 
 similar to lazygit. ? would open a keybinds dialog with all currently available keybinds grouped by global and context keybinds. / starts filtering. enter will run. without filter binds are selectable via j/k, enter runs selected.

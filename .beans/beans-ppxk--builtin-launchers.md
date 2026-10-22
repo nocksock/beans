@@ -1,11 +1,11 @@
 ---
 # beans-ppxk
 title: builtin launchers
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-19T07:26:37Z
-updated_at: 2026-10-19T20:30:38Z
+updated_at: 2026-10-19T20:46:15Z
 ---
 
 move some launchers to scripts/folder in deliverable (embed in binary?)

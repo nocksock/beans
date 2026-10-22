@@ -1,11 +1,11 @@
 ---
 # beans-tbbz
 title: cascading ux improvements
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-18T09:04:50Z
-updated_at: 2026-10-18T09:39:39Z
+updated_at: 2026-10-19T20:46:15Z
 ---
 
 when running beans tui in a folder, its lists etc should be scoped to that config's prefix.

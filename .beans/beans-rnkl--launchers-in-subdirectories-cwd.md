@@ -1,11 +1,11 @@
 ---
 # beans-rnkl
 title: launchers in subdirectories cwd
-status: completed
+status: archived
 type: bug
 priority: normal
 created_at: 2026-10-18T11:10:11Z
-updated_at: 2026-10-18T11:15:10Z
+updated_at: 2026-10-19T20:46:15Z
 ---
 
 in ~/projects/studio/main when I use a launcher from a subdir, it has the wrong cwd and starts in ~

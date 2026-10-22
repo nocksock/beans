@@ -1,11 +1,11 @@
 ---
 # beans-dj91
 title: reorder create new bean
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-18T15:34:11Z
-updated_at: 2026-10-18T16:27:24Z
+updated_at: 2026-10-19T20:46:15Z
 ---
 
 Reorder the create/edit bean form in the TUI (`internal/tui/createmodal.go`, shared by create and edit via `isEdit()`):

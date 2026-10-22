@@ -1,11 +1,11 @@
 ---
 # beans-rjk2
 title: toggle bean preview
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T14:02:13Z
-updated_at: 2026-10-18T11:14:58Z
+updated_at: 2026-10-19T20:46:15Z
 ---
 
 so we can have just the list.

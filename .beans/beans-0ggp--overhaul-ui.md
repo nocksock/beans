@@ -1,11 +1,11 @@
 ---
 # beans-0ggp
 title: overhaul ui
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-18T09:25:35Z
-updated_at: 2026-10-18T11:15:04Z
+updated_at: 2026-10-19T20:46:15Z
 ---
 
 Lazygit-style composable panes with `+`/`-` cycling through layout presets. Replaces the full-screen detail and depnav views.

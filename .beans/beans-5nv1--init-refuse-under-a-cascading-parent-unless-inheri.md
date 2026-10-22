@@ -1,11 +1,11 @@
 ---
 # beans-5nv1
 title: 'init: refuse under a cascading parent unless --inherit'
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-18T14:58:54Z
-updated_at: 2026-10-18T15:03:57Z
+updated_at: 2026-10-19T20:46:15Z
 parent: beans-xqrj
 ---
 

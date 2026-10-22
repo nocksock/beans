@@ -1,7 +1,7 @@
 ---
 # beans-re37
 title: Remove dead launcher manager and other dead code
-status: completed
+status: archived
 type: task
 priority: normal
 size: sm
@@ -9,7 +9,7 @@ tags:
     - refactoring
     - code-review
 created_at: 2026-10-17T14:02:23Z
-updated_at: 2026-10-17T14:33:40Z
+updated_at: 2026-10-19T20:46:15Z
 parent: beans-gl8t
 ---
 

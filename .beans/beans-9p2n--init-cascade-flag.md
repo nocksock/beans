@@ -1,11 +1,11 @@
 ---
 # beans-9p2n
 title: 'init: --cascade flag'
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T13:49:45Z
-updated_at: 2026-10-18T15:06:23Z
+updated_at: 2026-10-19T20:46:15Z
 parent: beans-xqrj
 ---
 

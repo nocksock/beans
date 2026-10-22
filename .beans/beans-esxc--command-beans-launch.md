@@ -1,11 +1,11 @@
 ---
 # beans-esxc
 title: 'command: beans launch'
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-17T11:04:07Z
-updated_at: 2026-10-17T14:33:26Z
+updated_at: 2026-10-19T20:46:15Z
 parent: beans-gl8t
 ---
 
