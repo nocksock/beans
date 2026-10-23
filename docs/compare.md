@@ -82,7 +82,7 @@ These are areas where the fork has replaced upstream's behaviour, not only added
 | ⚠️ Archiving | Moves the file to `.beans/archive/` | Sets `status: archived` in place (`Y` in the TUI, `A` to show archived beans) | The two layouts don't match: the fork doesn't read upstream's `archive/` folder as archived beans, and upstream doesn't know the `archived` status |
 | ⚠️ `beans list` default | No default filter | Hides completed, scrapped and archived beans | Scripts that expect every bean need `--include` |
 | TUI layout | List view + full-screen detail view | Panes like lazygit: list, details, dependency graph and launcher log; layout presets (`+`/`-`), focus by number keys, a single pane on narrow terminals | The full-screen detail view is gone; you navigate between panes instead |
-| Key bindings | Hard-coded; `?` shows a help overlay | Every key configurable per context in `keybinding:`; `?` opens a searchable dialog where `enter` runs the key | `y`/`Y` differ: upstream `y` copies the ID, fork `Y` archives |
+| Key bindings | Hard-coded; `?` shows a help overlay | Every key configurable per context in `keybinding:`; `?` opens a searchable dialog where `enter` runs the key | Both copy the ID with `y`; the fork archives with `Y` |
 | Config | One `.beans.yml` per project | Cascading `.beans.yml` (parent sets `cascade: true`; launchers and other named lists merge by `name`) + user-global layer + `beans settings` | One config can be shared across a monorepo; per-user keybinds and launchers |
 | Statuses | Fixed set | Fixed set + `archived` + custom statuses (e.g. `review` under `in-progress`) that behave like their built-in parent | Statuses that fit your workflow, without breaking filters |
 | Running agents | `beans serve`: worktree workspaces, agent chat, PR flow in the browser | Launchers: `!` in the TUI, run on several selected beans or in the background (output goes to the log pane), `beans launch <name> [id] [-- args]`, builtins `tmux-window`, `tmux-session`, `kitty-window`, `worktree`, `prompt`, `agent`, which can call each other | Same goal, opposite approach: composable shell scripts instead of a built-in app |
@@ -99,5 +99,4 @@ The fork doesn't have these changes, all made upstream since the split:
 - Inherited blocking and status (the "implicit" blocking and status above).
 - ETags and `--if-match`.
 - `list --ready`, `show --etag-only`.
-- Copy the ID with `y` in the TUI.
 - The opencode plugin.
