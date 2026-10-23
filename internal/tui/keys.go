@@ -94,6 +94,7 @@ type ListKeyMap struct {
 	ManageBlocking  key.Binding
 	ManageBlockedBy key.Binding
 	Launch          key.Binding
+	CopyID          key.Binding
 	Archive         key.Binding
 	ToggleArchived  key.Binding
 	ToggleScope     key.Binding
@@ -123,6 +124,7 @@ type ContextKeyMap struct {
 	ManageBlocking  key.Binding
 	ManageBlockedBy key.Binding
 	Launch          key.Binding
+	CopyID          key.Binding
 	Archive         key.Binding
 }
 
@@ -294,6 +296,7 @@ func DefaultKeyMap() KeyMap {
 			ManageBlocking:  bind("blocking", "b"),
 			ManageBlockedBy: bind("blocked by", "B"),
 			Launch:          bind("launch", "!"),
+			CopyID:          bind("copy ID", "y"),
 			Archive:         bind("archive completed", "Y"),
 			ToggleArchived:  bind("show archived", "A"),
 			ToggleScope:     bind("show all scopes", "g s"),
@@ -320,6 +323,7 @@ func DefaultKeyMap() KeyMap {
 			ManageBlocking:  bind("blocking", "b"),
 			ManageBlockedBy: bind("blocked by", "B"),
 			Launch:          bind("launch", "!"),
+			CopyID:          bind("copy ID", "y"),
 			Archive:         bind("archive", "Y"),
 		},
 		DepGraph: DepGraphKeyMap{
