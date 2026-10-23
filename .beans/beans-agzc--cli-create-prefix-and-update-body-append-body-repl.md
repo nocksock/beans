@@ -1,11 +1,12 @@
 ---
 # beans-agzc
 title: 'CLI: create --prefix and update --body-append/--body-replace-*'
-status: todo
+status: in-progress
 type: feature
+priority: normal
 size: sm
 created_at: 2026-10-23T12:00:40Z
-updated_at: 2026-10-23T12:00:40Z
+updated_at: 2026-10-23T12:13:35Z
 parent: beans-zkj9
 ---
 
