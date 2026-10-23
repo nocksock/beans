@@ -154,6 +154,7 @@ func New(core *beancore.Core, cfg *config.Config) *App {
 		deps:        newDepNavModel(resolver, cfg),
 		keyWarnings: warnings,
 	}
+	a.list.project = projectLabel(a.projectRoot())
 	a.ctxPane = contextPane{bean: &a.ctx, run: &a.logDetail}
 	a.panes = a.newPanes()
 	return a

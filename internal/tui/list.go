@@ -114,6 +114,8 @@ type listModel struct {
 	height   int
 	err      error
 
+	project string // compacted project path for the title, e.g. "a/md.new"; "" shows "Beans"
+
 	// Responsive column state
 	hasTags    bool                 // whether any beans have tags
 	cols       ui.ResponsiveColumns // calculated responsive columns
@@ -898,7 +900,8 @@ func (m listModel) View() string {
 	return m.list.View()
 }
 
-// title is the pane title, e.g. "Beans › Parent › Child [tag: x]".
+// title is the pane title, e.g. "Beans › Parent › Child [tag: x]", with the
+// project path in place of "Beans" in a nested project ("a/md.new › Parent").
 func (m listModel) title() string {
 	return m.breadcrumbTitle(m.width - 4)
 }
@@ -922,16 +925,20 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 		}
 	}
 
+	root := m.project
+	if root == "" {
+		root = "Beans"
+	}
 	crumbs := make([]string, 0, len(m.rootBeans)+1)
-	crumbs = append(crumbs, "Beans")
+	crumbs = append(crumbs, root)
 	for _, b := range m.rootBeans {
 		crumbs = append(crumbs, b.DisplayTitle())
 	}
 
 	title := strings.Join(crumbs, sep) + suffix
-	// Replace outer crumbs (after "Beans") with "…" until it fits
+	// Replace outer crumbs (after the root) with "…" until it fits
 	for elided := 1; lipgloss.Width(title) > maxWidth && elided < len(crumbs)-1; elided++ {
-		title = strings.Join(append([]string{"Beans", "…"}, crumbs[elided+1:]...), sep) + suffix
+		title = strings.Join(append([]string{root, "…"}, crumbs[elided+1:]...), sep) + suffix
 	}
 	if maxWidth > 1 && lipgloss.Width(title) > maxWidth {
 		title = string([]rune(title)[:maxWidth-1]) + "…"

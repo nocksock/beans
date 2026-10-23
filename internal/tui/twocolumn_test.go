@@ -272,19 +272,22 @@ func TestBreadcrumbTitle(t *testing.T) {
 		name     string
 		roots    []*bean.Bean
 		query    string
+		project  string
 		maxWidth int
 		want     string
 	}{
-		{"top level", nil, "", 80, "Beans"},
-		{"top level with query", nil, "tag:idea  size:sm", 80, "Beans [tag:idea size:sm]"},
-		{"nested fits", roots, "", 80, "Beans › Milestone 0.4.0 › Two-column layout › Preview pane"},
-		{"outer levels elided", roots, "", 45, "Beans › … › Two-column layout › Preview pane"},
-		{"only innermost fits", roots, "", 25, "Beans › … › Preview pane"},
-		{"hard truncated", roots, "", 15, "Beans › … › Pr…"},
+		{"top level", nil, "", "", 80, "Beans"},
+		{"top level with query", nil, "tag:idea  size:sm", "", 80, "Beans [tag:idea size:sm]"},
+		{"nested fits", roots, "", "", 80, "Beans › Milestone 0.4.0 › Two-column layout › Preview pane"},
+		{"outer levels elided", roots, "", "", 45, "Beans › … › Two-column layout › Preview pane"},
+		{"only innermost fits", roots, "", "", 25, "Beans › … › Preview pane"},
+		{"hard truncated", roots, "", "", 15, "Beans › … › Pr…"},
+		{"project path", nil, "", "a/md.new", 80, "a/md.new"},
+		{"project path elided", roots, "", "a/md.new", 45, "a/md.new › … › Preview pane"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := listModel{rootBeans: tt.roots, queryInput: textinput.New()}
+			m := listModel{rootBeans: tt.roots, project: tt.project, queryInput: textinput.New()}
 			m.queryInput.SetValue(tt.query)
 			got := m.breadcrumbTitle(tt.maxWidth)
 			if got != tt.want {
