@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hmans/beans/internal/bean"
 	"github.com/hmans/beans/internal/config"
 	"github.com/hmans/beans/internal/graph"
 	"github.com/hmans/beans/internal/graph/model"
@@ -21,6 +22,9 @@ var (
 	updateTitle           string
 	updateBody            string
 	updateBodyFile        string
+	updateBodyAppend      string
+	updateBodyReplaceOld  string
+	updateBodyReplaceNew  string
 	updateParent          string
 	updateRemoveParent    bool
 	updateBlocking        []string
@@ -124,7 +128,7 @@ var updateCmd = &cobra.Command{
 		// Require at least one change
 		if len(changes) == 0 {
 			return cmdError(updateJSON, output.ErrValidation,
-				"no changes specified (use --status, --type, --priority, --size, --title, --body, --parent, --blocking, --blocked-by, --tag, or their --remove-* variants)")
+				"no changes specified (use --status, --type, --priority, --size, --title, --body, --body-append, --body-replace-old/--body-replace-new, --parent, --blocking, --blocked-by, --tag, or their --remove-* variants)")
 		}
 
 		// Output result
@@ -180,11 +184,23 @@ func buildUpdateInput(cmd *cobra.Command, existingTags []string) (model.UpdateBe
 	}
 
 	if cmd.Flags().Changed("body") || cmd.Flags().Changed("body-file") {
+		// Full body replacement
 		body, err := resolveContent(updateBody, updateBodyFile)
 		if err != nil {
 			return input, nil, err
 		}
 		input.Body = &body
+		changes = append(changes, "body")
+	} else if cmd.Flags().Changed("body-replace-old") || cmd.Flags().Changed("body-append") {
+		// Partial edits, applied by the resolver: the replacement, then the append
+		mod, err := buildBodyModification(
+			cmd.Flags().Changed("body-replace-old"), updateBodyReplaceOld, updateBodyReplaceNew,
+			cmd.Flags().Changed("body-append"), updateBodyAppend,
+		)
+		if err != nil {
+			return input, nil, err
+		}
+		input.BodyMod = mod
 		changes = append(changes, "body")
 	}
 
@@ -196,10 +212,32 @@ func buildUpdateInput(cmd *cobra.Command, existingTags []string) (model.UpdateBe
 	return input, changes, nil
 }
 
+// buildBodyModification turns the --body-replace-old/-new and --body-append
+// flags into a GraphQL body modification. Escape sequences like \n are
+// interpreted in all three values.
+func buildBodyModification(replace bool, old, new string, appendSet bool, appendValue string) (*model.BodyModification, error) {
+	mod := &model.BodyModification{}
+	if replace {
+		mod.Replace = []*model.ReplaceOperation{{
+			Old: bean.UnescapeBody(old),
+			New: bean.UnescapeBody(new),
+		}}
+	}
+	if appendSet {
+		text, err := resolveAppendContent(appendValue)
+		if err != nil {
+			return nil, err
+		}
+		mod.Append = &text
+	}
+	return mod, nil
+}
+
 // hasFieldUpdates returns true if any field in the input is set.
 func hasFieldUpdates(input model.UpdateBeanInput) bool {
 	return input.Status != nil || input.Type != nil || input.Priority != nil ||
-		input.Size != nil || input.Title != nil || input.Body != nil || input.Tags != nil
+		input.Size != nil || input.Title != nil || input.Body != nil || input.BodyMod != nil ||
+		input.Tags != nil
 }
 
 func init() {
@@ -222,8 +260,11 @@ func init() {
 	updateCmd.Flags().StringVarP(&updatePriority, "priority", "p", "", "New priority ("+strings.Join(priorityNames, ", ")+", or empty to clear)")
 	updateCmd.Flags().StringVar(&updateSize, "size", "", "New size ("+strings.Join(sizeNames(), ", ")+", or empty to clear)")
 	updateCmd.Flags().StringVar(&updateTitle, "title", "", "New title")
-	updateCmd.Flags().StringVarP(&updateBody, "body", "d", "", "New body (use '-' to read from stdin)")
+	updateCmd.Flags().StringVarP(&updateBody, "body", "d", "", "New body (use '-' to read from stdin; \\n, \\t and \\\\ are interpreted)")
 	updateCmd.Flags().StringVar(&updateBodyFile, "body-file", "", "Read body from file")
+	updateCmd.Flags().StringVar(&updateBodyAppend, "body-append", "", "Text to append to the body after a blank line (use '-' to read from stdin)")
+	updateCmd.Flags().StringVar(&updateBodyReplaceOld, "body-replace-old", "", "Text to replace; must occur exactly once in the body (requires --body-replace-new)")
+	updateCmd.Flags().StringVar(&updateBodyReplaceNew, "body-replace-new", "", "Replacement text, empty to delete (requires --body-replace-old)")
 	updateCmd.Flags().StringVar(&updateParent, "parent", "", "Set parent bean ID")
 	updateCmd.Flags().BoolVar(&updateRemoveParent, "remove-parent", false, "Remove parent")
 	updateCmd.Flags().StringArrayVar(&updateBlocking, "blocking", nil, "ID of bean this blocks (can be repeated)")
@@ -234,6 +275,11 @@ func init() {
 	updateCmd.Flags().StringArrayVar(&updateRemoveTag, "remove-tag", nil, "Remove tag (can be repeated)")
 	updateCmd.MarkFlagsMutuallyExclusive("parent", "remove-parent")
 	updateCmd.Flags().BoolVar(&updateJSON, "json", false, "Output as JSON")
-	updateCmd.MarkFlagsMutuallyExclusive("body", "body-file")
+	// A full body replacement can't be combined with partial edits;
+	// --body-replace-* and --body-append can be used together
+	updateCmd.MarkFlagsMutuallyExclusive("body", "body-file", "body-replace-old")
+	updateCmd.MarkFlagsMutuallyExclusive("body", "body-file", "body-replace-new")
+	updateCmd.MarkFlagsMutuallyExclusive("body", "body-file", "body-append")
+	updateCmd.MarkFlagsRequiredTogether("body-replace-old", "body-replace-new")
 	rootCmd.AddCommand(updateCmd)
 }

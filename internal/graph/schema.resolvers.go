@@ -186,9 +186,24 @@ func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBea
 
 // UpdateBean is the resolver for the updateBean field.
 func (r *mutationResolver) UpdateBean(ctx context.Context, id string, input model.UpdateBeanInput) (*bean.Bean, error) {
+	if input.Body != nil && input.BodyMod != nil {
+		return nil, fmt.Errorf("cannot specify both body and bodyMod")
+	}
+
 	b, err := r.Core.Get(id)
 	if err != nil {
 		return nil, err
+	}
+
+	// Compute the new body first so a failed modification changes nothing
+	body := b.Body
+	if input.Body != nil {
+		body = *input.Body
+	} else if input.BodyMod != nil {
+		body, err = applyBodyModification(body, input.BodyMod)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Update fields if provided
@@ -210,9 +225,7 @@ func (r *mutationResolver) UpdateBean(ctx context.Context, id string, input mode
 		}
 		b.Size = *input.Size
 	}
-	if input.Body != nil {
-		b.Body = *input.Body
-	}
+	b.Body = body
 	if input.Tags != nil {
 		b.Tags = input.Tags
 	}

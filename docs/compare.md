@@ -51,7 +51,7 @@ The fork split from upstream at `76dc94a` (2025-12-14) and has not merged upstre
 | "What's next" | `bd ready` (`--claim`, `--explain`), `bd blocked`, `bd stale` | `beans list --ready` | `beans list --unblocked` |
 | Default list | Open issues | No default filter | Hides completed, scrapped and archived beans (`--include` to show them) |
 | Graph view | `bd graph`: terminal DAG, `--dot`, interactive `--html`; `bd dep tree` | Tree in the list | `beans graph` (DOT or `--ascii`); in the TUI, a dependency pane you can move around in |
-| Editing | `bd edit` ($EDITOR, per field), `bd create-form` | `e` opens $EDITOR; `update --body-append/--body-replace-*` | `e` edit popup, `E` $EDITOR; create form with field-jump keys and type-ahead |
+| Editing | `bd edit` ($EDITOR, per field), `bd create-form` | `e` opens $EDITOR; `update --body-append/--body-replace-*` | `e` edit popup, `E` $EDITOR; create form with field-jump keys and type-ahead; `update --body-append/--body-replace-*` |
 | Monorepo scoping | Route new beads to other repos; `external:` deps | — | Cascading config; lists are scoped to the nearest config's prefix (`g s` / `--all` to widen) |
 
 ### Config & workflow
@@ -98,6 +98,6 @@ The fork doesn't have these changes, all made upstream since the split:
 - The public `pkg/` Go API.
 - Inherited blocking and status (the "implicit" blocking and status above).
 - ETags and `--if-match`.
-- `list --ready`, `create --prefix`, `update --body-append/--body-replace-*`, `show --etag-only`.
+- `list --ready`, `show --etag-only`.
 - Copy the ID with `y` in the TUI.
 - The opencode plugin.

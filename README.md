@@ -135,7 +135,7 @@ When a config inherits from a cascading parent and shares its beans directory, l
 - `beans list --all` and the TUI's `g s` key show beans of every prefix. The TUI title shows the active scope, e.g. `[api-*]`.
 - In the TUI, an out-of-scope parent is shown dimmed above its in-scope children.
 - Looking up a bean by ID (`beans show repo-a1b2`) works from anywhere.
-- When a directory covers several prefixes (the root covers `repo-` and `api-`), the TUI's create dialog lets you choose the new bean's ID prefix. `createBean` in GraphQL takes a `prefix` too.
+- When a directory covers several prefixes (the root covers `repo-` and `api-`), the TUI's create dialog lets you choose the new bean's ID prefix. `beans create --prefix api-` and `createBean` in GraphQL take a prefix too.
 
 ### Custom Statuses
 
@@ -254,6 +254,18 @@ login type:bug size:sm size:lg -status:completed sort:created
 - `sort:field[:asc|desc]` sorts siblings by `status`, `priority`, `type`, `size`, `created`, `updated`, `title` or `id` (`created`/`updated` default to newest first).
 - Unknown fields or values are ignored and shown as a warning. `enter` applies the query, `esc` clears it.
 - While a filter is active, `c`/`C` prefill the new bean's type, status, priority and size from it (the last value wins if a field is repeated) and add all its `tag:` values, so the new bean shows up in the filtered list.
+
+On the CLI, `beans update` edits a bean's body in place, without rewriting all of it:
+
+```bash
+beans update <id> --body-replace-old "- [ ] Deploy" --body-replace-new "- [x] Deploy"
+beans update <id> --body-append "## Notes\n\nDeployed on Friday"
+```
+
+- `--body-replace-old` must match exactly once, otherwise nothing is changed. An empty `--body-replace-new` deletes the match.
+- `--body-append` adds the text after a blank line; `-` reads it from stdin.
+- Both can be combined with each other and with other flags, but not with `-d/--body` or `--body-file`.
+- `\n`, `\t` and `\\` are interpreted in `-d/--body` (of `create` and `update`), `--body-append` and `--body-replace-*`.
 
 **But the real power of Beans** comes from letting your coding agent manage your tasks for you.
 

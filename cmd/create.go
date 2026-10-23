@@ -20,6 +20,7 @@ var (
 	createSize      string
 	createBody      string
 	createBodyFile  string
+	createPrefix    string
 	createTag       []string
 	createParent    string
 	createBlocking  []string
@@ -90,6 +91,11 @@ using the first line of their body.`,
 			input.Tags = createTag
 		}
 
+		// An explicit --prefix (even "") overrides the configured prefix
+		if cmd.Flags().Changed("prefix") {
+			input.Prefix = &createPrefix
+		}
+
 		// Add parent
 		if createParent != "" {
 			input.Parent = &createParent
@@ -140,8 +146,9 @@ func init() {
 	createCmd.Flags().StringVarP(&createType, "type", "t", "", "Bean type ("+strings.Join(typeNames, ", ")+")")
 	createCmd.Flags().StringVarP(&createPriority, "priority", "p", "", "Priority level ("+strings.Join(priorityNames, ", ")+")")
 	createCmd.Flags().StringVar(&createSize, "size", "", "Size ("+strings.Join(sizeNames(), ", ")+"; default "+config.DefaultSize+")")
-	createCmd.Flags().StringVarP(&createBody, "body", "d", "", "Body content (use '-' to read from stdin)")
+	createCmd.Flags().StringVarP(&createBody, "body", "d", "", "Body content (use '-' to read from stdin; \\n, \\t and \\\\ are interpreted)")
 	createCmd.Flags().StringVar(&createBodyFile, "body-file", "", "Read body from file")
+	createCmd.Flags().StringVar(&createPrefix, "prefix", "", "ID prefix for the new bean (overrides the configured prefix)")
 	createCmd.Flags().StringArrayVar(&createTag, "tag", nil, "Add tag (can be repeated)")
 	createCmd.Flags().StringVar(&createParent, "parent", "", "Parent bean ID")
 	createCmd.Flags().StringArrayVar(&createBlocking, "blocking", nil, "ID of bean this blocks (can be repeated)")
