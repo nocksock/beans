@@ -24,3 +24,4 @@ Reference: upstream internal/commands/{create,update}.go.
 2026-10-23 14:18: Added cmd tests, updated README, prime prompt, docs/compare.md; go test + vet pass
 2026-10-23 14:18: Committed 0f1d234 on task/beans-agzc
 2026-10-23 10:15: Verified tests, merged into task/beans-agzc (985864f); dev merge pending
+2026-10-23 10:40: Merged into dev (96ed031)

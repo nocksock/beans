@@ -19,3 +19,4 @@ Add a configurable `copyID` keybinding, `y` by default, that copies the selected
 2026-10-23 14:16: Added copyID (y) to list+context keymaps, clipboard.go with injectable writer, notices, tests, README
 2026-10-23 14:16: Committed 38ce14a on task/beans-9rh8; go test and go vet pass
 2026-10-23 10:15: Verified tests, merged into task/beans-agzc (985864f); dev merge pending
+2026-10-23 10:40: Merged into dev (96ed031)
