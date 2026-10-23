@@ -812,6 +812,11 @@ func (m listModel) handle(msg tea.Msg) (listModel, tea.Cmd) {
 						}
 					}
 				}
+			case key.Matches(msg, k.CopyID):
+				// Copy the ID of the bean under the cursor (ignores the selection)
+				if item, ok := m.list.SelectedItem().(beanItem); ok {
+					return m, func() tea.Msg { return copyIDMsg{beanID: item.bean.ID} }
+				}
 			case key.Matches(msg, k.Archive):
 				// Archive all completed beans (asks for confirmation)
 				return m, func() tea.Msg {
@@ -1029,6 +1034,7 @@ func (m listModel) footer() string {
 			hint(k.ManageBlocking, ""),
 			hint(k.ManageBlockedBy, ""),
 			hint(k.Launch, ""),
+			hint(k.CopyID, ""),
 			hint(k.Archive, ""),
 			hint(k.ToggleArchived, archivedHelp),
 			scopeHelp,

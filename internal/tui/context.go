@@ -137,6 +137,8 @@ func (m contextModel) beanAction(msg tea.KeyMsg) tea.Cmd {
 		out = openEditorMsg{beanID: b.ID, beanPath: b.Path}
 	case key.Matches(msg, k.Launch):
 		out = openLauncherPickerMsg{beanIDs: ids, beanTitle: title}
+	case key.Matches(msg, k.CopyID):
+		out = copyIDMsg{beanID: b.ID}
 	case key.Matches(msg, k.Archive):
 		out = archiveBeanMsg{beanID: b.ID}
 	default:
@@ -177,6 +179,7 @@ func (m *contextModel) footer() string {
 		hint(k.ChangeParent, ""),
 		hint(k.ManageBlocking, ""),
 		hint(k.ManageBlockedBy, ""),
+		hint(k.CopyID, ""),
 		hint(k.Archive, ""),
 		hint(k.Back, ""),
 	)
