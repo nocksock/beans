@@ -33,6 +33,8 @@ Since Beans emits its own prompt instructions for your coding agent, most change
 - A beautiful **built-in** TUI for browsing and managing your beans from the terminal.
 - Generates a **Markdown roadmap document** for your project from your data.
 
+How does this fork compare to [hmans/beans](https://github.com/hmans/beans) and [beads](https://github.com/gastownhall/beads)? See [docs/compare.md](docs/compare.md).
+
 ## Installation
 
 We'll need to do three things:
