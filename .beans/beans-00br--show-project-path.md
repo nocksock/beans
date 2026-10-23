@@ -14,3 +14,5 @@ show the relative path to the .beans.yml dir in a compacted way. eg:
 ./packages/keymap/.beans.yml p/keymap
 
 and so on.
+## Work Log
+2026-10-23 09:00: Show compacted git-relative project path as list title root (a/md.new)

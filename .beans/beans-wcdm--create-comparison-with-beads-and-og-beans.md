@@ -49,3 +49,4 @@ For the areas that were reworked, not just extended, a table with columns *hmans
 2026-10-22 10:00: Created worktree, started research agents (beads web, upstream diff)
 2026-10-22 10:20: Beads research done (v1.3.1, Dolt backend, repo moved to gastownhall/beads)
 2026-10-22 10:45: Wrote docs/compare.md, linked from README, committed on task/beans-wcdm
+2026-10-23 09:30: Created epic beans-zkj9 with beans to adopt upstream features

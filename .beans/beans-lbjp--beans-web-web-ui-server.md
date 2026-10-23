@@ -7,7 +7,10 @@ priority: deferred
 tags:
     - idea
 created_at: 2025-12-08T17:11:36Z
-updated_at: 2026-10-17T12:07:56Z
+updated_at: 2026-10-23T12:00:40Z
+parent: beans-zkj9
+blocked_by:
+    - beans-zq5t
 ---
 
 Add a `beans web` command that starts a webserver providing a Beans web UI.
