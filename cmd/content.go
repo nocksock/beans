@@ -28,7 +28,7 @@ func resolveContent(value, file string) (string, error) {
 	}
 
 	if value != "" {
-		return value, nil
+		return bean.UnescapeBody(value), nil
 	}
 
 	if file != "" {
@@ -40,6 +40,20 @@ func resolveContent(value, file string) (string, error) {
 	}
 
 	return "", nil
+}
+
+// resolveAppendContent returns the text for --body-append.
+// If value is "-", reads from stdin and drops trailing newlines; otherwise
+// escape sequences like \n are interpreted.
+func resolveAppendContent(value string) (string, error) {
+	if value == "-" {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", fmt.Errorf("reading stdin: %w", err)
+		}
+		return strings.TrimRight(string(data), "\n"), nil
+	}
+	return bean.UnescapeBody(value), nil
 }
 
 // applyTags adds tags to a bean, returning an error if any tag is invalid.

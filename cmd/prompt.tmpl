@@ -117,6 +117,28 @@ beans query '{ beans(filter: { noParent: true }) { id title type } }'
 - When creating new beans, include a useful description. If you're not sure what to write, ask the user.
 - Make the description as detailed as possible, similar to a plan that you would create for yourself.
 - If possible, split the work into a checklist of GitHub-Formatted-Markdown tasks. Use a `## Checklist` header to precede it.
+- `--prefix <prefix>` creates the bean with another ID prefix than the configured one.
+- `\n`, `\t` and `\\` in `-d` are turned into a newline, a tab and a backslash.
+
+## Editing bean bodies
+
+Edit a bean's body in place instead of rewriting it with `-d`:
+
+```bash
+# Replace text (exact match, must occur exactly once; an empty --body-replace-new deletes it)
+beans update <bean-id> --body-replace-old "- [ ] Task 1" --body-replace-new "- [x] Task 1"
+
+# Append after a blank line ('-' reads from stdin)
+beans update <bean-id> --body-append "## Notes\n\nAdded content"
+
+# Combined with each other and with metadata changes
+beans update <bean-id> -s completed --body-replace-old "- [ ] Deploy" --body-replace-new "- [x] Deploy" --body-append "Done"
+```
+
+- If the old text is not found or found more than once, the update fails and nothing is changed.
+- `--body-replace-*` and `--body-append` can't be combined with `-d/--body` or `--body-file`.
+- `\n`, `\t` and `\\` are interpreted in all body flags.
+- For several replacements at once, use the `bodyMod` input of the `updateBean` mutation (replacements run in order, then the append).
 
 ## Cleaning up beans
 

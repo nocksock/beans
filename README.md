@@ -135,7 +135,7 @@ When a config inherits from a cascading parent and shares its beans directory, l
 - `beans list --all` and the TUI's `g s` key show beans of every prefix. The TUI title shows the active scope, e.g. `[api-*]`.
 - In the TUI, an out-of-scope parent is shown dimmed above its in-scope children.
 - Looking up a bean by ID (`beans show repo-a1b2`) works from anywhere.
-- When a directory covers several prefixes (the root covers `repo-` and `api-`), the TUI's create dialog lets you choose the new bean's ID prefix. `createBean` in GraphQL takes a `prefix` too.
+- When a directory covers several prefixes (the root covers `repo-` and `api-`), the TUI's create dialog lets you choose the new bean's ID prefix. `beans create --prefix api-` and `createBean` in GraphQL take a prefix too.
 
 ### Custom Statuses
 
@@ -186,8 +186,8 @@ keybinding:
 |---------|------------------------|
 | `global` | `quit` (`q`), `forceQuit` (`ctrl+c`), `help` (`?`), `reloadConfig` (`R`), `openLog` (`O`) |
 | `layout` | `nextPreset` (`+` `=`), `prevPreset` (`-`), `focusNext` (`tab`), `focusPrev` (`shift+tab`), `toggleContext` (`v`), `toggleDepGraph` (`D`), `toggleLog` (`L`), `focusList` (`1`), `focusContext` (`2`), `focusDepGraph` (`3`), `focusLog` (`4`) |
-| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`), `toggleArchived` (`A`), `toggleScope` (`g s`) |
-| `context` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `back` (`esc` `backspace`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `changeSize` (`S`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `archive` (`Y`) |
+| `list` | `up` (`up` `k`), `down` (`down` `j`), `prevPage` (`left` `pgup` `u`), `nextPage` (`right` `pgdown` `f` `d`), `goToStart` (`home`), `goToEnd` (`end` `G`), `filter` (`/`), `open` (`enter`), `back` (`esc` `backspace`), `toggleSelect` (`space`), `collapse` (`h`), `expand` (`l`), `toggleCollapse` (`z`), `collapseAll` (`Z`), `filterByTag` (`g t`), `create` (`c`), `createChild` (`C`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `raisePriority` (`<`), `lowerPriority` (`>`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `copyID` (`y`), `archive` (`Y`), `toggleArchived` (`A`), `toggleScope` (`g s`) |
+| `context` | `scrollUp` (`up` `k`), `scrollDown` (`down` `j`), `pageUp` (`pgup`), `pageDown` (`pgdown` `space` `f`), `halfPageUp` (`u` `ctrl+u`), `halfPageDown` (`d` `ctrl+d`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `back` (`esc` `backspace`), `edit` (`e`), `openEditor` (`E`), `changeStatus` (`s`), `changeType` (`t`), `changePriority` (`P`), `changeSize` (`S`), `editTags` (`T`), `changeParent` (`p`), `manageBlocking` (`b`), `manageBlockedBy` (`B`), `launch` (`!`), `copyID` (`y`), `archive` (`Y`) |
 | `depGraph` | `up` (`up` `k`), `down` (`down` `j`), `refocus` (`enter`), `toggleDone` (`A`), `back` (`esc` `backspace`) |
 | `log` | `up` (`up` `k`), `down` (`down` `j`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `open` (`enter`), `openEditor` (`E`), `back` (`esc` `backspace`) |
 | `help` | `up` (`up` `k`), `down` (`down` `j`), `goToStart` (`home` `g`), `goToEnd` (`end` `G`), `filter` (`/`), `run` (`enter`), `close` (`?` `esc`) |
@@ -241,6 +241,7 @@ The TUI is made of panes, lazygit-style: the bean list, the details of the selec
 - `enter` on a bean shows it in the details pane and moves focus there; `tab`/`shift+tab` cycle through the panes and `esc` goes back.
 - `+` and `-` step through layout presets, which depend on the focused pane: from the list, `+` hides the details, then the log; from the details, `+` swaps the list for the dependency graph, then shows the details alone.
 - `v`, `D` and `L` toggle the details, the dependency graph and the log anywhere. In the dependency graph, moving the cursor shows that bean in the details; `enter` makes it the graph's root and moves focus to the details.
+- `y` copies the ID of the bean under the cursor (in the list) or of the shown bean (in the details) to the system clipboard. On Linux this needs `xclip`, `xsel` or `wl-copy`; without one, the footer shows an error.
 - In terminals narrower than 120 columns, the list and the details don't fit side by side, so only the focused one is shown.
 
 Press `/` in the list to filter. The query combines free text with field filters and a sort order:
@@ -254,6 +255,18 @@ login type:bug size:sm size:lg -status:completed sort:created
 - `sort:field[:asc|desc]` sorts siblings by `status`, `priority`, `type`, `size`, `created`, `updated`, `title` or `id` (`created`/`updated` default to newest first).
 - Unknown fields or values are ignored and shown as a warning. `enter` applies the query, `esc` clears it.
 - While a filter is active, `c`/`C` prefill the new bean's type, status, priority and size from it (the last value wins if a field is repeated) and add all its `tag:` values, so the new bean shows up in the filtered list.
+
+On the CLI, `beans update` edits a bean's body in place, without rewriting all of it:
+
+```bash
+beans update <id> --body-replace-old "- [ ] Deploy" --body-replace-new "- [x] Deploy"
+beans update <id> --body-append "## Notes\n\nDeployed on Friday"
+```
+
+- `--body-replace-old` must match exactly once, otherwise nothing is changed. An empty `--body-replace-new` deletes the match.
+- `--body-append` adds the text after a blank line; `-` reads it from stdin.
+- Both can be combined with each other and with other flags, but not with `-d/--body` or `--body-file`.
+- `\n`, `\t` and `\\` are interpreted in `-d/--body` (of `create` and `update`), `--body-append` and `--body-replace-*`.
 
 **But the real power of Beans** comes from letting your coding agent manage your tasks for you.
 

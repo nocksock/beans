@@ -498,6 +498,15 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.state = viewArchiveConfirm
 		return nil
 
+	case copyIDMsg:
+		return copyID(msg.beanID)
+
+	case copiedIDMsg:
+		if msg.err != nil {
+			return a.showNotice(fmt.Sprintf("Could not copy %s: %v", msg.beanID, msg.err), true)
+		}
+		return a.showNotice("Copied "+msg.beanID, false)
+
 	case archiveBeanMsg:
 		b, err := a.resolver.Query().Bean(context.Background(), msg.beanID)
 		if err != nil || b == nil {
