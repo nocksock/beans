@@ -132,7 +132,7 @@ cd packages/api && beans init --inherit --prefix api-
 When a config inherits from a cascading parent and shares its beans directory, lists only show the beans for that config's prefix. In the example above, `beans list` and `beans tui` inside `packages/api` show only `api-*` beans. That includes beans of nested prefixes like `api-v2-*`.
 
 - The cascade root (`repo/`) is not scoped and lists every bean.
-- `beans list --all` and the TUI's `g s` key show beans of every prefix. The TUI title shows the active scope, e.g. `[api-*]`.
+- The TUI starts with a `prefix:api-` filter, shown in the title like any other query. Clear it with `esc` to see every bean in the cascade, or use the `g s` toggle. `beans list --all` widens a CLI list.
 - In the TUI, an out-of-scope parent is shown dimmed above its in-scope children.
 - Looking up a bean by ID (`beans show repo-a1b2`) works from anywhere.
 - When a directory covers several prefixes (the root covers `repo-` and `api-`), the TUI's create dialog lets you choose the new bean's ID prefix. `beans create --prefix api-` and `createBean` in GraphQL take a prefix too.
@@ -252,6 +252,7 @@ login type:bug size:sm size:lg -status:completed sort:created
 
 - Words without a colon fuzzy-match the title and ID.
 - `field:value` filters by `status`, `type`, `priority`, `size` or `tag`. Repeating a field matches any of its values; different fields must all match. A leading `-` excludes.
+- `prefix:api-` matches the start of a bean ID. In a cascading config, the TUI starts with `prefix:` set to the directory's scope.
 - `sort:field[:asc|desc]` sorts siblings by `status`, `priority`, `type`, `size`, `created`, `updated`, `title` or `id` (`created`/`updated` default to newest first).
 - Unknown fields or values are ignored and shown as a warning. `enter` applies the query, `esc` clears it.
 - While a filter is active, `c`/`C` prefill the new bean's type, status, priority and size from it (the last value wins if a field is repeated) and add all its `tag:` values, so the new bean shows up in the filtered list.

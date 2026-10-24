@@ -82,22 +82,55 @@ func TestListScope(t *testing.T) {
 	if got, want := dimmedIDs(app), []string{"repo-a1b2"}; !slices.Equal(got, want) {
 		t.Errorf("dimmed = %v, want out-of-scope parent %v", got, want)
 	}
-	if title := app.list.breadcrumbTitle(80); !strings.Contains(title, "[api-*]") {
-		t.Errorf("title %q should show the scope", title)
+	if got, want := app.list.queryInput.Value(), "prefix:api-"; got != want {
+		t.Errorf("initial query = %q, want %q", got, want)
+	}
+	if title := app.list.breadcrumbTitle(80); !strings.Contains(title, "[prefix:api-]") {
+		t.Errorf("title %q should show the scope filter", title)
+	}
+
+	// Clearing the filter shows every bean in the cascade
+	press(app, "esc")
+	got := listedIDs(app)
+	slices.Sort(got)
+	if want := []string{"api-c3d4", "repo-a1b2", "web-g7h8"}; !slices.Equal(got, want) {
+		t.Errorf("list after clearing the filter = %v, want %v", got, want)
+	}
+	if d := dimmedIDs(app); len(d) != 0 {
+		t.Errorf("dimmed after clearing = %v, want none", d)
+	}
+	if title := app.list.breadcrumbTitle(80); strings.Contains(title, "prefix:") {
+		t.Errorf("title %q should not show a scope filter", title)
+	}
+
+	// The scope shortcut toggles the prefix filter back on
+	press(app, "g")
+	press(app, "s")
+	got = listedIDs(app)
+	slices.Sort(got)
+	if want := []string{"api-c3d4", "repo-a1b2"}; !slices.Equal(got, want) {
+		t.Errorf("list after toggling the scope back = %v, want %v", got, want)
+	}
+	if got, want := app.list.queryInput.Value(), "prefix:api-"; got != want {
+		t.Errorf("query after toggling the scope back = %q, want %q", got, want)
+	}
+}
+
+func TestScopeToggleKeepsOtherTokens(t *testing.T) {
+	app := newScopedApp(t)
+	app.list.setQuery("type:task")
+	app.Update(app.list.loadBeans())
+
+	press(app, "g")
+	press(app, "s")
+	if got, want := app.list.queryInput.Value(), "type:task prefix:api-"; got != want {
+		t.Errorf("query after enabling the scope = %q, want %q", got, want)
 	}
 
 	press(app, "g")
 	press(app, "s")
-	got := listedIDs(app)
-	slices.Sort(got)
-	if want := []string{"api-c3d4", "repo-a1b2", "web-g7h8"}; !slices.Equal(got, want) {
-		t.Errorf("list with all scopes = %v, want %v", got, want)
-	}
-	if d := dimmedIDs(app); len(d) != 0 {
-		t.Errorf("dimmed with all scopes = %v, want none", d)
-	}
-	if title := app.list.breadcrumbTitle(80); !strings.Contains(title, "[all scopes]") {
-		t.Errorf("title %q should show all scopes", title)
+	if got, want := app.list.queryInput.Value(), "type:task"; got != want {
+		t.Errorf("query after disabling the scope = %q, want %q", got, want)
 	}
 }
 
@@ -107,8 +140,8 @@ func TestListScopeUnscopedConfig(t *testing.T) {
 
 	press(app, "g")
 	press(app, "s")
-	if app.list.showAllScope {
-		t.Error("toggle should do nothing without a scope")
+	if got := app.list.queryInput.Value(); got != "" {
+		t.Errorf("toggle should do nothing without a scope, query = %q", got)
 	}
 	if got := len(listedIDs(app)); got != before {
 		t.Errorf("listed %d beans, want %d", got, before)

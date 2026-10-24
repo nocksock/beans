@@ -26,22 +26,31 @@ type query struct {
 }
 
 // parseQuery parses whitespace-separated tokens: field:value includes (same field ORed,
-// different fields ANDed), -field:value excludes, sort:field[:asc|desc] sorts, and every
-// other word is free text. Unknown fields or values are reported as warnings and ignored.
+// different fields ANDed), -field:value excludes, prefix:value matches the start of bean
+// IDs, sort:field[:asc|desc] sorts, and every other word is free text. Unknown fields or
+// values are reported as warnings and ignored.
 // Tokens with an empty value are ignored silently, since the user is likely still typing.
 func parseQuery(input string, cfg *config.Config) query {
 	q := query{Filter: &model.BeanFilter{}}
 	var text []string
 
 	for _, token := range strings.Fields(input) {
-		field, value, ok := strings.Cut(strings.ToLower(token), ":")
+		rawField, value, ok := strings.Cut(token, ":")
 		if !ok {
 			text = append(text, token)
 			continue
 		}
+		field := strings.ToLower(rawField)
 		if value == "" {
 			continue
 		}
+		// Prefixes match bean IDs case-sensitively and are not a list field
+		if field == "prefix" {
+			prefix := value
+			q.Filter.IDPrefix = &prefix
+			continue
+		}
+		value = strings.ToLower(value)
 		if field == "sort" {
 			q.parseSort(value)
 			continue

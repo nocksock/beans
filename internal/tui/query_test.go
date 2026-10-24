@@ -11,6 +11,7 @@ import (
 
 func TestParseQuery(t *testing.T) {
 	cfg := config.Default()
+	prefix := func(s string) *string { return &s }
 
 	tests := []struct {
 		name     string
@@ -58,6 +59,21 @@ func TestParseQuery(t *testing.T) {
 			name:   "tags and case-insensitive field/value",
 			input:  "TAG:idea Priority:HIGH",
 			filter: model.BeanFilter{Tags: []string{"idea"}, Priority: []string{"high"}},
+		},
+		{
+			name:   "prefix filter",
+			input:  "prefix:api-",
+			filter: model.BeanFilter{IDPrefix: prefix("api-")},
+		},
+		{
+			name:   "prefix filter keeps case and combines with other tokens",
+			input:  "PREFIX:API- type:task",
+			filter: model.BeanFilter{IDPrefix: prefix("API-"), Type: []string{"task"}},
+		},
+		{
+			name:   "last prefix wins",
+			input:  "prefix:repo- prefix:api-",
+			filter: model.BeanFilter{IDPrefix: prefix("api-")},
 		},
 		{
 			name:  "sort with default direction",

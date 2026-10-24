@@ -125,7 +125,6 @@ type listModel struct {
 	query        query           // parsed filter query, see parseQuery
 	queryInput   textinput.Model // filter query editor, focused while typing
 	showArchived bool            // if false, beans with the archived status are hidden
-	showAllScope bool            // if true, beans outside the config's scope are listed too
 
 	// Multi-select state
 	selectedBeans map[string]bool // IDs of beans marked for multi-edit
@@ -185,11 +184,21 @@ func newListModel(resolver *graph.Resolver, cfg *config.Config) listModel {
 	qi.PromptStyle = lipgloss.NewStyle().Foreground(ui.ColorPrimary)
 	qi.PlaceholderStyle = lipgloss.NewStyle().Foreground(ui.ColorMuted)
 
+	// In a cascading config, start with the scope as an explicit filter so it
+	// can be seen and cleared like any other query.
+	initialQuery := ""
+	if cfg != nil {
+		if scope := cfg.Scope(); scope != "" {
+			initialQuery = "prefix:" + scope
+		}
+	}
+	qi.SetValue(initialQuery)
+
 	return listModel{
 		list:           l,
 		resolver:       resolver,
 		config:         cfg,
-		query:          parseQuery("", cfg),
+		query:          parseQuery(initialQuery, cfg),
 		queryInput:     qi,
 		selectedBeans:  selectedBeans,
 		collapsedBeans: collapsedBeans,
@@ -227,11 +236,6 @@ func (m listModel) loadBeans() tea.Msg {
 	if !showArchived {
 		filter.ExcludeStatus = append(slices.Clip(filter.ExcludeStatus), config.StatusArchived)
 	}
-	// Out-of-scope beans still come along as ancestors (see allBeans), dimmed
-	if scope := m.activeScope(); scope != "" {
-		filter.IDPrefix = &scope
-	}
-
 	// Query filtered beans
 	filteredBeans, err := m.resolver.Query().Beans(context.Background(), &filter)
 	if err != nil {
@@ -315,13 +319,25 @@ func (m listModel) scope() string {
 	return m.config.Scope()
 }
 
-// activeScope returns the ID prefix the list is limited to, or "" if it shows
-// beans of all scopes.
-func (m listModel) activeScope() string {
-	if m.showAllScope {
+// prefixFilter returns the prefix: filter value, or "" if there is none.
+func (m listModel) prefixFilter() string {
+	if m.query.Filter == nil || m.query.Filter.IDPrefix == nil {
 		return ""
 	}
-	return m.scope()
+	return *m.query.Filter.IDPrefix
+}
+
+// setPrefixFilter replaces the query's prefix: token, or removes it if prefix
+// is empty, keeping every other token.
+func (m *listModel) setPrefixFilter(prefix string) {
+	tokens := slices.DeleteFunc(strings.Fields(m.queryInput.Value()), func(t string) bool {
+		field, _, ok := strings.Cut(strings.ToLower(t), ":")
+		return ok && field == "prefix"
+	})
+	if prefix != "" {
+		tokens = append(tokens, "prefix:"+prefix)
+	}
+	m.setQuery(strings.Join(tokens, " "))
 }
 
 // descendantsOf returns the beans in candidates that are (transitive) children of rootID.
@@ -829,11 +845,16 @@ func (m listModel) handle(msg tea.Msg) (listModel, tea.Cmd) {
 				m.showArchived = !m.showArchived
 				return m, m.loadBeans
 			case key.Matches(msg, k.ToggleScope):
-				// Toggle showing beans outside the config's scope
-				if m.scope() == "" {
+				// Toggle the scope's prefix: filter token
+				scope := m.scope()
+				if scope == "" {
 					break
 				}
-				m.showAllScope = !m.showAllScope
+				if m.prefixFilter() == scope {
+					m.setPrefixFilter("")
+				} else {
+					m.setPrefixFilter(scope)
+				}
 				return m, m.loadBeans
 			case key.Matches(msg, k.Back):
 				// First clear selection if any beans are selected
@@ -922,13 +943,6 @@ func (m listModel) breadcrumbTitle(maxWidth int) string {
 	if m.showArchived {
 		suffix += " [+archived]"
 	}
-	if scope := m.scope(); scope != "" {
-		if m.showAllScope {
-			suffix += " [all scopes]"
-		} else {
-			suffix += fmt.Sprintf(" [%s*]", scope)
-		}
-	}
 
 	root := m.project
 	if root == "" {
@@ -983,10 +997,10 @@ func (m listModel) footer() string {
 	// The scope toggle only matters in a scoped config
 	var scopeHelp string
 	if scope := m.scope(); scope != "" {
-		if m.showAllScope {
-			scopeHelp = hint(k.ToggleScope, scope+"* only")
-		} else {
+		if m.prefixFilter() == scope {
 			scopeHelp = hint(k.ToggleScope, "all scopes")
+		} else {
+			scopeHelp = hint(k.ToggleScope, scope+"* only")
 		}
 	}
 
