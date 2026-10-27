@@ -1,11 +1,11 @@
 ---
 # beans-dkr9
 title: Migrate hub launchers to builtin launches
-status: in-progress
+status: completed
 type: task
 priority: normal
 created_at: 2026-10-19T12:20:48Z
-updated_at: 2026-10-27T15:52:52Z
+updated_at: 2026-10-27T15:53:59Z
 blocked_by:
     - beans-ppxk
 ---
