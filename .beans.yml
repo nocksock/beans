@@ -104,7 +104,8 @@ launchers:
     exec: |
       #!/bin/sh
       set -eu
-      "$BEANS_BIN" launch parent.prompt -- "$@"
+      # The cleanup steps below replace the builtin's worktree note
+      "$BEANS_BIN" launch parent.prompt -- "$@" --no-worktree-note
 
       worktree=""
       tmux_window=false
