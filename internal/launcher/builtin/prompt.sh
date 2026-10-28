@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Print the agent prompt for the bean: prompt [--tmux] [--worktree DIR]
+# Print the agent prompt for the bean: prompt [--tmux] [--worktree DIR] [--no-worktree-note]
+# --no-worktree-note leaves out the worktree section, for overrides that add their own
 set -euo pipefail
 
 : "${BEANS_ID:?BEANS_ID not set}"
 tmux_window=false
 worktree=""
+worktree_note=true
 while [[ $# -gt 0 ]]; do
     case $1 in
         --tmux) tmux_window=true; shift ;;
         --worktree) worktree=${2:?--worktree needs a value}; shift 2 ;;
-        *) echo "usage: prompt [--tmux] [--worktree DIR]" >&2; exit 2 ;;
+        --no-worktree-note) worktree_note=false; shift ;;
+        *) echo "usage: prompt [--tmux] [--worktree DIR] [--no-worktree-note]" >&2; exit 2 ;;
     esac
 done
 
@@ -30,7 +33,7 @@ You are running in a tmux window. Before starting, rename it to `<bean-id>: <lab
 EOT
 fi
 
-if [[ -n $worktree ]]; then
+if [[ -n $worktree ]] && $worktree_note; then
     cat <<EOT
 
 ## Worktree
