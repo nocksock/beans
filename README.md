@@ -484,7 +484,7 @@ beans ships launches you can use directly or compose in your own. They are bash 
 | `tmux-session` | `-- [--cwd DIR] [-- CMD...]` open or switch to a tmux session for the bean (tmux 3.0+); `--cwd` and `CMD` only apply when the session is created, an existing session is just attached |
 | `kitty-window` | `-- [--cwd DIR] -- CMD...` run a command in a new kitty window |
 | `worktree` | `-- [--base BRANCH] [--dir DIR]` ensure a git worktree on `task/<bean-id>` (default `.worktrees/<bean-id>` in the project root) and print its path; reuses a worktree that already has the branch checked out |
-| `prompt` | `-- [--tmux] [--worktree DIR]` print the agent prompt for the bean |
+| `prompt` | `-- [--tmux] [--worktree DIR] [--no-worktree-note]` print the agent prompt for the bean; `--no-worktree-note` drops the worktree section, e.g. for an override that appends its own merge and cleanup steps |
 | `agent` | `-- <claude\|opencode\|crush> [PROMPT-ARGS...]` start a coding agent with the output of the `prompt` launch |
 
 A relative `--cwd` or `--dir` is relative to the directory you call the builtin from. The default `.worktrees/` directory should be in your `.gitignore`. `worktree` defaults to `$BEANS_ROOT/.worktrees/<bean-id>`, i.e. the project root rather than `BEANS_CONFIG_DIR`, so in a subproject with its own `.beans.yml` pass `--dir` if you want the worktree elsewhere.

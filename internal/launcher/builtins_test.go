@@ -513,6 +513,7 @@ func TestPrompt(t *testing.T) {
 		{name: "plain", status: "todo", want: []string{"BEAN PROMPT"}, notWant: []string{"## tmux window", "## Worktree", "## Draft"}},
 		{name: "tmux", status: "todo", args: []string{"--tmux"}, want: []string{"## tmux window", "tmux rename-window"}},
 		{name: "worktree", status: "todo", args: []string{"--worktree", "/wt"}, want: []string{"## Worktree", "/wt", "task/beans-abc1"}},
+		{name: "worktree without note", status: "todo", args: []string{"--worktree", "/wt", "--no-worktree-note"}, notWant: []string{"## Worktree"}},
 		{name: "draft", status: "draft", want: []string{"## Draft: plan first", "beans update beans-abc1 --status in-progress"}},
 		{name: "large draft", status: "draft", padding: 200_000, want: []string{"## Draft: plan first"}},
 	}
