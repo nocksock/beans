@@ -51,3 +51,7 @@ run dir="dev" *args:
 # Start the TUI from a worktree (default: dev)
 tui dir="dev" *args:
     cd ./{{dir}} && go run . tui {{args}}
+
+# Start the docs dev server (watch + live reload) at http://localhost:8082
+docs:
+    cd ./docs && { [ -d node_modules ] || pnpm install --ignore-workspace; } && pnpm dev

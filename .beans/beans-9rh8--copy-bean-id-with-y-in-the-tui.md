@@ -1,12 +1,12 @@
 ---
 # beans-9rh8
 title: Copy bean ID with y in the TUI
-status: completed
+status: archived
 type: feature
 priority: normal
 size: sm
 created_at: 2026-10-23T12:00:40Z
-updated_at: 2026-10-23T12:19:56Z
+updated_at: 2026-10-23T12:33:56Z
 parent: beans-zkj9
 ---
 

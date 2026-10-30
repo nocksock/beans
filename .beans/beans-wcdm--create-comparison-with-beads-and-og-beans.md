@@ -1,11 +1,11 @@
 ---
 # beans-wcdm
 title: create comparison with beads and og beans
-status: completed
+status: archived
 type: task
 priority: normal
 created_at: 2026-10-20T08:54:39Z
-updated_at: 2026-10-22T08:08:06Z
+updated_at: 2026-10-23T12:33:56Z
 ---
 
 compare.md

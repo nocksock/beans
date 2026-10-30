@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>beans docs</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <div class="layout">
+    <header class="header">
+        <a class="site-title" href="/">beans</a>
+        <span><strong>cwd</strong> <code>{{ buildInfo.cwd }}</code></span>
+        <span><strong>branch</strong> <code>{{ buildInfo.branch }}</code></span>
+    </header>
+      <aside class="sidebar">
+        <nav>
+          {% for section in collections.nav %}
+          <p class="nav-section">{{ section.name }}{% if section.name != "." %}/{% endif %}</p>
+          <ul>
+            {% for item in section.items %}
+            <li>
+              <a
+                href="{{ item.url }}"
+                class="{% if item.url == page.url %}active{% endif %}"
+                {% if item.url == page.url %}aria-current="page"{% endif %}
+                >{{ item.title }}</a
+              >
+            </li>
+            {% endfor %}
+          </ul>
+          {% endfor %}
+        </nav>
+      </aside>
+      <main class="content">
+        {{ content | safe }}
+      </main>
+    </div>
+  </body>
+</html>
